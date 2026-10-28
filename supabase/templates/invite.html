@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es">
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #1f2937; line-height: 1.5;">
+    <h2 style="margin-bottom: 8px;">Invitación a la plataforma de reclutamiento</h2>
+    <p>Un administrador de Interruptivo Perú le dio acceso a la plataforma interna de reclutamiento y selección.</p>
+    <p>Para activar su cuenta, defina su contraseña desde el siguiente enlace (válido por tiempo limitado):</p>
+    <p>
+      <a
+        href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/restablecer"
+        style="display: inline-block; padding: 10px 16px; background: #1e40af; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >Definir contraseña</a
+      >
+    </p>
+    <p style="font-size: 12px; color: #6b7280;">
+      Si no esperaba esta invitación, ignore este mensaje. No comparta este enlace.
+    </p>
+  </body>
+</html>

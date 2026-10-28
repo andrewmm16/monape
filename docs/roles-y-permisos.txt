@@ -1,0 +1,169 @@
+ROLES Y PERMISOS - PLATAFORMA DE RECLUTAMIENTO DE INTERRUPTIVO PERU
+Estado: Etapa 1 (actualizado el 23/10/2026). Describe lo que la aplicacion permite HOY,
+no lo planificado.
+
+Los permisos se comprueban en el servidor y en la base de datos (RLS). Ocultar un boton
+no es el control: aunque alguien escriba la URL o llame a la API, no obtiene lo que su rol
+no permite.
+
+Nadie se registra solo. Solo un Administrador puede dar acceso a otra persona.
+Los candidatos NO tienen acceso a la plataforma.
+
+El 23/10/2026 se elimino el rol EVALUADOR (personas de otras areas que solo veian los
+puestos asignados). Si vuelve a hacer falta, se implementara de nuevo.
+
+
+====================================================================================
+1. LOS DOS ROLES EN UNA FRASE
+====================================================================================
+
+ADMINISTRADOR  Hace todo lo que hace RRHH y ademas decide quien entra a la plataforma
+               y con que rol.
+
+RRHH           Lleva el proceso de seleccion completo: crea los puestos, registra
+               candidatos, sube CV, ejecuta el analisis, revisa y decide el estado.
+
+Los dos ven TODOS los puestos y TODOS los candidatos.
+
+
+====================================================================================
+2. QUIEN PUEDE HACER QUE
+====================================================================================
+
+ACCION                                                 ADMIN   RRHH
+------------------------------------------------------------------------
+USUARIOS
+Invitar a una persona y asignarle un rol               Si      No
+Cambiar el rol de otra persona                         Si      No
+Desactivar / reactivar una cuenta                      Si      No
+Eliminar una cuenta (solo desde la papelera)           Si      No
+
+PUESTO DE TRABAJO (VACANTE)
+Ver puestos                                            Todos   Todos
+Crear un puesto                                        Si      Si
+Editar datos del puesto (titulo, area, fechas...)      Si      Si
+Publicar internamente / cerrar / reabrir / archivar    Si      Si
+Eliminar un puesto (solo borrador sin postulaciones)   Si      No
+Definir requisitos y su peso                           Si      Si
+Aprobar los criterios de evaluacion                    Si      Si
+
+CANDIDATOS Y CV
+Ver candidatos                                         Todos   Todos
+Registrar un candidato                                 Si      Si
+Editar datos / marcar un dato como verificado          Si      Si
+Asociar un candidato a otro puesto                     Si      Si
+Subir CV (PDF o DOCX)                                  Si      Si
+Corregir o transcribir el texto extraido del CV        Si      Si
+Descargar el CV (queda registrado en auditoria)        Si      Si
+
+ANALISIS DEL CV
+Ejecutar el analisis con el motor de reglas            Si      Si
+Ejecutar el analisis con IA (hoy desactivado, ver 3)   Si      Si
+Ver el resultado del analisis                          Si      Si
+Registrar la revision humana del analisis              Si      Si
+
+PROCESO DE SELECCION
+Cambiar el estado (Nuevo, Preseleccionado, ...)        Si      Si
+Pedir la opinion de otra persona (le llega un aviso)   Si      Si
+Responder una solicitud de opinion (con observacion)   Si      Si
+Registrar observaciones en una postulacion             Si      Si
+
+PANEL Y AUDITORIA
+Ver el panel de indicadores                            Si      Si
+Consultar la auditoria (quien descargo/cambio que)     Si (*)  No
+
+(*) La base de datos solo se la permite al Admin, pero AUN NO HAY PANTALLA para verla:
+    hoy solo se consulta desde Supabase Studio (herramienta tecnica).
+
+
+====================================================================================
+3. ANALISIS DEL CV CON IA
+====================================================================================
+
+Quien:       Admin y RRHH, con el boton "Evaluar con IA" de cada postulacion.
+
+Estado hoy:  DESACTIVADO PARA TODOS. Ningun rol puede activarlo desde la aplicacion.
+             Para activarlo hacen falta tres cosas, en este orden:
+               1. Que la empresa apruebe por escrito el proveedor de IA y el tratamiento
+                  de datos, incluida la transferencia internacional de los CV
+                  (ver docs/privacidad-y-legal.md).
+               2. Contratar el proveedor y obtener su clave.
+               3. Que la persona tecnica cambie la configuracion del servidor
+                  (ver docs/configuracion-ia.md).
+
+Que se envia: el texto del CV sin correos, telefonos, enlaces ni numeros de documento.
+             El nombre de la persona y su direccion postal NO se eliminan (limitacion
+             conocida).
+
+Limites:     50 analisis con IA al dia en toda la plataforma (configurable) y 10 cada
+             10 minutos por usuario.
+
+Mientras tanto: Admin y RRHH usan el "motor de reglas", que no envia nada fuera de la
+             empresa. Busca en el CV los terminos de cada requisito y cita la evidencia.
+
+En los dos casos:
+  - El resultado es orientativo y queda "pendiente de revision" hasta que RRHH lo revisa.
+  - Puede SUGERIR un estado, pero NUNCA lo cambia: una persona lo revisa y lo guarda.
+  - No se puede analizar a nadie si los criterios del puesto no estan aprobados.
+
+
+====================================================================================
+4. LO QUE NINGUN ROL PUEDE HACER DESDE LA APLICACION
+====================================================================================
+
+- Registrarse por su cuenta.
+- Borrar candidatos, CV o postulaciones.
+- Modificar un analisis ya registrado. Si hace falta, se genera uno nuevo y el anterior
+  queda en el historial.
+- Cambiar un estado sin dejar rastro. Cada cambio guarda el estado anterior, el nuevo,
+  quien lo hizo, cuando y el motivo. El motivo es obligatorio para "No seleccionado"
+  y "Retirado".
+- Cambiarse su propio rol, desactivarse ni eliminarse a si mismo (tampoco el Admin).
+- Eliminar una cuenta activa: primero se desactiva (pasa a la papelera). Al eliminarla
+  se borran su correo y su acceso, pero su nombre sigue en el historial.
+- Registrar a un candidato en un segundo proceso mientras tenga otro en curso.
+- Dejar el sistema sin ningun Administrador activo.
+- Configurar la IA, el correo u otros parametros: hoy se hace en la configuracion
+  tecnica del servidor, no en una pantalla.
+
+
+====================================================================================
+5. COMO INTERACTUAN ENTRE ELLOS (FLUJO NORMAL)
+====================================================================================
+
+1. ADMIN invita a cada persona por correo y le asigna su rol.
+2. RRHH crea el puesto, define los requisitos con su peso y los aprueba.
+3. RRHH registra candidatos, sube sus CV y ejecuta el analisis.
+4. Si quiere una segunda mirada, RRHH pide la opinion de otra persona de la plataforma.
+   Esa persona recibe una notificacion y responde con una observacion.
+5. RRHH registra la revision del analisis y decide el estado de cada candidato.
+6. ADMIN puede quitar el acceso a alguien en cualquier momento (desactivar cuenta).
+
+Responsable del proceso de un puesto: un Admin o una persona de RRHH.
+A quien se le puede pedir opinion sobre un candidato: a cualquier usuario activo, nunca a
+uno mismo. La notificacion de una solicitud solo la ve la persona consultada.
+
+Cuentas creadas fuera de la plataforma (por ejemplo, desde el panel de Supabase) sin un
+rol valido: nacen DESACTIVADAS y aparecen en la papelera hasta que un Admin las activa.
+
+
+====================================================================================
+6. COMO ASIGNAR LOS ROLES EN LA PRACTICA
+====================================================================================
+
+- Jefatura de RRHH (1 o 2 personas de confianza)  -> Administrador
+- Resto del equipo de RRHH                        -> RRHH
+
+Si el equipo de RRHH es una sola persona, basta con un Administrador.
+
+
+====================================================================================
+7. LO QUE AUN NO EXISTE Y CAMBIARA ESTOS PERMISOS
+====================================================================================
+
+- Pantalla de auditoria para el Admin.
+- Pantalla de configuracion (IA, correo, parametros) para el Admin.
+- Un rol para personas de otras areas (el antiguo Evaluador), si se confirma que hace
+  falta: por ejemplo, para que los jefes de area opinen o valoren entrevistas (Etapa 3).
+- Feedback a candidatos y correos (Etapas 2 y 3): los preparara RRHH y no saldra
+  ningun correo sin aprobacion de RRHH.

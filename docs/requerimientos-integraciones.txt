@@ -1,0 +1,180 @@
+REQUERIMIENTOS PARA PUBLICAR VACANTES EN PORTALES DE EMPLEO (CANALES GRATUITOS)
+Plataforma de reclutamiento - Etapa 2
+Preparado el 23/10/2026. Las condiciones de cada servicio se revisaron en esa fecha y
+pueden cambiar.
+
+
+====================================================================================
+1. RESUMEN
+====================================================================================
+
+QUE SE BUSCA
+Publicar cada vacante UNA sola vez en la plataforma y que:
+  - aparezca sola en la busqueda de empleos de Google y en buscadores de empleo
+    (Jooble, Trovit, etc.);
+  - en los portales sin conexion gratuita (LinkedIn Empleos, Computrabajo, Indeed,
+    Bumeran...) se publique a mano, pegando un enlace propio de la plataforma;
+  - todas las postulaciones lleguen solas a la plataforma, indicando de que portal
+    vino cada una.
+
+COSTO
+Ninguno de los canales de este documento cobra por publicar. Todos tienen limites de
+uso, pero alcanzan para el volumen de vacantes de la empresa.
+
+CANALES Y COMO SE PUBLICA EN CADA UNO
+
+  CANAL                                COMO SE PUBLICA        REQUIERE APROBACION
+  ---------------------------------------------------------------------------------
+  Google (busqueda de empleos)         Automatico             No
+  Buscadores de empleo (Jooble...)     Automatico (feed)      Si, de cada buscador
+  LinkedIn Empleos, Computrabajo,      Manual, con enlace     No
+  Indeed, Bumeran, Get on Board,       propio de la
+  Torre, Empleos Peru (MTPE)           plataforma
+
+Las redes sociales quedan fuera por ahora (ver seccion 8).
+
+
+====================================================================================
+2. REQUISITOS GENERALES (BLOQUEAN TODO LO DEMAS)
+====================================================================================
+
+[ ] 2.1 Cuentas de Vercel y Supabase en la nube para poner la plataforma en produccion
+        (cierre de la Etapa 1). Hoy la plataforma solo funciona en un equipo local.
+
+[ ] 2.2 Acceso al DNS del dominio iterruptivo.com para crear un subdominio, por ejemplo
+        empleos.iterruptivo.com. Ahi estaran las paginas publicas de las vacantes y el
+        formulario de postulacion.
+
+[ ] 2.3 Un correo corporativo compartido, por ejemplo empleos@iterruptivo.com. Con el se
+        crean las cuentas de la empresa en Google y en los portales, para que sean de la
+        empresa y no de una persona.
+
+[ ] 2.4 Datos legales de la empresa: razon social, RUC, direccion fiscal, sitio web y
+        enlace a la politica de privacidad (ya existe:
+        https://iterruptivo.com/es/legal/privacidad). Los piden los portales y los
+        buscadores de empleo.
+
+[ ] 2.5 Aprobacion legal del aviso de privacidad del formulario publico (ya estaba
+        pendiente en la Etapa 2). Sin ella, el formulario no se abre al publico.
+
+
+====================================================================================
+3. GOOGLE (BUSQUEDA DE EMPLEOS DE GOOGLE)
+====================================================================================
+
+Que logra:   las vacantes aparecen en Google cuando alguien busca empleo.
+Costo:       gratis (hasta 200 avisos a Google por dia).
+Aprobacion:  no requiere.
+Tiempo:      un dia, una vez que exista el subdominio.
+
+[ ] 3.1 Con el correo corporativo, crear una propiedad en Google Search Console y
+        verificar el dominio con un registro TXT en el DNS.
+
+[ ] 3.2 En Google Cloud: crear un proyecto, habilitar la "Indexing API" y crear una
+        cuenta de servicio con una clave en formato JSON.
+
+[ ] 3.3 En Search Console, agregar el correo de esa cuenta de servicio como PROPIETARIO.
+
+Se entrega al equipo tecnico: el archivo JSON de la clave (ver seccion 6).
+Los pasos 3.2 y 3.3 los puede hacer el equipo tecnico si se le da acceso.
+
+
+====================================================================================
+4. BUSCADORES DE EMPLEO (AGREGADORES)
+====================================================================================
+
+Que logra:   las vacantes aparecen en buscadores de empleo que leen un "feed" (un
+             listado automatico de vacantes que publica la plataforma).
+Costo:       la aparicion normal es gratis; cobran solo si se quiere destacar.
+Aprobacion:  cada buscador revisa el feed.
+
+[ ] 4.1 Cuando el feed este listo (lo prepara el equipo tecnico), darlo de alta en cada
+        buscador con su formulario para empresas o por correo, indicando la URL del
+        feed y un contacto: Jooble, Trovit, Talent.com, Careerjet, OpcionEmpleo,
+        JobTome y JobisJob.
+
+Nota: no se confirmo que todos cubran Peru; se vera al darse de alta.
+
+
+====================================================================================
+5. PORTALES CON PUBLICACION MANUAL
+====================================================================================
+
+Que logra:   se publica a mano en cada portal, pero el aviso lleva un enlace propio de la
+             plataforma. Asi las postulaciones llegan solas y se sabe de que portal vino
+             cada una. Si un portal no permite enlaces externos, RRHH descarga los CV y
+             los sube en lote a la plataforma.
+
+[ ] 5.1 Crear la cuenta de empresa (con el correo corporativo y el RUC) en:
+        LinkedIn Empleos (desde la pagina de la empresa), Computrabajo, Indeed, Bumeran,
+        Get on Board, Torre y Empleos Peru (MTPE).
+
+[ ] 5.2 En cada uno, anotar si permite "postular en un sitio externo" (enlace propio).
+
+[ ] 5.3 Confirmar en que portales publica hoy RRHH y si falta alguno en esta lista.
+
+Limites gratuitos conocidos:
+
+  LinkedIn Empleos  1 aviso gratis activo a la vez (segun fuentes no oficiales).
+  Indeed            hasta 3 avisos gratis al mes; pierden visibilidad en pocos dias.
+  Bumeran           3 avisos gratis al mes, 30 dias, datos de los primeros 15
+                    postulantes.
+  Computrabajo      aviso basico gratis, con visibilidad limitada.
+  Get on Board      publicar es gratis; ver a los postulantes dentro del portal es de
+                    pago (con enlace propio no haria falta, si el portal lo permite).
+  Torre             gratis, sin comision.
+  Empleos Peru      gratis (portal del Ministerio de Trabajo).
+
+
+====================================================================================
+6. COMO ENTREGAR LA CLAVE DE GOOGLE Y LAS CUENTAS
+====================================================================================
+
+- La clave de Google (archivo JSON) da acceso a la cuenta de la empresa. NO enviarla por
+  correo, WhatsApp ni chat.
+- Lo ideal: cargarla directamente en Vercel (Settings > Environment Variables) o
+  compartirla con un gestor de contrasenas.
+- Nunca se guarda en el codigo de la plataforma.
+- Todas las cuentas deben quedar a nombre de la empresa (correo corporativo) y con al
+  menos dos administradores, para no depender de una sola persona.
+
+
+====================================================================================
+7. ORDEN SUGERIDO
+====================================================================================
+
+  PRIORIDAD  QUE                                              QUIEN
+  ---------------------------------------------------------------------------------
+  1          Correo corporativo y datos legales (2.3, 2.4)    Administracion
+  1          Cuentas de Vercel y Supabase (2.1)               TI
+  2          Subdominio y Google (2.2 y seccion 3)            Quien administra el
+                                                              dominio
+  2          Cuentas en portales manuales (seccion 5)         RRHH
+  3          Buscadores de empleo (seccion 4)                 RRHH, cuando el feed
+                                                              este listo
+
+
+====================================================================================
+8. FUERA DEL ALCANCE POR AHORA
+====================================================================================
+
+Instagram, TikTok, Facebook, X (Twitter) y las publicaciones en la pagina de LinkedIn
+de la empresa son redes sociales, no portales de empleo. Se pueden agregar mas adelante
+si se quiere difundir las vacantes ahi. Si se retoman: Instagram y la pagina de LinkedIn
+son gratuitas (LinkedIn exige aprobacion previa); X no tiene plan gratuito desde
+febrero de 2026.
+
+
+====================================================================================
+9. ENLACES
+====================================================================================
+
+Google Search Console        https://search.google.com/search-console
+Google Cloud                 https://console.cloud.google.com
+Guia de la Indexing API      https://developers.google.com/search/apis/indexing-api/v3/prereqs
+Computrabajo empresas        https://empresa.pe.computrabajo.com
+Bumeran empresas             https://www.bumeran.com.pe/empresas
+Indeed empresas              https://pe.indeed.com/reclutamiento
+Get on Board                 https://www.getonbrd.com
+Torre                        https://torre.ai
+Empleos Peru (MTPE)          https://www.empleosperu.gob.pe

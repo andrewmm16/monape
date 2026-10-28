@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es">
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #1f2937; line-height: 1.5;">
+    <h2 style="margin-bottom: 8px;">Restablecer contraseña</h2>
+    <p>Recibimos una solicitud para restablecer la contraseña de su cuenta en la plataforma de reclutamiento.</p>
+    <p>
+      <a
+        href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/restablecer"
+        style="display: inline-block; padding: 10px 16px; background: #1e40af; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >Definir una nueva contraseña</a
+      >
+    </p>
+    <p style="font-size: 12px; color: #6b7280;">
+      El enlace es de un solo uso y expira pronto. Si usted no lo solicitó, ignore este mensaje: su contraseña no cambiará.
+    </p>
+  </body>
+</html>
