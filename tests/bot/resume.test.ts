@@ -107,6 +107,28 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     expect(api.statuses.at(-1)).toMatchObject({ state: "necesita_persona", reason: ERROR_CODES.pageChanged });
   });
 
+  it("un portal caído (portal_no_disponible) también se reanuda solo cuando vuelve, sin publicar nada en la comprobación", async () => {
+    const time = clock();
+    const { slot, api, calls, state } = stubSlot(time);
+    state.failWith = ERROR_CODES.portalUnreachable;
+    api.queue.push(job());
+    const round = await runRound([slot], () => {});
+    expect(round.newlyHalted).toEqual([{ slug: "linkedin", reason: ERROR_CODES.portalUnreachable }]);
+    expect(isResumable(slot)).toBe(true);
+    expect(round.allHalted).toBe(false);
+
+    time.advance(5 * MIN);
+    expect(await runResumeChecks([slot], () => {})).toEqual({ resumed: [], escalated: [] }); // sigue caído
+    expect(slot.halted).toBe(true);
+
+    state.failWith = null;
+    time.advance(5 * MIN);
+    expect(await runResumeChecks([slot], () => {})).toEqual({ resumed: ["linkedin"], escalated: [] });
+    expect(slot.halted).toBe(false);
+    expect(api.statuses.at(-1)).toEqual({ state: "activo", reason: undefined });
+    expect(calls.publish).toBe(0);
+  });
+
   it("si la prueba vuelve a pasar: reanuda, informa «activo», anota la recuperación del incidente y no repite la prueba al instante", async () => {
     const time = clock();
     const dir = mkdtempSync(path.join(tmpdir(), "reanudar-"));

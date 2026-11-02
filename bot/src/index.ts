@@ -27,6 +27,9 @@ function haltMessage(reason: string | undefined, portal?: string, resumeMinutes 
   if (reason === ERROR_CODES.appUnavailable) {
     return `${subject} (${reason}): no pude informar a la app el resultado de una publicación. No es un cambio del portal: revise que la app responda y reinicie el robot (npm run bot). El diario evita que se publique dos veces.`;
   }
+  if (reason === ERROR_CODES.portalUnreachable && resumeMinutes > 0) {
+    return `${subject} (${reason}): el portal no respondió (caído o sin conexión). No es un cambio de su página. Cada ${resumeMinutes} min repito solo la prueba de estructura y, cuando el portal vuelva, lo reanudo y se lo aviso.`;
+  }
   if (reason === ERROR_CODES.pageChanged && resumeMinutes > 0) {
     return `${subject} (${reason}): el portal parece haber cambiado. Cada ${resumeMinutes} min repito solo la prueba de estructura (sin publicar ni retirar nada) y, si vuelve a pasar, lo reanudo y se lo aviso. Si no vuelve a la normalidad, hay que revisar el adaptador.`;
   }

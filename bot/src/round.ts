@@ -37,8 +37,12 @@ export interface RoundResult {
   allHalted: boolean;
 }
 
-/** Detenido por `pagina_cambio` y con reanudación automática: la prueba de estructura puede devolverlo al trabajo sin una persona. */
-export const isResumable = (slot: AdapterSlot): boolean => slot.halted && slot.haltReason === ERROR_CODES.pageChanged && slot.resume !== undefined;
+/** Motivos de parada que la prueba de estructura puede revertir sin una persona: la página cambió y se restableció, o el portal volvió. */
+const RESUMABLE_REASONS = new Set<string>([ERROR_CODES.pageChanged, ERROR_CODES.portalUnreachable]);
+
+/** Detenido por `pagina_cambio` o `portal_no_disponible` y con reanudación automática: la prueba de estructura puede devolverlo al trabajo. */
+export const isResumable = (slot: AdapterSlot): boolean =>
+  slot.halted && slot.haltReason !== undefined && RESUMABLE_REASONS.has(slot.haltReason) && slot.resume !== undefined;
 
 /** Todos detenidos y ninguno reanudable: solo una persona puede seguir (el robot termina con código 2). */
 export const allStopped = (slots: AdapterSlot[]): boolean => slots.every((slot) => slot.halted && !isResumable(slot));
