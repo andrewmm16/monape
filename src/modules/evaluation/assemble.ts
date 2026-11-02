@@ -30,11 +30,13 @@ export function assembleEvaluation(input: {
     methodVersion: input.methodVersion,
     scoringVersion: SCORING_VERSION,
     model: input.model,
-    items: enriched.map(({ requirementId, assessment, evidence, rationale }) => ({
+    items: enriched.map(({ requirementId, assessment, evidence, rationale, cvAssessment, cvRationale }) => ({
       requirementId,
       assessment,
       evidence,
       rationale,
+      ...(cvAssessment ? { cvAssessment } : {}),
+      ...(cvRationale ? { cvRationale } : {}),
     })),
     scores,
     level,

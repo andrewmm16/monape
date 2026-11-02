@@ -2,22 +2,51 @@ import Link from "next/link";
 import { AssessmentBadge, CompatibilityBadge } from "@/components/common/badges";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTime, formatPercent } from "@/lib/format";
+import { formatDateTime, formatNumericDate, formatPercent } from "@/lib/format";
 import {
   ASSESSMENT_DESCRIPTIONS,
+  ASSESSMENT_LABELS,
   EVALUATION_METHOD_LABELS,
   REQUIREMENT_CATEGORY_LABELS,
   REQUIREMENT_PRIORITY_LABELS,
   REVIEW_OUTCOME_LABELS,
   SYSTEM_ACTOR_LABEL,
+  VERIFICATION_SOURCE_LABELS,
+  VERIFICATION_SOURCE_PHRASES,
 } from "@/lib/labels";
-import type { listEvaluationItems, listEvaluations } from "@/modules/applications/queries";
+import { cn } from "@/lib/utils";
+import type { listEvaluationItems, listEvaluations, listRequirementVerifications } from "@/modules/applications/queries";
 import { Constants } from "@/types/database";
 import { ReviewForm } from "./review-form";
+import { RemoveVerificationDialog, VerifyRequirementDialog } from "./verification-dialog";
 
 type Evaluation = Awaited<ReturnType<typeof listEvaluations>>[number];
 type Item = Awaited<ReturnType<typeof listEvaluationItems>>[number];
+type Verification = Awaited<ReturnType<typeof listRequirementVerifications>>[number];
+
+const VERIFIED_TONES = {
+  acreditado: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
+  no_cumplido: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
+} as const;
+
+/** Origen de la valoración: lo que dice el CV o lo que RRHH comprobó después. */
+function OriginBadge({ item }: { item: Item }) {
+  if (!item.verification_source) {
+    return (
+      <Badge variant="outline" className="border-transparent bg-muted text-foreground">
+        Según el CV
+      </Badge>
+    );
+  }
+  const tone = item.assessment === "no_cumplido" ? VERIFIED_TONES.no_cumplido : VERIFIED_TONES.acreditado;
+  return (
+    <Badge variant="outline" className={cn("border-transparent", tone)}>
+      Verificado · {VERIFICATION_SOURCE_LABELS[item.verification_source]}
+    </Badge>
+  );
+}
 
 function ScoreMeter({ score, potential }: { score: number; potential: number }) {
   return (
@@ -53,6 +82,7 @@ export function EvaluationCard({
   history,
   currentCriteriaVersion,
   canReview,
+  verifications = [],
 }: {
   applicationId: string;
   evaluation: Evaluation | null;
@@ -60,6 +90,7 @@ export function EvaluationCard({
   history: Evaluation[];
   currentCriteriaVersion: number;
   canReview: boolean;
+  verifications?: Verification[];
 }) {
   if (!evaluation) {
     return (
@@ -79,6 +110,10 @@ export function EvaluationCard({
 
   const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
   const outdated = evaluation.criteria_version < currentCriteriaVersion;
+  const verifiedCount = items.filter((item) => item.verification_source).length;
+  // Solo se verifica sobre la evaluación más reciente y con criterios vigentes.
+  const canVerify = canReview && !outdated && history[0]?.id === evaluation.id;
+  const currentVerification = new Map(verifications.map((v) => [v.requirement_id, v]));
 
   return (
     <Card>
@@ -103,12 +138,18 @@ export function EvaluationCard({
       <CardContent className="space-y-6">
         <ScoreMeter score={evaluation.score} potential={evaluation.score_potential} />
         <p className="text-sm">{evaluation.summary}</p>
+        <p className="text-sm font-medium">
+          Requisitos verificados: {verifiedCount} de {items.length}
+        </p>
 
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">Detalle por requisito</h3>
           <ul className="space-y-3">
             {items.map((item) => {
               const evidence = (Array.isArray(item.evidence) ? item.evidence : []) as Evidence[];
+              const verified = Boolean(item.verification_source);
+              const verification = item.requirement_id ? currentVerification.get(item.requirement_id) : undefined;
+              const hasVerification = verified || Boolean(verification);
               return (
                 <li key={item.id} className="rounded-md border p-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -123,11 +164,40 @@ export function EvaluationCard({
                         {item.is_essential ? <Badge variant="outline">Legal o esencial</Badge> : null}
                       </div>
                     </div>
-                    <span title={ASSESSMENT_DESCRIPTIONS[item.assessment]}>
-                      <AssessmentBadge assessment={item.assessment} />
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                      <OriginBadge item={item} />
+                      {verified ? (
+                        <span
+                          className={cn(
+                            "inline-flex h-5 items-center rounded-4xl px-2 text-xs font-medium",
+                            VERIFIED_TONES[item.assessment === "no_cumplido" ? "no_cumplido" : "acreditado"],
+                          )}
+                        >
+                          {item.assessment === "no_cumplido" ? "No cumple" : "Cumple"}
+                        </span>
+                      ) : (
+                        <span title={ASSESSMENT_DESCRIPTIONS[item.assessment]}>
+                          <AssessmentBadge assessment={item.assessment} />
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{item.rationale}</p>
+                  {verified && item.verification_source ? (
+                    <div className="mt-2 space-y-1 text-sm">
+                      <p>
+                        Verificado en {VERIFICATION_SOURCE_PHRASES[item.verification_source]} el{" "}
+                        {formatNumericDate(item.verified_at)} por {item.verifier?.full_name ?? "RRHH"}:{" "}
+                        <span className="whitespace-pre-wrap">«{item.verification_note}»</span>
+                      </p>
+                      {item.cv_assessment ? (
+                        <p className="text-xs text-muted-foreground">
+                          Según el CV: {ASSESSMENT_LABELS[item.cv_assessment].toLowerCase()}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">{item.rationale}</p>
+                  )}
                   {evidence.length > 0 ? (
                     <div className="mt-2 space-y-1">
                       <p className="text-xs font-medium">Evidencia en el CV:</p>
@@ -136,6 +206,41 @@ export function EvaluationCard({
                           {e.quote}
                         </blockquote>
                       ))}
+                    </div>
+                  ) : null}
+                  {canVerify && item.requirement_id ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <VerifyRequirementDialog
+                        applicationId={applicationId}
+                        requirementId={item.requirement_id}
+                        requirementDescription={item.description}
+                        initialValues={
+                          verification
+                            ? {
+                                result: verification.result as "acreditado" | "no_cumplido",
+                                source: verification.source,
+                                note: verification.note,
+                              }
+                            : undefined
+                        }
+                        trigger={
+                          <Button type="button" size="sm" variant="outline" className="h-9 sm:h-7">
+                            {hasVerification ? "Cambiar" : "Verificar"}
+                          </Button>
+                        }
+                      />
+                      {hasVerification ? (
+                        <RemoveVerificationDialog
+                          applicationId={applicationId}
+                          requirementId={item.requirement_id}
+                          requirementDescription={item.description}
+                          trigger={
+                            <Button type="button" size="sm" variant="ghost" className="h-9 sm:h-7">
+                              Quitar verificación
+                            </Button>
+                          }
+                        />
+                      ) : null}
                     </div>
                   ) : null}
                 </li>

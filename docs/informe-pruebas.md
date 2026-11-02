@@ -306,6 +306,28 @@ No probado:
 - la pantalla de sugerencias a ancho de celular y con el tope lleno;
 - las evaluaciones anteriores con `reglas-v1`, que no se recalculan solas: hay que reevaluarlas.
 
+## 4 terdecies. Verificación por requisito, comparación de candidatos y entrevistas · 28/10/2026
+
+Migraciones `20261028001000_requirement_verifications.sql`, `20261028001100_interviews.sql` y `20261028001200_interviews_hardening.sql`, aplicadas a Supabase local con `migration up --local`, sin borrar datos.
+
+| Prueba | Resultado |
+|---|---|
+| `npm run test:unit`. Verificaciones: aplicar, quitar y reconstruir conservando método y modelo, más el caso de evaluaciones anteriores a `cv_rationale`. Orden de «mejor opción» con todos los desempates. Fechas y horas de Lima y validación de entrevistas | ✅ **477/477** en 24 archivos |
+| `npm run test:db`. Verificaciones: RLS, auditoría, una vigente por requisito, rechazo de evaluaciones que las contradicen, `cv_rationale` solo en verificados y recorte a 2000. Entrevistas: programar, reprogramar, cancelar y resultados con su cambio de estado. Cancelación automática de las programadas al cerrar la postulación por las tres vías. Rechazo de reprogramar en postulaciones cerradas o vacantes archivadas | ✅ **247/247** en 14 archivos (ejecutada por el coordinador) |
+| `npm run typecheck` / `lint` / `build` / `test:secrets` | ✅ sin errores · 0 valores secretos en 49 archivos · el build incluye `/entrevistas` y `/vacantes/[id]/comparar` |
+| `tests/e2e/verificacion.spec.ts`: verificar un requisito sin evidencia, ver «Verificado · Entrevista» y lo que decía el CV, la puntuación sube y al quitarlo vuelve | ✅ escritorio |
+| `tests/e2e/comparacion.spec.ts`: «Comparar los mejores», selección manual y un «no cumple» verificado que manda al candidato al final | ✅ escritorio |
+| `tests/e2e/entrevistas.spec.ts`: programar, Pasó, No pasó (a «Descartados»), No asistió; y la página «Entrevistas» a ancho de celular | ✅ el flujo en escritorio; la página, en el proyecto móvil (Pixel 7) |
+| Regresión: `flujo-rrhh` (4 casos), `evaluar-pendientes`, `carga-masiva` | ✅ escritorio |
+| Revisión independiente | Sin bloqueantes. Cinco hallazgos corregidos: (1) al verificar, la puntuación se rehacía con reglas aunque la evaluación fuera de IA; ahora se reconstruye con el mismo método; (2) quedaban entrevistas programadas en postulaciones cerradas; ahora se cancelan solas y no se pueden reprogramar; (3) la selección de la comparación no se reiniciaba al paginar o filtrar; (4) «Comparar los mejores» no desempataba de forma estable; ahora ordena por id y revisa hasta 200 postulaciones; (5) dos pruebas E2E dependían de la velocidad del OCR |
+
+El equipo se volvió muy lento durante las correcciones: un cálculo de 0,3 s tardó 6 min. Todas las pruebas de esta tabla se repitieron después de que se recuperó.
+
+No probado:
+- la reconstrucción de una evaluación hecha con IA contra la API real, que aún no está aprobada; solo se probó con pruebas unitarias;
+- la comparación y la verificación en celular (las pruebas de celular de estas pantallas se omiten);
+- dos personas verificando el mismo requisito a la vez, salvo el reintento cubierto por pruebas unitarias.
+
 ## 5. No ejecutado (requiere recursos no disponibles)
 
 | Prueba | Motivo | Cómo ejecutarla |

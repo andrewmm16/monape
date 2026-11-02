@@ -53,3 +53,9 @@ next-env.d.ts
 # Estado local de la CLI de Supabase (incluye secretos del stack local)
 /supabase/.temp/
 /supabase/.branches/
+
+# robot de portales: sesión del navegador y estado local (sensibles)
+/bot/.profile/
+/bot/.state/
+# lector de correo: estado local (hashes de lo procesado)
+/correo/.state/

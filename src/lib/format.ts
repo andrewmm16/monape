@@ -29,6 +29,20 @@ export function formatDateTime(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "—" : dateTimeFormatter.format(date);
 }
 
+const numericDateFormatter = new Intl.DateTimeFormat("es-PE", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: TIME_ZONE,
+});
+
+/** dd/mm/aaaa en la zona horaria de Lima. */
+export function formatNumericDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : numericDateFormatter.format(date);
+}
+
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return `${Math.round(value)} %`;

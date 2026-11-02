@@ -87,13 +87,15 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   const pdf = await makePdf([`Persona Ficticia ${suffix}`, "Experiencia con SQL Server y reportes."]);
   await page.getByLabel(/Cargar CV/).setInputFiles({ name: "cv-ficticio.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdf) });
   await page.getByRole("button", { name: "Cargar", exact: true }).click();
-  await expect(page.getByText("cv-ficticio.pdf")).toBeVisible();
-  await expect(page.getByText("Texto extraído automáticamente")).toBeVisible();
+  // Este CV es corto a propósito (texto parcial): se lee también con OCR en línea,
+  // que tarda varios segundos; por eso las esperas siguientes son de 30 s.
+  await expect(page.getByText("cv-ficticio.pdf")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Texto extraído automáticamente")).toBeVisible({ timeout: 30_000 });
 
   // Evaluación: muestra criterios, evidencias y limitaciones; el estado no cambia
   await page.getByRole("link", { name: `Analista E2E ${suffix}` }).click();
   await page.getByRole("button", { name: "Evaluar con motor de reglas" }).click();
-  await expect(page.getByText("Detalle por requisito")).toBeVisible();
+  await expect(page.getByText("Detalle por requisito")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Evidencia en el CV:")).toBeVisible();
   await expect(page.getByText("Limitaciones de esta evaluación")).toBeVisible();
   await expect(page.getByText("Nuevo").first()).toBeVisible();

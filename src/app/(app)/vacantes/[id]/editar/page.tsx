@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { AccessDenied } from "@/components/common/access-denied";
 import { PageHeader } from "@/components/common/page-header";
+import { PortalsPanel } from "@/components/vacancies/portals-panel";
 import { VacancyForm } from "@/components/vacancies/vacancy-form";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
+import { getServerEnv } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { listPortalPublications } from "@/modules/portals/queries";
 import { listActiveProfiles } from "@/modules/users/queries";
 import { getVacancy } from "@/modules/vacancies/queries";
 
@@ -25,6 +28,7 @@ export default async function EditVacancyPage({ params }: PageProps<"/vacantes/[
     throw error;
   });
   const owners = await listActiveProfiles(supabase);
+  const portalRows = await listPortalPublications(supabase, vacancy.id);
 
   return (
     <>
@@ -53,6 +57,21 @@ export default async function EditVacancyPage({ params }: PageProps<"/vacantes/[
           isConfidential: vacancy.is_confidential,
         }}
       />
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Portales de empleo</h2>
+          <p className="text-sm text-muted-foreground">
+            Se guardan aparte del formulario de arriba. Guarde primero los cambios de la vacante: el robot publica la
+            versión guardada.
+          </p>
+        </div>
+        <PortalsPanel
+          vacancyId={vacancy.id}
+          vacancyStatus={vacancy.status}
+          rows={portalRows}
+          botEnabled={Boolean(getServerEnv().PORTAL_BOT_SECRET)}
+        />
+      </section>
     </>
   );
 }

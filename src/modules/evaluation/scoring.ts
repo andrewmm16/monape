@@ -64,10 +64,19 @@ const COUNT_LABELS: [Assessment, string, string][] = [
 ];
 
 export function buildSummary(items: ItemAssessment[], scores: Scores, levelLabel: string): string {
+  // Lo verificado por RRHH se cuenta aparte de lo que dice el CV.
+  const fromCv = items.filter((i) => !i.cvAssessment);
   const parts = COUNT_LABELS.map(([assessment, singular, plural]) => {
-    const count = items.filter((i) => i.assessment === assessment).length;
+    const count = fromCv.filter((i) => i.assessment === assessment).length;
     return count > 0 ? `${count} ${count === 1 ? singular : plural}` : null;
   }).filter(Boolean);
+  for (const [assessment, singular, plural] of [
+    ["acreditado", "cumple (verificado)", "cumplen (verificados)"],
+    ["no_cumplido", "no cumple (verificado)", "no cumplen (verificados)"],
+  ] as const) {
+    const count = items.filter((i) => i.cvAssessment && i.assessment === assessment).length;
+    if (count > 0) parts.push(`${count} ${count === 1 ? singular : plural}`);
+  }
   return (
     `${levelLabel}. De ${items.length} requisitos: ${parts.join(", ")}. ` +
     `Peso acreditado: ${scores.score.toFixed(0)} %; ` +
@@ -97,6 +106,12 @@ export function buildLimitations(options: {
   if (options.scores.unknown > 0) {
     limitations.push(
       `El ${options.scores.unknown.toFixed(0)} % del peso corresponde a requisitos sin evidencia o pendientes de verificación: la falta de información en el CV no equivale a falta de capacidad.`,
+    );
+  }
+  const verified = options.items.filter((i) => i.cvAssessment).length;
+  if (verified > 0) {
+    limitations.push(
+      `${verified} ${verified === 1 ? "requisito fue verificado" : "requisitos fueron verificados"} por RRHH después del CV y ${verified === 1 ? "prevalece" : "prevalecen"} sobre lo que este indica.`,
     );
   }
   if (options.items.some((i) => i.isEssential)) {

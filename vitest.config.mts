@@ -25,6 +25,17 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          // El robot contra el portal falso, con Chromium real (headless).
+          name: "bot",
+          include: ["tests/bot/**/*.test.ts"],
+          environment: "node",
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: "db",
           include: ["tests/db/**/*.test.ts"],
           environment: "node",

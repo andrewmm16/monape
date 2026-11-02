@@ -187,3 +187,65 @@ describe("decisionWarning", () => {
     expect(decisionWarning(input({}, UNRELATED), "no_seleccionado")).toBeNull();
   });
 });
+
+describe("requisitos con «no cumple» verificado por RRHH", () => {
+  const verified = (description: string, source: NonNullable<DraftItem["verification_source"]>, priority: DraftItem["priority"] = "obligatorio"): DraftItem => ({
+    ...item(description, "no_cumplido", priority),
+    verification_source: source,
+  });
+
+  it("lo redacta como comprobado, con su fuente, y no como «aparentemente»", () => {
+    const items = [verified("Inglés", "entrevista"), item("SQL", "no_cumplido")];
+    const reason = buildReasonDraft(input({ level: "baja", score: 10 }, items), "en_reserva");
+    expect(reason).toContain("Verificado que no cumple Inglés (entrevista).");
+    expect(reason).toContain("aparentemente no cumple SQL; debe confirmarse");
+    expect(reason).not.toContain("aparentemente no cumple Inglés");
+
+    const note = buildObservationDraft(input({ level: "baja", score: 10 }, items));
+    expect(note).toContain("No cumple, verificado por RRHH:\n- Inglés: verificado en entrevista");
+    expect(note).toContain("Aparentemente no cumple (por confirmar):\n- SQL");
+    expect(note).not.toMatch(/Aparentemente no cumple \(por confirmar\):\n- Inglés/);
+  });
+
+  it("no lo propone como algo por confirmar en la entrevista", () => {
+    const note = buildStatusNoteDraft(input({ level: "baja" }, [verified("Inglés", "entrevista")]), "preseleccionado");
+    expect(note).not.toContain("confirmar Inglés");
+  });
+
+  it("al no seleccionar, lo cita como verificado", () => {
+    const reason = buildReasonDraft(input({ level: "baja" }, [verified("Inglés", "prueba_tecnica")]), "no_seleccionado");
+    expect(reason).toContain("se verificó que no cumple Inglés (prueba técnica)");
+    expect(decisionWarning(input({ level: "baja" }, [verified("Inglés", "prueba_tecnica")]), "no_seleccionado")).toBeNull();
+  });
+
+  it("avisa al avanzar con un obligatorio que no cumple verificado", () => {
+    expect(decisionWarning(input({ level: "baja" }, [verified("Inglés", "entrevista")]), "preseleccionado")).toMatch(
+      /Se verificó que no cumple requisitos obligatorios \(Inglés \(entrevista\)\)/,
+    );
+  });
+
+  it("«sin evidencia» se sigue redactando como ausencia de mención en el CV", () => {
+    const reason = buildReasonDraft(input({}, [item("Inglés", "sin_evidencia")]), "preseleccionado");
+    expect(reason).toContain("que el CV no menciona");
+    expect(reason).not.toContain("Verificado");
+  });
+});
+
+describe("requisitos con «cumple» verificado por RRHH", () => {
+  const met = (description: string, source: NonNullable<DraftItem["verification_source"]>): DraftItem => ({
+    ...item(description, "acreditado"),
+    verification_source: source,
+  });
+
+  it("no lo redacta como «el CV acredita», sino como comprobado con su fuente", () => {
+    const items = [item("SQL", "acreditado"), met("Inglés", "entrevista")];
+    const reason = buildReasonDraft(input({ score: 100, level: "alta" }, items), "preseleccionado");
+    expect(reason).toContain("el CV acredita 1 de 2 requisitos obligatorios (SQL) y se verificó que cumple Inglés (entrevista)");
+    expect(reason).not.toMatch(/CV acredita[^.]*Inglés \(entrevista\)\)/);
+
+    const note = buildObservationDraft(input({ score: 100, level: "alta" }, items));
+    expect(note).toContain("Acredita, con evidencia en el CV:\n- SQL");
+    expect(note).toContain("Cumple, verificado por RRHH:\n- Inglés: verificado en entrevista");
+    expect(note).not.toContain("- SQL\n- Inglés");
+  });
+});

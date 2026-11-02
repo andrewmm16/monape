@@ -9,6 +9,10 @@ import { requirePageUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, SYSTEM_ACTOR_LABEL } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { InterviewOutcomeBadge, LocationText } from "@/components/interviews/interview-item";
+import { can } from "@/lib/auth/permissions";
+import { dayLabel, formatInterviewDateTime } from "@/modules/interviews/datetime";
+import { listUpcomingInterviews } from "@/modules/interviews/queries";
 import { getDashboardSummary } from "@/modules/dashboard/queries";
 import { listPendingOpinions } from "@/modules/notifications/queries";
 import { Constants } from "@/types/database";
@@ -33,9 +37,11 @@ function StatTile({ label, value, hint, href }: { label: string; value: number; 
 export default async function DashboardPage() {
   const user = await requirePageUser();
   const supabase = await createSupabaseServerClient();
-  const [summary, pendingOpinions] = await Promise.all([
+  const canSeeInterviews = can(user.role, "applications:manage");
+  const [summary, pendingOpinions, upcomingInterviews] = await Promise.all([
     getDashboardSummary(supabase),
     listPendingOpinions(supabase, user.id),
+    canSeeInterviews ? listUpcomingInterviews(supabase, { limit: 5, days: 7 }) : Promise.resolve([]),
   ]);
 
   const byStatus = Constants.public.Enums.application_status.map((status) => ({
@@ -186,13 +192,52 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        {canSeeInterviews ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Próximas entrevistas</CardTitle>
+              <CardDescription>Las próximas 5 de los siguientes 7 días, en hora de Perú.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {upcomingInterviews.length === 0 ? (
+                <EmptyState title="No hay entrevistas en los próximos 7 días" />
+              ) : (
+                <ul className="divide-y text-sm">
+                  {upcomingInterviews.map((interview) => (
+                    <li key={interview.id} className="space-y-0.5 py-2">
+                      <div className="flex flex-wrap items-center gap-2 font-medium">
+                        <span>{dayLabel(interview.scheduled_at)}</span>
+                        <span className="font-normal text-muted-foreground">{formatInterviewDateTime(interview.scheduled_at)}</span>
+                        <InterviewOutcomeBadge status={interview.status} result={interview.result} />
+                      </div>
+                      <div>
+                        <Link href={`/postulaciones/${interview.applications.id}`} className="font-medium hover:underline">
+                          {interview.applications.candidates?.full_name ?? "Candidato"}
+                        </Link>{" "}
+                        · <span className="text-muted-foreground">{interview.applications.vacancies?.title}</span>
+                      </div>
+                      {interview.location ? (
+                        <div className="text-xs text-muted-foreground">
+                          <LocationText location={interview.location} />
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link href="/entrevistas" className="text-sm font-medium underline-offset-4 hover:underline">
+                Ver todas las entrevistas
+              </Link>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card>
           <CardHeader>
             <CardTitle>Próximos módulos</CardTitle>
             <CardDescription>Indicadores que se habilitarán cuando existan sus módulos.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Entrevistas próximas — módulo de entrevistas (Etapa 3).</p>
             <p>Feedback pendiente de aprobación — módulo de feedback (Etapa 2).</p>
             <p>Correos pendientes, enviados o fallidos — bandeja de notificaciones (Etapa 3).</p>
           </CardContent>

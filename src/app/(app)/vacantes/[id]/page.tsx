@@ -5,23 +5,27 @@ import { PencilIcon, UploadIcon } from "lucide-react";
 import { z } from "zod";
 import { VacancyStatusBadge } from "@/components/common/badges";
 import { PageHeader } from "@/components/common/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicLink } from "@/components/vacancies/public-listing-notice";
 import { ApplicationsTable } from "@/components/vacancies/applications-table";
 import { EvaluatePendingButton } from "@/components/vacancies/evaluate-pending-button";
+import { PortalsPanel } from "@/components/vacancies/portals-panel";
 import { RequirementsPanel } from "@/components/vacancies/requirements-panel";
 import { VacancyStatusActions } from "@/components/vacancies/vacancy-status-actions";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
+import { getServerEnv } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { EMPLOYMENT_TYPE_LABELS, WORK_MODALITY_LABELS } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { countPendingEvaluations, listVacancyApplications } from "@/modules/applications/queries";
+import { countComparable } from "@/modules/applications/compare";
+import { countApplicationViews, countPendingEvaluations, listVacancyApplications } from "@/modules/applications/queries";
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
+import { listPortalPublications } from "@/modules/portals/queries";
 import { getVacancy, listRequirements } from "@/modules/vacancies/queries";
 import { getPublicJobsConfig } from "@/modules/public-jobs/config";
 import { isClosingDatePassed, publicationGaps } from "@/modules/public-jobs/gaps";
@@ -34,6 +38,7 @@ const TABS = [
   { id: "candidatos", label: "Candidatos" },
   { id: "criterios", label: "Requisitos y criterios" },
   { id: "detalle", label: "Detalle" },
+  { id: "portales", label: "Portales" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -111,19 +116,39 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
   let content: React.ReactNode;
   if (tab === "candidatos") {
     const listParams = applicationListParamsSchema.parse(search);
-    const { rows, total } = await listVacancyApplications(supabase, vacancy.id, listParams);
+    const [{ rows, total }, viewCounts] = await Promise.all([
+      listVacancyApplications(supabase, vacancy.id, listParams),
+      countApplicationViews(supabase, vacancy.id),
+    ]);
     const pending = can(user.role, "evaluations:run") ? await countPendingEvaluations(supabase, vacancy.id) : 0;
+    const comparable = await countComparable(supabase, vacancy.id);
     content = (
       <div className="space-y-4">
-        {can(user.role, "evaluations:run") ? (
-          <EvaluatePendingButton vacancyId={vacancy.id} pending={pending} criteriaApproved={Boolean(vacancy.criteria_approved_at)} />
-        ) : null}
-        <ApplicationsTable vacancyId={vacancy.id} rows={rows} total={total} params={listParams} />
+        <div className="flex flex-wrap items-start gap-2">
+          {can(user.role, "evaluations:run") ? (
+            <EvaluatePendingButton vacancyId={vacancy.id} pending={pending} criteriaApproved={Boolean(vacancy.criteria_approved_at)} />
+          ) : null}
+          {comparable >= 2 ? (
+            <Link href={`/vacantes/${vacancy.id}/comparar?mejores=1`} className={buttonVariants({ variant: "outline" })}>
+              Comparar los mejores
+            </Link>
+          ) : null}
+        </div>
+        <ApplicationsTable vacancyId={vacancy.id} rows={rows} total={total} params={listParams} viewCounts={viewCounts} />
       </div>
     );
   } else if (tab === "criterios") {
     const requirements = await listRequirements(supabase, vacancy.id);
     content = <RequirementsPanel vacancy={vacancy} requirements={requirements} canManage={canManage} />;
+  } else if (tab === "portales") {
+    content = (
+      <PortalsPanel
+        vacancyId={vacancy.id}
+        vacancyStatus={vacancy.status}
+        rows={await listPortalPublications(supabase, vacancy.id)}
+        botEnabled={Boolean(getServerEnv().PORTAL_BOT_SECRET)}
+      />
+    );
   } else {
     content = (
       <Card>

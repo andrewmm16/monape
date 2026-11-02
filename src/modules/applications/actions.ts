@@ -13,11 +13,21 @@ import {
   evaluateApplication,
   ResumeTextUnavailableError,
 } from "@/modules/evaluation/service";
+import { reevaluateAfterVerification, type ReevaluationOutcome } from "@/modules/evaluation/reevaluate";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { applyOcrToResume } from "@/modules/resumes/ocr-apply";
 import { RESUMES_BUCKET } from "@/modules/resumes/storage";
 import { pendingEvaluationsQuery } from "./queries";
-import { changeStatusSchema, noteSchema, reviewSchema, type ChangeStatusInput, type ReviewInput } from "./schemas";
+import {
+  changeStatusSchema,
+  noteSchema,
+  removeVerificationSchema,
+  reviewSchema,
+  verifyRequirementsSchema,
+  type ChangeStatusInput,
+  type ReviewInput,
+  type VerificationItemInput,
+} from "./schemas";
 
 function revalidateApplication(applicationId: string) {
   revalidatePath(`/postulaciones/${applicationId}`);
@@ -363,4 +373,72 @@ export async function reviewEvaluation(applicationId: string, input: ReviewInput
     },
     "Revisión registrada.",
   );
+}
+
+/**
+ * Registra lo que RRHH comprobó después del CV (entrevista, documentos,
+ * referencias, prueba técnica) y recalcula la puntuación. La valoración
+ * original del CV se conserva en la evaluación anterior y en `cv_assessment`.
+ * Acepta varios requisitos a la vez (p. ej. el resultado de una entrevista).
+ */
+export async function verifyRequirements(
+  applicationId: string,
+  items: VerificationItemInput[],
+): Promise<ActionResult<ReevaluationOutcome & { saved: number }>> {
+  const result = await runAction(
+    "evaluations.verify",
+    async () => {
+      await requirePermission("evaluations:review");
+      const values = parseInput(verifyRequirementsSchema, { applicationId, items });
+      const supabase = await createSupabaseServerClient();
+      const { data: saved, error } = await supabase.rpc("verify_requirements", {
+        p_application_id: values.applicationId,
+        p_items: values.items.map((item) => ({
+          requirement_id: item.requirementId,
+          result: item.result,
+          source: item.source,
+          note: item.note,
+        })),
+      });
+      if (error) throw toAppError(error);
+      const outcome = await reevaluateAfterVerification(supabase, values.applicationId);
+      revalidateApplication(values.applicationId);
+      return { ...outcome, saved: saved ?? values.items.length };
+    },
+    "Verificación guardada y puntuación recalculada.",
+  );
+  if (result.ok && !result.data.reevaluated) {
+    return { ...result, message: `Verificación guardada. ${result.data.notice ?? ""}`.trim() };
+  }
+  return result;
+}
+
+/** Quita la verificación de un requisito (con nota) y recalcula la puntuación. */
+export async function removeRequirementVerification(
+  applicationId: string,
+  requirementId: string,
+  note: string,
+): Promise<ActionResult<ReevaluationOutcome>> {
+  const result = await runAction(
+    "evaluations.verify",
+    async () => {
+      await requirePermission("evaluations:review");
+      const values = parseInput(removeVerificationSchema, { applicationId, requirementId, note });
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase.rpc("remove_requirement_verification", {
+        p_application_id: values.applicationId,
+        p_requirement_id: values.requirementId,
+        p_note: values.note,
+      });
+      if (error) throw toAppError(error);
+      const outcome = await reevaluateAfterVerification(supabase, values.applicationId);
+      revalidateApplication(values.applicationId);
+      return outcome;
+    },
+    "Verificación quitada y puntuación recalculada.",
+  );
+  if (result.ok && !result.data.reevaluated) {
+    return { ...result, message: `Verificación quitada. ${result.data.notice ?? ""}`.trim() };
+  }
+  return result;
 }

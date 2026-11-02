@@ -50,6 +50,10 @@ const serverEnvSchema = z
     // desafíos y deriva el identificador de límite a partir de la IP).
     PUBLIC_APPLY_ENABLED: booleanFlag,
     INTAKE_HASH_SECRET: optionalText,
+    // Webhook de evaluación (/api/evaluar-cv): apagado si no se define el secreto.
+    EVALUATION_WEBHOOK_SECRET: optionalText,
+    // API del robot de portales (/api/bot/*): apagada si no se define el secreto.
+    PORTAL_BOT_SECRET: optionalText,
   })
   .superRefine((env, ctx) => {
     if (env.PUBLIC_JOBS_ENABLED) {
@@ -67,6 +71,12 @@ const serverEnvSchema = z
           path: ["INTAKE_HASH_SECRET"],
           message: `Obligatoria (mínimo ${MIN_TALENT_SECRET_LENGTH} caracteres) si PUBLIC_APPLY_ENABLED=true`,
         });
+      }
+    }
+    for (const name of ["EVALUATION_WEBHOOK_SECRET", "PORTAL_BOT_SECRET"] as const) {
+      const value = env[name];
+      if (value && value.length < MIN_TALENT_SECRET_LENGTH) {
+        ctx.addIssue({ code: "custom", path: [name], message: `Mínimo ${MIN_TALENT_SECRET_LENGTH} caracteres` });
       }
     }
     if (env.TALENT_APPLY_ENABLED) {

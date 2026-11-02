@@ -86,6 +86,23 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
 - Toda evaluación nace *pendiente de revisión*. RRHH registra una única revisión: conforme / conforme con observaciones / requiere nueva evaluación (con observaciones obligatorias en los dos últimos casos). Para cambiar de criterio se genera una nueva evaluación; el historial conserva ambas.
 - Se evalúa el CV asociado a la postulación. Si el candidato carga una versión nueva, RRHH decide explícitamente usarla («Usar versión N»).
 - RRHH puede corregir el texto extraído del CV, verificar datos y volver a evaluar; el historial conserva todas las evaluaciones.
+- **Verificación por requisito** (migración `20261028001000`): RRHH registra por requisito lo comprobado fuera del CV.
+  - Contenido: resultado («cumple» o «no cumple»), fuente (entrevista, documento, referencia, prueba técnica u otra) y una nota obligatoria.
+  - Vigencia: una verificación vigente por requisito y postulación.
+  - Efecto en la evaluación: toda evaluación, por reglas o con IA, la aplica sobre la valoración automática. Cada ítem guarda una copia de la verificación y la valoración original del CV (`cv_assessment`). La base de datos rechaza una evaluación que contradiga una verificación vigente y recalcula los porcentajes como siempre.
+  - Nivel: un «no cumple» verificado en un requisito obligatorio impide el nivel «alta» y puede producir «baja». Es una decisión humana, no del motor.
+  - Textos: el resumen y los borradores redactan lo verificado como comprobado, con su fuente, y nunca como «aparentemente».
+  - Recalcular al verificar (migración `20261028001200`, `src/modules/evaluation/reevaluate.ts`): no se relee el CV ni se llama a la IA. Se parte de los ítems de la evaluación vigente, con la valoración y el motivo originales del CV (`cv_assessment`, `cv_rationale`). Se aplican las verificaciones actuales y se registra una evaluación nueva con el mismo método, versión, modelo, CV y huella del texto. Si no hay evaluación vigente, sus criterios son anteriores o sus ítems no coinciden con los requisitos, se evalúa con reglas.
+- **Orden de «mejor opción»** en la comparación de candidatos (`src/modules/applications/ranking.ts`), aplicado en este orden:
+  1. al final, quien tenga un obligatorio verificado como «no cumple»;
+  2. después, las evaluaciones desactualizadas;
+  3. puntuación;
+  4. suma de pesos de los obligatorios acreditados;
+  5. cantidad de requisitos verificados como «cumple»;
+  6. resultado de la última entrevista;
+  7. fecha de postulación.
+
+  Es un orden para revisar primero a los más compatibles, no una decisión: todos los candidatos siguen visibles.
 - El estado del proceso (nuevo, preseleccionado, no seleccionado…) es una decisión humana separada, con motivo obligatorio para «no seleccionado» y «retirado».
 - **Estado sugerido** (a pedido de RRHH, 23/10/2026). Solo para postulaciones en «Nuevo» o «En revisión», el formulario preselecciona el estado que corresponde al nivel. No guarda nada: la persona revisa el estado, el motivo y la observación, y pulsa «Actualizar estado».
 

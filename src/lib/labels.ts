@@ -78,6 +78,46 @@ export const APPLICATION_EVENT_LABELS: Record<Enums<"application_event_type">, s
   evaluacion_generada: "Evaluación de compatibilidad generada",
   evaluacion_revisada: "Evaluación revisada por RRHH",
   observacion: "Observación",
+  requisito_verificado: "Requisitos verificados por RRHH",
+  entrevista_programada: "Entrevista programada",
+  entrevista_reprogramada: "Entrevista reprogramada",
+  entrevista_cancelada: "Entrevista cancelada",
+  entrevista_resultado: "Resultado de la entrevista",
+};
+
+export const INTERVIEW_MODALITY_LABELS: Record<Enums<"interview_modality">, string> = {
+  presencial: "Presencial",
+  virtual: "Virtual",
+  telefonica: "Telefónica",
+};
+
+export const INTERVIEW_STATUS_LABELS: Record<Enums<"interview_status">, string> = {
+  programada: "Programada",
+  realizada: "Realizada",
+  no_asistio: "No asistió",
+  cancelada: "Cancelada",
+};
+
+export const INTERVIEW_RESULT_LABELS: Record<Enums<"interview_result">, string> = {
+  paso: "Pasó",
+  no_paso: "No pasó",
+};
+
+export const VERIFICATION_SOURCE_LABELS: Record<Enums<"verification_source">, string> = {
+  entrevista: "Entrevista",
+  documento: "Documento",
+  referencia: "Referencia",
+  prueba_tecnica: "Prueba técnica",
+  otro: "Otro",
+};
+
+/** Cómo se dice la fuente en una frase: «verificado en {frase}». */
+export const VERIFICATION_SOURCE_PHRASES: Record<Enums<"verification_source">, string> = {
+  entrevista: "entrevista",
+  documento: "documento",
+  referencia: "referencia",
+  prueba_tecnica: "prueba técnica",
+  otro: "otro medio",
 };
 
 export const ASSESSMENT_LABELS: Record<Enums<"requirement_assessment">, string> = {
@@ -160,4 +200,27 @@ export const CONSENT_METHOD_LABELS: Record<Enums<"consent_method">, string> = {
   formulario_en_linea: "Formulario en línea",
   registro_manual: "Registro manual",
   carga_masiva: "Carga masiva",
+};
+
+export const PORTAL_PUBLICATION_STATUS_LABELS: Record<Enums<"portal_publication_status">, string> = {
+  pendiente: "En cola",
+  publicando: "Publicando…",
+  publicada: "Publicada",
+  retirar: "Retirando…",
+  retirada: "Retirada",
+  error: "Con error",
+};
+
+/** Códigos de fallo que informa el robot; uno desconocido se muestra como genérico. */
+export const PORTAL_ERROR_LABELS: Record<string, string> = {
+  sesion_expirada: "La sesión del robot en el portal venció; hay que iniciarla de nuevo.",
+  verificacion_requerida: "El portal pidió una verificación (CAPTCHA o código) que solo puede hacer una persona.",
+  pagina_cambio: "El portal cambió su página y el robot no pudo continuar.",
+  navegador_cerrado: "El navegador del robot se cerró. No es un cambio del portal: hay que reiniciar el robot.",
+  publicacion_rechazada: "El portal no aceptó la oferta.",
+  demasiados_intentos: "El robot agotó los intentos. Revise el portal y vuelva a solicitarla.",
+  retiro_fallido: "El robot no pudo retirar la oferta tras varios intentos y sigue publicada en el portal. Desmarque el portal para pedir el retiro de nuevo, o retírela a mano.",
+  fallos_seguidos: "El robot falló varias veces seguidas y se detuvo; revise el portal.",
+  portal_no_disponible: "El portal no respondió (caído o sin conexión). No es un cambio de su página; el robot lo reintenta.",
+  api_no_disponible: "El robot no pudo comunicarse con la aplicación para informar un resultado.",
 };

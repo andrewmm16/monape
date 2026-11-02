@@ -1,5 +1,10 @@
 import { formatDate } from "@/lib/format";
-import { APPLICATION_STATUS_LABELS, COMPATIBILITY_LEVEL_LABELS, EVALUATION_METHOD_LABELS } from "@/lib/labels";
+import {
+  APPLICATION_STATUS_LABELS,
+  COMPATIBILITY_LEVEL_LABELS,
+  EVALUATION_METHOD_LABELS,
+  VERIFICATION_SOURCE_PHRASES,
+} from "@/lib/labels";
 import type { Enums, Tables } from "@/types/database";
 
 /**
@@ -9,7 +14,8 @@ import type { Enums, Tables } from "@/types/database";
  *
  * Regla de redacción: «sin evidencia» se expresa como ausencia de mención en
  * el CV, nunca como incumplimiento; «aparentemente no cumplido» siempre se
- * presenta como algo por confirmar.
+ * presenta como algo por confirmar. Un «no cumple» VERIFICADO por RRHH
+ * (entrevista, documentos, etc.) sí se redacta como comprobado, con su fuente.
  */
 
 export type DraftEvaluation = Pick<Tables<"candidate_evaluations">, "created_at" | "method" | "criteria_version" | "score" | "level"> & {
@@ -17,7 +23,10 @@ export type DraftEvaluation = Pick<Tables<"candidate_evaluations">, "created_at"
   review_outcome?: Enums<"evaluation_review_outcome"> | null;
 };
 
-export type DraftItem = Pick<Tables<"candidate_evaluation_items">, "description" | "priority" | "assessment" | "is_essential">;
+export type DraftItem = Pick<Tables<"candidate_evaluation_items">, "description" | "priority" | "assessment" | "is_essential"> & {
+  /** Con valor, la valoración fue verificada por RRHH (no es solo lo que dice el CV). */
+  verification_source?: Enums<"verification_source"> | null;
+};
 
 export type DraftInput = { evaluation: DraftEvaluation; items: DraftItem[]; currentCriteriaVersion: number };
 
@@ -38,6 +47,10 @@ function select(items: DraftItem[], assessment: Enums<"requirement_assessment">,
     .map(labelOf);
 }
 
+/** «Inglés (entrevista)» para un requisito verificado. */
+const verifiedLabelOf = (item: DraftItem) =>
+  item.verification_source ? `${labelOf(item)} (${VERIFICATION_SOURCE_PHRASES[item.verification_source]})` : labelOf(item);
+
 const percent = (value: number) => `${Math.round(value)} %`;
 
 /** «A», «A y B», «A, B y C»; con más de `max` elementos, «A, B y N más». */
@@ -52,9 +65,30 @@ function humanList(values: string[], max = values.length): string {
   return `${shown.slice(0, -1).join(", ")} ${conjunction} ${last}`;
 }
 
-function analyze({ items }: DraftInput) {
-  const mandatory = items.filter((i) => i.priority === "obligatorio");
+function analyze({ items: allItems }: DraftInput) {
+  // Los «no cumple» verificados se separan de los «aparentemente no cumplidos».
+  const isConfirmedNotMet = (i: DraftItem) => i.assessment === "no_cumplido" && Boolean(i.verification_source);
+  const isVerifiedMet = (i: DraftItem) => i.assessment === "acreditado" && Boolean(i.verification_source);
+  // «met» solo recoge lo que acredita el CV; lo verificado se redacta aparte.
+  const items = allItems.filter((i) => !isConfirmedNotMet(i) && !isVerifiedMet(i));
+  const verifiedMet = allItems
+    .filter(isVerifiedMet)
+    .sort((a, b) => Number(b.priority === "obligatorio") - Number(a.priority === "obligatorio"));
+  const confirmed = allItems
+    .filter(isConfirmedNotMet)
+    .sort((a, b) => Number(b.priority === "obligatorio") - Number(a.priority === "obligatorio"));
+  const mandatory = allItems.filter((i) => i.priority === "obligatorio");
   return {
+    /** «Inglés (entrevista)», requisitos que cumple según lo verificado. */
+    verifiedMet: verifiedMet.map(verifiedLabelOf),
+    /** «Inglés: verificado en entrevista», para listas. */
+    verifiedMetLines: verifiedMet.map((i) => `${labelOf(i)}: verificado en ${VERIFICATION_SOURCE_PHRASES[i.verification_source!]}`),
+    /** «Inglés (entrevista)», para frases. */
+    confirmedNotMet: confirmed.map(verifiedLabelOf),
+    /** Solo los obligatorios. */
+    confirmedNotMetMandatory: confirmed.filter((i) => i.priority === "obligatorio").map(verifiedLabelOf),
+    /** «Inglés: verificado en entrevista», para listas. */
+    confirmedNotMetLines: confirmed.map((i) => `${labelOf(i)}: verificado en ${VERIFICATION_SOURCE_PHRASES[i.verification_source!]}`),
     mandatoryTotal: mandatory.length,
     met: select(items, "acreditado"),
     metMandatory: select(items, "acreditado", "obligatorio"),
@@ -83,7 +117,7 @@ const SUGGESTION_BY_LEVEL: Record<Enums<"compatibility_level">, Status> = {
   alta: "preseleccionado",
   parcial: "en_revision",
   pendiente: "en_revision",
-  // Solo se produce con requisitos aparentemente no cumplidos (ver scoring.ts).
+  // Se produce con requisitos aparentemente no cumplidos o con un «no cumple» verificado (ver scoring.ts).
   baja: "no_seleccionado",
 };
 
@@ -124,14 +158,17 @@ export function buildReasonDraft(input: DraftInput, status: Status): string {
 
   const render = (max: number) => {
     const list = (values: string[]) => humanList(values, max);
-    const strengths =
+    const cvStrengths =
       a.mandatoryTotal > 0
         ? `el CV acredita ${a.metMandatory.length} de ${a.mandatoryTotal} requisitos obligatorios${a.metMandatory.length ? ` (${list(a.metMandatory)})` : ""}`
         : a.met.length > 0
           ? `el CV acredita ${list(a.met)}`
           : "el CV no acredita ninguno de los requisitos";
+    const strengths = a.verifiedMet.length ? `${cvStrengths} y se verificó que cumple ${list(a.verifiedMet)}` : cvStrengths;
     const toConfirm = [...a.notMet, ...a.missingMandatory, ...a.pending];
-    const notMet = a.notMet.length ? ` La evaluación indica que aparentemente no cumple ${list(a.notMet)}; debe confirmarse.` : "";
+    const confirmedNotMet = a.confirmedNotMet.length ? ` Verificado que no cumple ${list(a.confirmedNotMet)}.` : "";
+    const notMet =
+      (a.notMet.length ? ` La evaluación indica que aparentemente no cumple ${list(a.notMet)}; debe confirmarse.` : "") + confirmedNotMet;
     const missing = a.missingMandatory.length ? ` Falta confirmar ${list(a.missingMandatory)}, que el CV no menciona.` : "";
     const pending = a.pending.length ? ` Queda por verificar ${list(a.pending)}.` : "";
 
@@ -157,6 +194,7 @@ export function buildReasonDraft(input: DraftInput, status: Status): string {
         break;
       case "no_seleccionado": {
         const gaps = [
+          a.confirmedNotMetMandatory.length ? `se verificó que no cumple ${list(a.confirmedNotMetMandatory)}` : null,
           a.notMetMandatory.length ? `aparentemente no cumple ${list(a.notMetMandatory)} (pendiente de confirmar)` : null,
           a.missingMandatory.length ? `el CV no muestra evidencia de los requisitos obligatorios ${list(a.missingMandatory)}` : null,
         ].filter(Boolean);
@@ -192,6 +230,8 @@ export function buildObservationDraft(input: DraftInput, max = 15): string {
     if (values.length > max) lines.push(`- y ${values.length - max} más`);
   };
   add("Acredita, con evidencia en el CV", a.met);
+  add("Cumple, verificado por RRHH", a.verifiedMetLines);
+  add("No cumple, verificado por RRHH", a.confirmedNotMetLines);
   add("Aparentemente no cumple (por confirmar)", a.notMet);
   add("No aparece en el CV, obligatorios (no significa que no lo cumpla)", a.missingMandatory);
   add("No aparece en el CV, deseables", a.missingDesirable);
@@ -233,8 +273,16 @@ const ADVANCING: readonly Status[] = ["preseleccionado", "entrevista_programada"
 /** Aviso cuando el estado elegido no concuerda con lo que muestra la evaluación. */
 export function decisionWarning(input: DraftInput, status: Status): string | null {
   const a = analyze(input);
-  if (status === "no_seleccionado" && a.notMetMandatory.length === 0 && a.missingMandatory.length === 0) {
+  if (
+    status === "no_seleccionado" &&
+    a.notMetMandatory.length === 0 &&
+    a.confirmedNotMetMandatory.length === 0 &&
+    a.missingMandatory.length === 0
+  ) {
     return "La evaluación no muestra brechas en requisitos obligatorios. Explique en el motivo en qué se basa la decisión.";
+  }
+  if (ADVANCING.includes(status) && a.confirmedNotMetMandatory.length > 0) {
+    return `Se verificó que no cumple requisitos obligatorios (${humanList(a.confirmedNotMetMandatory, 3)}). Revíselo antes de pasar a «${APPLICATION_STATUS_LABELS[status]}».`;
   }
   if (ADVANCING.includes(status) && a.notMetMandatory.length > 0) {
     return `La evaluación indica que aparentemente no cumple requisitos obligatorios (${humanList(a.notMetMandatory, 3)}). Confírmelo antes de pasar a «${APPLICATION_STATUS_LABELS[status]}».`;

@@ -8,6 +8,10 @@ import { OpinionRequest, type OpinionState } from "@/components/applications/opi
 import { StatusForm } from "@/components/applications/status-form";
 import { ActionButton } from "@/components/common/action-button";
 import { ApplicationStatusBadge } from "@/components/common/badges";
+import { InterviewFormDialog } from "@/components/interviews/interview-dialogs";
+import { InterviewItem } from "@/components/interviews/interview-item";
+import { EmptyState } from "@/components/common/empty-state";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { can } from "@/lib/auth/permissions";
@@ -23,7 +27,10 @@ import {
   listApplicationEvents,
   listEvaluationItems,
   listEvaluations,
+  listRequirementVerifications,
 } from "@/modules/applications/queries";
+import { listApplicationInterviews } from "@/modules/interviews/queries";
+import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
 import { getAiStatus } from "@/modules/evaluation/service";
 import { listActiveProfiles } from "@/modules/users/queries";
@@ -44,12 +51,15 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const canManage = can(user.role, "applications:manage");
   const canEvaluate = can(user.role, "evaluations:run");
 
-  const [evaluations, events, profiles, currentResume] = await Promise.all([
+  const [evaluations, events, profiles, currentResume, verifications, interviews] = await Promise.all([
     listEvaluations(supabase, application.id),
     listApplicationEvents(supabase, application.id),
     canManage ? listActiveProfiles(supabase) : Promise.resolve([]),
     getCurrentResume(supabase, application.candidate.id),
+    listRequirementVerifications(supabase, application.id),
+    listApplicationInterviews(supabase, application.id),
   ]);
+  const schedulable = canManage && canScheduleInterview(application.status, application.vacancy.status);
   // A quién se puede pedir opinión: cualquier usuario activo salvo uno mismo.
   const people = profiles.filter((p) => p.id !== user.id);
   const opinion: OpinionState = {
@@ -82,11 +92,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           review_outcome: latest.review_outcome,
           resume: latest.resume ? { version: latest.resume.version } : null,
         },
-        items: latestItems.map(({ description, priority, assessment, is_essential }) => ({
+        items: latestItems.map(({ description, priority, assessment, is_essential, verification_source }) => ({
           description,
           priority,
           assessment,
           is_essential,
+          verification_source,
         })),
         currentCriteriaVersion: application.vacancy.criteria_version,
       }
@@ -118,6 +129,50 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
+          <Card id="entrevistas">
+            <CardHeader>
+              <CardTitle>Entrevistas</CardTitle>
+              <CardDescription>Fechas y horas en hora de Perú (Lima).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {schedulable ? (
+                <InterviewFormDialog
+                  applicationId={application.id}
+                  defaultOpen={search.programar === "1"}
+                  trigger={<Button type="button">Programar entrevista</Button>}
+                />
+              ) : null}
+              {interviews.length === 0 ? (
+                <EmptyState
+                  title="Sin entrevistas"
+                  description={schedulable ? "Programe una entrevista para este candidato." : "Esta postulación no tiene entrevistas registradas."}
+                />
+              ) : (
+                <ul className="space-y-2">
+                  {interviews.map(({ result_recorder, ...interview }) => (
+                    <InterviewItem
+                      key={interview.id}
+                      showApplication={false}
+                      canManage={canManage}
+                      interview={{
+                        ...interview,
+                        recordedBy: result_recorder?.full_name ?? null,
+                        application: {
+                          id: application.id,
+                          status: application.status,
+                          candidateName: application.candidate.full_name,
+                          vacancyId: application.vacancy.id,
+                          vacancyTitle: application.vacancy.title,
+                          vacancyStatus: application.vacancy.status,
+                        },
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
           {canEvaluate ? (
             <Card>
               <CardHeader>
@@ -187,6 +242,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             history={evaluations}
             currentCriteriaVersion={application.vacancy.criteria_version}
             canReview={can(user.role, "evaluations:review")}
+            verifications={verifications}
           />
         </div>
 

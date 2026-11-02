@@ -29,11 +29,35 @@ Los planes detallados por etapa (carpetas `etapa-1/`, `etapa-2/` y `etapa-3/`) s
 
 Incluye las tareas originales de esta etapa (IA, extracción estructurada y OCR, corrección por requisito, comparación, feedback y documentos defectuosos) y añade la postulación en línea con un enlace por portal, la carga masiva de CV, el aviso de privacidad con registro de consentimiento, las páginas públicas de vacantes con su feed y la recepción de postulaciones de Talent.com.
 
-Terminados y probados en local al 27/10/2026: catálogo de portales, carga masiva de CV y bandeja de entrada (2.3), páginas públicas, datos para Google y feed (2.9), y recepción de Talent Apply (2.10, probada solo con envíos simulados). El 28/10/2026 se añadieron el botón «Evaluar pendientes» por vacante y la lectura local de CV escaneados (OCR). Ver [informe-pruebas.md](informe-pruebas.md). Las opciones para LinkedIn, Bumeran, Trabajos Diarios y Computrabajo están evaluadas en [opcion-correos-de-aviso.md](opcion-correos-de-aviso.md) y [opcion-robot.md](opcion-robot.md).
+Terminados y probados en local al 27/10/2026: catálogo de portales, carga masiva de CV y bandeja de entrada (2.3), páginas públicas, datos para Google y feed (2.9), y recepción de Talent Apply (2.10, probada solo con envíos simulados). El 28/10/2026 se añadieron:
+- el botón «Evaluar pendientes» por vacante;
+- la lectura local de CV escaneados (OCR);
+- los años de experiencia por fechas;
+- la sugerencia de términos;
+- la verificación de requisitos tras la entrevista, que hace las veces de la «corrección por requisito»;
+- la comparación de candidatos con el orden de «mejor opción».
+
+Las dos últimas y el módulo de entrevistas (Etapa 3) aún no están subidos a GitHub: esperan la revisión del usuario. Ver [informe-pruebas.md](informe-pruebas.md). Las opciones para LinkedIn, Bumeran, Trabajos Diarios y Computrabajo están evaluadas en [opcion-correos-de-aviso.md](opcion-correos-de-aviso.md) y [opcion-robot.md](opcion-robot.md).
 
 ## Etapa 3 · Comunicaciones, entrevistas e informes
 
 Comprende la infraestructura de correo con Resend, plantillas y bandeja con aprobación, entrevistas, indicadores del panel, exportación CSV, informes y consulta de auditoría.
+
+**Adelantado el 28/10/2026:** módulo de entrevistas, sin correos ni invitaciones.
+- Programar, reprogramar y cancelar.
+- Página «Entrevistas».
+- Resultado Pasó / No pasó / No asistió, con requisitos comprobados.
+- Vista «Descartados» en cada vacante.
+- Tarjeta en el panel.
+
+Falta el resto de la etapa:
+- correo;
+- indicadores;
+- exportación CSV;
+- informes;
+- consulta de auditoría.
+
+Arreglo pendiente: en celulares de 390 px de ancho, la campana y el menú de la barra superior se salen 33 px de la pantalla (ya pasaba antes).
 
 ## Etapa 4 · Privacidad y producción
 

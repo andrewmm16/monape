@@ -1,0 +1,85 @@
+SOLICITUDES PENDIENTES PARA CONTINUAR
+Proyecto: publicación de vacantes en portales de empleo y recepción de postulantes en el sistema de reclutamiento (ATS)
+Fecha: 29/10/2026
+
+OBJETIVO
+Que RRHH cree la vacante una sola vez en el sistema y esta se publique en varios portales de empleo.
+Que las postulaciones que lleguen desde esos portales se registren automáticamente en el sistema y se evalúen.
+
+SITUACIÓN ACTUAL
+- No se entregarán por ahora las cuentas de empresa de los portales.
+- Por eso el avance se muestra sin conectarse a ningún portal real, usando los correos de postulación
+  que la empresa ya recibe.
+
+QUÉ YA ESTÁ HECHO
+- Cola de publicación y panel "Portales" en la ficha de la vacante.
+- Servicio automático ("robot") probado solo con un portal de prueba, no con portales reales.
+- Evaluación automática de CV.
+
+QUÉ SE PUEDE MOSTRAR CON LO PEDIDO EN LA FASE 1
+1. RRHH crea la vacante y marca los portales con el selector.
+2. Entra una postulación (correo real reenviado o correo de prueba).
+3. El sistema lee el correo, extrae los datos del candidato y guarda el CV.
+4. El candidato aparece en la vacante con su evaluación automática.
+5. Si algo se atasca, RRHH recibe un aviso.
+No se publica en ningún portal real en esta fase.
+
+=====================================================================
+FASE 1: LO QUE SE NECESITA AHORA (no requiere cuentas de portales)
+=====================================================================
+
+1. CORREOS DE EJEMPLO DE POSTULACIONES
+   - Uno o dos correos reales que la empresa recibió cuando un candidato postuló, por cada portal que usen.
+   - Debe ser la notificación que llega a la EMPRESA, no la confirmación que recibe el candidato.
+   - De preferencia reenviados como archivo adjunto (.eml o .msg), para conservar remitente, asunto y adjuntos.
+   - Con los datos del candidato tachados o cambiados (nombre, teléfono y correo), por privacidad.
+   - Sirven para saber si el correo trae el CV adjunto o solo un aviso, y así programar su lectura.
+   - Guardarlos en: C:\Users\Admin\Desktop\p1\muestras-correo\
+   - Alternativa: una postulación de prueba hecha por alguien de la empresa con otro correo.
+
+2. BUZÓN DE CORREO PARA PRUEBAS
+   - Una cuenta de correo donde llegarán los correos de ejemplo para que el sistema los lea.
+   - Puede ser una cuenta nueva y exclusiva (por ejemplo reclutamiento@ecoplaza.com.pe; el nombre lo define la empresa).
+   - Indicar si el correo de la empresa es Google Workspace o Microsoft 365.
+   - Acceso para que el sistema lea SOLO ese buzón: contraseña de aplicación o permiso OAuth, según el caso. Lo gestiona TI.
+   - Si TI aún no puede, se hace una primera prueba con un correo personal de prueba, sin datos reales.
+
+3. REGLA DE REENVÍO AUTOMÁTICO (opcional en esta fase, recomendado)
+   - Que las notificaciones de postulación que ya reciben se reenvíen al buzón del punto 2.
+   - No implica dar acceso a ninguna cuenta de portal: solo desviar un correo que ya les llega.
+   - Con esto la demo pasa a trabajar con postulaciones reales.
+
+4. PC DONDE CORRERÁ EL SISTEMA DE LECTURA
+   - Confirmar la PC, que permanezca encendida y con internet. El robot también estará en esa PC.
+
+=====================================================================
+FASE 2: MÁS ADELANTE, SI SE APRUEBA CONTINUAR (requiere cuentas)
+=====================================================================
+
+5. AUTORIZACIÓN POR ESCRITO de la jefatura o del área legal para automatizar la publicación de vacantes
+   y la lectura de postulantes en los portales. Sin esto no se debe conectar ningún portal.
+
+6. CUENTA DE EMPRESA EN TRABAJOS DIARIOS (portal piloto)
+   - Con permiso para publicar ofertas y ver postulantes.
+   - Usuario y contraseña propios para el robot, separados de los de los reclutadores.
+
+7. CUENTAS DE EMPRESA EN LOS DEMÁS PORTALES
+   - Los que la empresa ya tenga contratados (por ejemplo LinkedIn, Indeed, Computrabajo, Bumeran; confirmar cuáles).
+   - Conviene pedirlas con tiempo: la aprobación puede demorar.
+
+8. VERIFICACIONES DE LOS PORTALES
+   - Si un portal pide captcha o código por correo/SMS, alguien de RRHH debe poder atenderlo.
+     El sistema avisará cuando ocurra.
+
+9. DOMINIO PROPIO PARA RECIBIR CORREOS (opcional)
+   - Acceso de TI al DNS, solo si se prefiere un proveedor de correo externo en vez de leer un buzón.
+
+PUNTOS POR CONFIRMAR (no verificados todavía)
+- Si cada portal permite elegir a qué correo llegan las notificaciones, y si adjunta el CV.
+  Los correos de ejemplo del punto 1 lo aclaran.
+- Si las condiciones de uso de cada portal permiten la automatización. Por eso la autorización del punto 5.
+- La publicación automática no está probada en ningún portal real.
+
+NOTAS
+- No usar cuentas personales de empleados para las pruebas.
+- Las credenciales no deben enviarse por chat ni correo abierto; se entregan por el medio que defina TI.

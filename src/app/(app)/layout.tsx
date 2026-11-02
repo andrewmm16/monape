@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { BotAlertBanner } from "@/components/app-shell/bot-alert-banner";
 import { InactivityGuard } from "@/components/app-shell/inactivity-guard";
 import { MobileNav } from "@/components/app-shell/mobile-nav";
 import { NavLinks, type NavItem } from "@/components/app-shell/nav-links";
@@ -10,9 +11,11 @@ import { readActivityTime } from "@/lib/auth/activity-cookie";
 import { ACTIVITY_COOKIE, serverIdleMs } from "@/lib/auth/inactivity";
 import { can, ROLE_LABELS } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
+import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getNotificationFeed } from "@/modules/notifications/queries";
+import { listBotAlerts } from "@/modules/portals/queries";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await requirePageUser();
@@ -21,13 +24,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     logServerError("notifications.layout", error);
     return { items: [], unread: 0 };
   });
-  const idleMs = serverIdleMs(readActivityTime((await cookies()).get(ACTIVITY_COOKIE)?.value, user.id)) ?? 0;
+  // Avisos del robot de portales; solo si este servidor lo tiene configurado.
+  const botAlerts = getServerEnv().PORTAL_BOT_SECRET
+    ? await listBotAlerts(await createSupabaseServerClient()).catch((error: unknown) => {
+        logServerError("portals.layout", error);
+        return [];
+      })
+    : [];
+  const idleMs =serverIdleMs(readActivityTime((await cookies()).get(ACTIVITY_COOKIE)?.value, user.id)) ?? 0;
   const items: NavItem[] = [
     { href: "/panel", label: "Panel", icon: "panel" },
     { href: "/postulaciones", label: "Postulaciones", icon: "postulaciones" },
+    ...(can(user.role, "applications:manage") ? [{ href: "/entrevistas", label: "Entrevistas", icon: "entrevistas" } as const] : []),
     { href: "/vacantes", label: "Vacantes", icon: "vacantes" },
     { href: "/candidatos", label: "Candidatos", icon: "candidatos" },
     ...(can(user.role, "users:manage") ? [{ href: "/usuarios", label: "Usuarios", icon: "usuarios" } as const] : []),
+    ...(can(user.role, "audit:read") ? [{ href: "/auditoria", label: "Auditoría", icon: "auditoria" } as const] : []),
     ...(can(user.role, "privacy:manage")
       ? [{ href: "/configuracion/privacidad", label: "Configuración", icon: "configuracion" } as const]
       : []),
@@ -53,7 +65,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <UserMenu name={user.fullName} email={user.email} roleLabel={ROLE_LABELS[user.role]} />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 md:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 md:px-8">
+          <BotAlertBanner alerts={botAlerts} />
+          {children}
+        </main>
       </div>
       <InactivityGuard serverIdleMs={idleMs} />
     </div>

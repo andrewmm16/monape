@@ -12,7 +12,8 @@ import { buildUserMessage, PROMPT_VERSION, SYSTEM_PROMPT } from "./ai/prompt";
 import { redactContactData } from "./ai/redact";
 import { interpretAiResponse, InvalidAiResponseError } from "./ai/response";
 import { evaluateWithRules, RULE_ENGINE_VERSION } from "./rule-engine";
-import type { EvaluationMethod, ItemAssessment, RequirementInput } from "./types";
+import type { EvaluationMethod, EvaluationResult, ItemAssessment, RequirementInput } from "./types";
+import { applyVerifications, type RequirementVerification } from "./verifications";
 
 const MIN_TEXT_LENGTH = 50;
 
@@ -42,6 +43,32 @@ async function countAiEvaluationsLast24h(supabase: AppSupabaseClient): Promise<n
     .gte("created_at", since);
   if (error) throw toAppError(error);
   return count ?? 0;
+}
+
+/** Verificaciones vigentes de la postulación, con el nombre de quien las registró. */
+export async function listVerifications(
+  supabase: AppSupabaseClient | SupabaseClient<Database>,
+  applicationId: string,
+): Promise<RequirementVerification[]> {
+  const { data, error } = await supabase
+    .from("requirement_verifications")
+    .select("requirement_id, result, source, note, verified_at, verifier:profiles!requirement_verifications_verified_by_fkey(full_name)")
+    .eq("application_id", applicationId);
+  if (error) throw toAppError(error);
+  return (data ?? []).flatMap((row) =>
+    row.result === "acreditado" || row.result === "no_cumplido"
+      ? [
+          {
+            requirementId: row.requirement_id,
+            result: row.result,
+            source: row.source,
+            note: row.note,
+            verifiedAt: row.verified_at,
+            verifiedByName: row.verifier?.full_name ?? null,
+          },
+        ]
+      : [],
+  );
 }
 
 /**
@@ -156,6 +183,9 @@ export async function evaluateApplication(
     model = response.model;
   }
 
+  // Lo que RRHH comprobó después del CV prevalece, sin perder la valoración original.
+  items = applyVerifications(items, await listVerifications(supabase, application.id));
+
   const result = assembleEvaluation({
     method,
     methodVersion,
@@ -166,10 +196,33 @@ export async function evaluateApplication(
     textTruncated,
   });
 
+  return recordAssembledEvaluation(supabase, {
+    applicationId: application.id,
+    resumeId: resume.id,
+    criteriaVersion: vacancy.criteria_version,
+    result,
+    inputSha256: createHash("sha256").update(evaluatedText).digest("hex"),
+    system: options.system,
+  });
+}
+
+/** Registra una evaluación ya armada (con record_evaluation, o record_system_evaluation si es del sistema). */
+export async function recordAssembledEvaluation(
+  supabase: AppSupabaseClient | SupabaseClient<Database>,
+  input: {
+    applicationId: string;
+    resumeId: string | null;
+    criteriaVersion: number;
+    result: EvaluationResult;
+    inputSha256: string | null;
+    system?: boolean;
+  },
+): Promise<string> {
+  const { result } = input;
   const recordArgs = {
-    p_application_id: application.id,
-    p_resume_id: resume.id,
-    p_criteria_version: vacancy.criteria_version,
+    p_application_id: input.applicationId,
+    p_resume_id: input.resumeId,
+    p_criteria_version: input.criteriaVersion,
     p_method: result.method,
     p_method_version: result.methodVersion,
     p_scoring_version: result.scoringVersion,
@@ -180,15 +233,17 @@ export async function evaluateApplication(
     p_level: result.level,
     p_summary: result.summary,
     p_limitations: result.limitations,
-    p_input_sha256: createHash("sha256").update(evaluatedText).digest("hex"),
+    p_input_sha256: input.inputSha256,
     p_items: result.items.map((item) => ({
       requirement_id: item.requirementId,
       assessment: item.assessment,
       evidence: item.evidence,
       rationale: item.rationale,
+      ...(item.cvAssessment ? { cv_assessment: item.cvAssessment } : {}),
+      ...(item.cvRationale ? { cv_rationale: item.cvRationale } : {}),
     })) as Json,
   };
-  const { data: evaluationId, error: recordError } = options.system
+  const { data: evaluationId, error: recordError } = input.system
     ? await supabase.rpc("record_system_evaluation", recordArgs)
     : await supabase.rpc("record_evaluation", recordArgs);
   if (recordError) throw toAppError(recordError);

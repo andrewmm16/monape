@@ -237,6 +237,64 @@ Cada evaluación nace **«Pendiente de revisión»**. Luis la revisa y pulsa **�
 
 Si corrige algo, por ejemplo el texto del CV, puede volver a evaluar. El historial conserva todas las evaluaciones.
 
+**Lo que dice el CV y lo que se comprobó.** Cada requisito de la evaluación muestra de dónde sale su valoración:
+
+- **«Según el CV»**: lo que la plataforma encontró en el documento.
+- **«Verificado · Entrevista»** (o Documento, Referencia, Prueba técnica): lo que RRHH comprobó, en verde si cumple y en rojo si no cumple, con la fecha, la persona y su nota. Debajo, en gris, sigue visible lo que decía el CV.
+
+Por ejemplo, el CV de Mario no menciona el inglés y el requisito sale «Sin evidencia». En la entrevista, Luis conversa con él en inglés. Después pulsa **«Verificar»** en ese requisito, elige «Cumple», deja la fuente «Entrevista» y escribe la nota «Conversación fluida de 10 minutos».
+
+La plataforma recalcula la puntuación al instante y conserva la evaluación anterior en el historial. Para recalcular no vuelve a leer el CV: parte de la evaluación vigente, con el mismo método (reglas o IA), y solo cambia los requisitos verificados. Si la evaluación vigente usó criterios anteriores, la rehace con las reglas. La verificación se mantiene aunque se vuelva a evaluar más adelante. Se puede cambiar o quitar, y quitarla también pide una nota. Un «No cumple» verificado ya no se presenta como «aparentemente»: es un dato comprobado por una persona.
+
+### Comparar candidatos
+
+En la pestaña «Candidatos», Luis marca de 2 a 4 personas y pulsa **«Comparar seleccionados»**. O pulsa **«Comparar los mejores»** y la plataforma elige y ordena sola a los 4 mejores. La comparación es una tabla:
+
+- una fila por requisito y una columna por candidato;
+- en cada celda, Cumple, No cumple, Sin evidencia o Pendiente, con la marca «CV» o «Verificado»;
+- al final, la puntuación, los obligatorios cumplidos, los requisitos verificados y el estado del proceso.
+
+Las columnas quedan ordenadas de la mejor a la peor opción con una regla fija, explicada en la misma pantalla:
+
+1. Al final, quien tenga un requisito obligatorio verificado como «No cumple».
+2. También al final, quien tenga la evaluación desactualizada.
+3. Mayor puntuación.
+4. A igualdad de puntuación, más requisitos obligatorios cumplidos y más requisitos verificados.
+
+Las personas descartadas («No seleccionado» o «Retirado») no entran en la comparación.
+
+### Entrevistas
+
+**Programar.** Desde la postulación, o desde la comparación con «Programar entrevista», Luis completa estos datos:
+- fecha y hora (en hora de Perú) y duración;
+- modalidad: presencial, virtual o telefónica;
+- lugar o enlace de la reunión;
+- quiénes entrevistan, escritos con su nombre: no hace falta que tengan usuario;
+- indicaciones.
+
+La postulación pasa a «Entrevista programada».
+
+**La página «Entrevistas»** (en el menú) reúne todas las entrevistas en tres partes:
+- **Pendientes de resultado:** ya pasó la hora y nadie registró cómo fue.
+- **Próximas:** agrupadas por «Hoy», «Mañana» y las demás fechas.
+- **Realizadas recientemente:** con su distintivo «Pasó», «No pasó», «No asistió» o «Cancelada».
+
+El panel muestra además las próximas entrevistas de la semana.
+
+**Registrar el resultado.** En cada entrevista, Luis pulsa «Registrar resultado»:
+
+| Resultado | Qué pasa con la postulación |
+|---|---|
+| **Pasó** | Pasa a «En evaluación» |
+| **No pasó** (motivo obligatorio) | Pasa a «No seleccionado» y se mueve a **«Descartados»** |
+| **No asistió** | No cambia; se puede reprogramar |
+
+En la misma ficha puede marcar qué requisitos comprobó en la entrevista, con «Cumple» o «No cumple». Quedan como «Verificado · Entrevista» y la puntuación se recalcula.
+
+**Descartados, no borrados.** En la pestaña «Candidatos» de la vacante hay dos vistas: **«En proceso»** y **«Descartados»**, con quienes no pasaron o se retiraron. Nada se elimina: el historial queda completo, y para reactivar a alguien basta con cambiar su estado en la postulación.
+
+Las entrevistas también se pueden **reprogramar** o **cancelar**; cancelar pide un motivo. Cuando una postulación pasa a «Seleccionado», «No seleccionado» o «Retirado», sus demás entrevistas programadas se cancelan solas, con el motivo «Cancelada automáticamente» y su registro en el historial. Una entrevista de una postulación cerrada o de una vacante archivada ya no se puede reprogramar. La plataforma **no envía invitaciones ni correos**: el aviso al candidato y a los entrevistadores lo hace RRHH por su cuenta.
+
 ### Paso 9 · Pedir una segunda opinión (opcional)
 
 Luis duda con Mario y pulsa **«Pedir opinión»**, eligiendo a Ana. La campana de Ana se pone amarilla. Ana abre la postulación y responde con una observación. Entonces Luis recibe el aviso de que ya hay respuesta.
@@ -296,7 +354,7 @@ Sobre seguridad y privacidad:
 | Postulación dentro de Talent.com | No llega a la plataforma | Que llegue sola a la bandeja. Antes hay que confirmar con Talent.com el costo, si cubre Perú y el formato del CV |
 | Computrabajo, Bumeran, LinkedIn, Indeed | Carga masiva de los CV descargados | No hay una vía pública y gratuita. Se evaluará leer los correos de aviso de los portales cuando exista el buzón de empleo |
 | Correos a postulantes | No se envían | Etapa 3, siempre con aprobación de RRHH |
-| Entrevistas | Solo existe el estado «Entrevista programada» | Módulo de entrevistas (Etapa 3) |
+| Entrevistas | Se programan, se listan en «Entrevistas» y se registra su resultado, pero no se envían invitaciones | Invitaciones por correo cuando se aprueben los correos (Etapa 3) |
 | Evaluación con IA | Implementada pero bloqueada | Se activa solo si la empresa aprueba por escrito el proveedor y el tratamiento de datos |
 | CV escaneados | Se leen con OCR local y gratuito. Suele fallar con la arroba del correo, y solo se probó con escaneos generados de texto limpio | Lectura con IA como motor principal cuando se apruebe, con el OCR local de respaldo |
 | Años de experiencia | Se calculan con las fechas de la sección de experiencia o con la mención explícita. Es una heurística: puede fallar en CV a columnas o sin encabezado «Experiencia» | Probarlo con CV reales; corrección manual por requisito tras la entrevista |

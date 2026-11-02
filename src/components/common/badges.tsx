@@ -4,6 +4,7 @@ import {
   ASSESSMENT_LABELS,
   COMPATIBILITY_LEVEL_LABELS,
   DATA_ORIGIN_LABELS,
+  PORTAL_PUBLICATION_STATUS_LABELS,
   VACANCY_STATUS_LABELS,
 } from "@/lib/labels";
 import type { Enums } from "@/types/database";
@@ -37,6 +38,19 @@ const VACANCY_TONES: Record<Enums<"vacancy_status">, Tone> = {
 
 export function VacancyStatusBadge({ status }: { status: Enums<"vacancy_status"> }) {
   return <ToneBadge label={VACANCY_STATUS_LABELS[status]} toneName={VACANCY_TONES[status]} />;
+}
+
+const PORTAL_PUBLICATION_TONES: Record<Enums<"portal_publication_status">, Tone> = {
+  pendiente: "neutral",
+  publicando: "info",
+  publicada: "success",
+  retirar: "warning",
+  retirada: "muted",
+  error: "attention",
+};
+
+export function PortalPublicationBadge({ status }: { status: Enums<"portal_publication_status"> }) {
+  return <ToneBadge label={PORTAL_PUBLICATION_STATUS_LABELS[status]} toneName={PORTAL_PUBLICATION_TONES[status]} />;
 }
 
 const APPLICATION_TONES: Record<Enums<"application_status">, Tone> = {

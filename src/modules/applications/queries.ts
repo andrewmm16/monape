@@ -2,7 +2,7 @@ import "server-only";
 import { AppError, toAppError } from "@/lib/errors";
 import { sanitizeSearchTerm } from "@/lib/search";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
-import type { ApplicationListParams } from "./schemas";
+import { DISCARDED_APPLICATION_STATUSES, statusesOfView, type ApplicationListParams } from "./schemas";
 
 export const APPLICATIONS_PAGE_SIZE = 20;
 
@@ -24,7 +24,12 @@ export async function listVacancyApplications(
 
   const term = sanitizeSearchTerm(params.q);
   if (term) query = query.or(`candidate_name.ilike.%${term}%,candidate_email.ilike.%${term}%`);
-  if (params.status) query = query.eq("status", params.status);
+  // «En proceso» y «Descartados» son vistas separadas; un estado de la otra vista no se aplica.
+  query =
+    params.vista === "descartados"
+      ? query.in("status", [...DISCARDED_APPLICATION_STATUSES])
+      : query.not("status", "in", `(${DISCARDED_APPLICATION_STATUSES.join(",")})`);
+  if (params.status && statusesOfView(params.vista).includes(params.status)) query = query.eq("status", params.status);
   if (params.level === "sin_evaluar") query = query.is("evaluation_id", null);
   else if (params.level) query = query.eq("level", params.level);
 
@@ -35,6 +40,15 @@ export async function listVacancyApplications(
   const { data, error, count } = await query;
   if (error) throw toAppError(error);
   return { rows: data, total: count ?? 0 };
+}
+
+/** Cuántas postulaciones tiene la vacante en cada vista (sin búsqueda ni filtros). */
+export async function countApplicationViews(supabase: AppSupabaseClient, vacancyId: string) {
+  const base = () => supabase.from("application_overview").select("id", { count: "exact", head: true }).eq("vacancy_id", vacancyId);
+  const [discarded, total] = await Promise.all([base().in("status", [...DISCARDED_APPLICATION_STATUSES]), base()]);
+  if (discarded.error) throw toAppError(discarded.error);
+  if (total.error) throw toAppError(total.error);
+  return { discarded: discarded.count ?? 0, inProcess: (total.count ?? 0) - (discarded.count ?? 0) };
 }
 
 /**
@@ -85,9 +99,19 @@ export async function listEvaluations(supabase: AppSupabaseClient, applicationId
 export async function listEvaluationItems(supabase: AppSupabaseClient, evaluationId: string) {
   const { data, error } = await supabase
     .from("candidate_evaluation_items")
-    .select("*")
+    .select("*, verifier:profiles!candidate_evaluation_items_verified_by_fkey(full_name)")
     .eq("evaluation_id", evaluationId)
     .order("position");
+  if (error) throw toAppError(error);
+  return data;
+}
+
+/** Verificaciones vigentes de RRHH (una por requisito) de la postulación. */
+export async function listRequirementVerifications(supabase: AppSupabaseClient, applicationId: string) {
+  const { data, error } = await supabase
+    .from("requirement_verifications")
+    .select("requirement_id, result, source, note")
+    .eq("application_id", applicationId);
   if (error) throw toAppError(error);
   return data;
 }

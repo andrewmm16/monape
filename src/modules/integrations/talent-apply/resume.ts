@@ -42,21 +42,28 @@ export type ValidatedResume =
 export function validateIncomingResume(file: { fileName?: string; data: string }): ValidatedResume {
   const decoded = decodeResumeData(file.data);
   if (!decoded.ok) return decoded;
+  return validateResumeBytes(decoded.bytes, file.fileName);
+}
 
-  const kind = sniffResumeKind(decoded.bytes);
+/** Valida un CV que ya llegó como bytes (misma comprobación que el base64 de arriba). */
+export function validateResumeBytes(bytes: Uint8Array, fileName?: string): ValidatedResume {
+  if (bytes.length === 0) return { ok: false, reason: "cv_vacio" };
+  if (bytes.length > MAX_RESUME_BYTES) return { ok: false, reason: "cv_demasiado_grande" };
+
+  const kind = sniffResumeKind(bytes);
   if (!kind) return { ok: false, reason: "cv_invalido" };
 
   // El nombre y el tipo declarados no cuentan: se valida con un nombre derivado del contenido.
   const validation = validateResumeFile({
     name: `cv.${kind}`,
-    size: decoded.bytes.length,
+    size: bytes.length,
     declaredType: "",
-    bytes: decoded.bytes,
+    bytes,
   });
   if (!validation.ok) return { ok: false, reason: "cv_invalido" };
 
   // Nombre para mostrar: el recibido, con la extensión que corresponde al contenido.
-  const safe = sanitizeFileName(file.fileName ?? "cv");
+  const safe = sanitizeFileName(fileName ?? "cv");
   const filename = safe.toLowerCase().endsWith(`.${kind}`) ? safe : `${safe}.${kind}`;
-  return { ok: true, bytes: decoded.bytes, kind, mimeType: validation.mimeType, filename };
+  return { ok: true, bytes, kind, mimeType: validation.mimeType, filename };
 }

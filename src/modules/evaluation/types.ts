@@ -27,6 +27,10 @@ export type ItemAssessment = {
   assessment: Assessment;
   evidence: Evidence[];
   rationale: string;
+  /** Con una verificación de RRHH: lo que dio el CV (o el motor) antes de aplicarla. */
+  cvAssessment?: Assessment;
+  /** Con una verificación de RRHH: el motivo original del CV (o del motor). */
+  cvRationale?: string;
 };
 
 export type Scores = {

@@ -213,10 +213,41 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_status: {
+        Row: {
+          portal_id: string
+          reason: string | null
+          seen_at: string
+          state: string
+        }
+        Insert: {
+          portal_id: string
+          reason?: string | null
+          seen_at?: string
+          state: string
+        }
+        Update: {
+          portal_id?: string
+          reason?: string | null
+          seen_at?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_status_portal_id_fkey"
+            columns: ["portal_id"]
+            isOneToOne: true
+            referencedRelation: "job_portals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_evaluation_items: {
         Row: {
           assessment: Database["public"]["Enums"]["requirement_assessment"]
           category: Database["public"]["Enums"]["requirement_category"]
+          cv_assessment: Database["public"]["Enums"]["requirement_assessment"] | null
+          cv_rationale: string | null
           description: string
           evaluation_id: string
           evidence: Json
@@ -226,11 +257,17 @@ export type Database = {
           priority: Database["public"]["Enums"]["requirement_priority"]
           rationale: string
           requirement_id: string | null
+          verification_note: string | null
+          verification_source: Database["public"]["Enums"]["verification_source"] | null
+          verified_at: string | null
+          verified_by: string | null
           weight: number
         }
         Insert: {
           assessment: Database["public"]["Enums"]["requirement_assessment"]
           category: Database["public"]["Enums"]["requirement_category"]
+          cv_assessment?: Database["public"]["Enums"]["requirement_assessment"] | null
+          cv_rationale?: string | null
           description: string
           evaluation_id: string
           evidence?: Json
@@ -240,11 +277,17 @@ export type Database = {
           priority: Database["public"]["Enums"]["requirement_priority"]
           rationale: string
           requirement_id?: string | null
+          verification_note?: string | null
+          verification_source?: Database["public"]["Enums"]["verification_source"] | null
+          verified_at?: string | null
+          verified_by?: string | null
           weight: number
         }
         Update: {
           assessment?: Database["public"]["Enums"]["requirement_assessment"]
           category?: Database["public"]["Enums"]["requirement_category"]
+          cv_assessment?: Database["public"]["Enums"]["requirement_assessment"] | null
+          cv_rationale?: string | null
           description?: string
           evaluation_id?: string
           evidence?: Json
@@ -254,6 +297,10 @@ export type Database = {
           priority?: Database["public"]["Enums"]["requirement_priority"]
           rationale?: string
           requirement_id?: string | null
+          verification_note?: string | null
+          verification_source?: Database["public"]["Enums"]["verification_source"] | null
+          verified_at?: string | null
+          verified_by?: string | null
           weight?: number
         }
         Relationships: [
@@ -269,6 +316,13 @@ export type Database = {
             columns: ["requirement_id"]
             isOneToOne: false
             referencedRelation: "vacancy_requirements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_evaluation_items_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -810,8 +864,91 @@ export type Database = {
           },
         ]
       }
+      interviews: {
+        Row: {
+          application_id: string
+          cancel_reason: string | null
+          created_at: string
+          created_by: string | null
+          duration_minutes: number
+          id: string
+          instructions: string | null
+          interviewers: string | null
+          location: string | null
+          modality: Database["public"]["Enums"]["interview_modality"]
+          result: Database["public"]["Enums"]["interview_result"] | null
+          result_notes: string | null
+          result_recorded_at: string | null
+          result_recorded_by: string | null
+          scheduled_at: string
+          status: Database["public"]["Enums"]["interview_status"]
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          cancel_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number
+          id?: string
+          instructions?: string | null
+          interviewers?: string | null
+          location?: string | null
+          modality: Database["public"]["Enums"]["interview_modality"]
+          result?: Database["public"]["Enums"]["interview_result"] | null
+          result_notes?: string | null
+          result_recorded_at?: string | null
+          result_recorded_by?: string | null
+          scheduled_at: string
+          status?: Database["public"]["Enums"]["interview_status"]
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          cancel_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number
+          id?: string
+          instructions?: string | null
+          interviewers?: string | null
+          location?: string | null
+          modality?: Database["public"]["Enums"]["interview_modality"]
+          result?: Database["public"]["Enums"]["interview_result"] | null
+          result_notes?: string | null
+          result_recorded_at?: string | null
+          result_recorded_by?: string | null
+          scheduled_at?: string
+          status?: Database["public"]["Enums"]["interview_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_result_recorded_by_fkey"
+            columns: ["result_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_portals: {
         Row: {
+          bot_enabled: boolean
           candidate_source: Database["public"]["Enums"]["candidate_source"]
           id: string
           is_active: boolean
@@ -820,6 +957,7 @@ export type Database = {
           position: number
         }
         Insert: {
+          bot_enabled?: boolean
           candidate_source: Database["public"]["Enums"]["candidate_source"]
           id?: string
           is_active?: boolean
@@ -828,6 +966,7 @@ export type Database = {
           position?: number
         }
         Update: {
+          bot_enabled?: boolean
           candidate_source?: Database["public"]["Enums"]["candidate_source"]
           id?: string
           is_active?: boolean
@@ -885,6 +1024,79 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_publications: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          error_code: string | null
+          external_id: string | null
+          external_url: string | null
+          id: string
+          last_synced_at: string | null
+          portal_id: string
+          published_at: string | null
+          requested_at: string
+          requested_by: string | null
+          status: Database["public"]["Enums"]["portal_publication_status"]
+          updated_at: string
+          vacancy_id: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          error_code?: string | null
+          external_id?: string | null
+          external_url?: string | null
+          id?: string
+          last_synced_at?: string | null
+          portal_id: string
+          published_at?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: Database["public"]["Enums"]["portal_publication_status"]
+          updated_at?: string
+          vacancy_id: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          error_code?: string | null
+          external_id?: string | null
+          external_url?: string | null
+          id?: string
+          last_synced_at?: string | null
+          portal_id?: string
+          published_at?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: Database["public"]["Enums"]["portal_publication_status"]
+          updated_at?: string
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_publications_portal_id_fkey"
+            columns: ["portal_id"]
+            isOneToOne: false
+            referencedRelation: "job_portals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_publications_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_publications_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
             referencedColumns: ["id"]
           },
         ]
@@ -996,6 +1208,71 @@ export type Database = {
           used_at?: string
         }
         Relationships: []
+      }
+      requirement_verifications: {
+        Row: {
+          application_id: string
+          id: string
+          interview_id: string | null
+          note: string
+          requirement_id: string
+          result: Database["public"]["Enums"]["requirement_assessment"]
+          source: Database["public"]["Enums"]["verification_source"]
+          verified_at: string
+          verified_by: string | null
+        }
+        Insert: {
+          application_id: string
+          id?: string
+          interview_id?: string | null
+          note: string
+          requirement_id: string
+          result: Database["public"]["Enums"]["requirement_assessment"]
+          source: Database["public"]["Enums"]["verification_source"]
+          verified_at?: string
+          verified_by?: string | null
+        }
+        Update: {
+          application_id?: string
+          id?: string
+          interview_id?: string | null
+          note?: string
+          requirement_id?: string
+          result?: Database["public"]["Enums"]["requirement_assessment"]
+          source?: Database["public"]["Enums"]["verification_source"]
+          verified_at?: string
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirement_verifications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requirement_verifications_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requirement_verifications_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_requirements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requirement_verifications_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resume_extractions: {
         Row: {
@@ -1368,6 +1645,59 @@ export type Database = {
           match_reasons: string[] | null
         }[]
       }
+      bot_claim_publication: {
+        Args: {
+          p_portal_id: string | null
+        }
+        Returns: {
+          publication_id: string | null
+          action: string | null
+          external_id: string | null
+          vacancy: Json | null
+        }[]
+      }
+      bot_list_active_publications: {
+        Args: {
+          p_portal_id: string | null
+        }
+        Returns: {
+          publication_id: string | null
+          external_id: string | null
+          external_url: string | null
+          last_synced_at: string | null
+        }[]
+      }
+      bot_mark_synced: {
+        Args: {
+          p_publication_id: string | null
+        }
+        Returns: undefined
+      }
+      bot_report_publication: {
+        Args: {
+          p_publication_id: string | null
+          p_outcome: string | null
+          p_external_id: string | null
+          p_external_url: string | null
+          p_error_code: string | null
+        }
+        Returns: undefined
+      }
+      bot_report_status: {
+        Args: {
+          p_portal_id: string | null
+          p_state: string | null
+          p_reason: string | null
+        }
+        Returns: undefined
+      }
+      cancel_interview: {
+        Args: {
+          p_interview_id: string | null
+          p_reason: string | null
+        }
+        Returns: undefined
+      }
       change_application_status: {
         Args: {
           p_application_id: string | null
@@ -1526,6 +1856,15 @@ export type Database = {
         }
         Returns: string
       }
+      record_interview_result: {
+        Args: {
+          p_interview_id: string | null
+          p_outcome: string | null
+          p_notes?: string | null
+          p_verifications?: Json | null
+        }
+        Returns: string
+      }
       record_system_evaluation: {
         Args: {
           p_application_id: string | null
@@ -1555,6 +1894,33 @@ export type Database = {
           p_extractor_version: string | null
         }
         Returns: string
+      }
+      register_bot_application: {
+        Args: {
+          p_publication_id: string | null
+          p_external_id: string | null
+          p_candidate_id: string | null
+          p_resume_id: string | null
+          p_storage_path: string | null
+          p_full_name: string | null
+          p_email: string | null
+          p_phone: string | null
+          p_original_filename: string | null
+          p_mime_type: string | null
+          p_size_bytes: number | null
+          p_sha256: string | null
+          p_extraction_status: Database["public"]["Enums"]["extraction_status"] | null
+          p_extraction_method: string | null
+          p_extractor_version: string | null
+          p_raw_text: string | null
+          p_suggested_fields: Json | null
+          p_warnings: string[] | null
+          p_error_code: string | null
+        }
+        Returns: {
+          application_id: string | null
+          already_registered: boolean | null
+        }[]
       }
       register_integration_application: {
         Args: {
@@ -1612,10 +1978,43 @@ export type Database = {
         }
         Returns: undefined
       }
+      remove_requirement_verification: {
+        Args: {
+          p_application_id: string | null
+          p_requirement_id: string | null
+          p_note: string | null
+        }
+        Returns: undefined
+      }
       request_opinion: {
         Args: {
           p_application_id: string | null
           p_profile_id: string | null
+        }
+        Returns: undefined
+      }
+      request_portal_publication: {
+        Args: {
+          p_vacancy_id: string | null
+          p_portal_id: string | null
+        }
+        Returns: string
+      }
+      request_portal_withdrawal: {
+        Args: {
+          p_publication_id: string | null
+        }
+        Returns: undefined
+      }
+      reschedule_interview: {
+        Args: {
+          p_interview_id: string | null
+          p_scheduled_at: string | null
+          p_duration_minutes?: number | null
+          p_modality?: Database["public"]["Enums"]["interview_modality"] | null
+          p_location?: string | null
+          p_interviewers?: string | null
+          p_instructions?: string | null
         }
         Returns: undefined
       }
@@ -1632,6 +2031,18 @@ export type Database = {
           p_id: string | null
         }
         Returns: undefined
+      }
+      schedule_interview: {
+        Args: {
+          p_application_id: string | null
+          p_scheduled_at: string | null
+          p_duration_minutes?: number | null
+          p_modality?: Database["public"]["Enums"]["interview_modality"] | null
+          p_location?: string | null
+          p_interviewers?: string | null
+          p_instructions?: string | null
+        }
+        Returns: string
       }
       submit_online_application: {
         Args: {
@@ -1664,10 +2075,17 @@ export type Database = {
           public_reference: string | null
         }[]
       }
+      verify_requirements: {
+        Args: {
+          p_application_id: string | null
+          p_items: Json | null
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "rrhh"
-      application_event_type: "postulacion_creada" | "cambio_estado" | "evaluacion_generada" | "evaluacion_revisada" | "observacion"
+      application_event_type: "postulacion_creada" | "cambio_estado" | "evaluacion_generada" | "evaluacion_revisada" | "observacion" | "requisito_verificado" | "entrevista_programada" | "entrevista_reprogramada" | "entrevista_cancelada" | "entrevista_resultado"
       application_intake_method: "manual" | "carga_masiva" | "formulario_en_linea" | "integracion"
       application_status: "nuevo" | "en_revision" | "preseleccionado" | "entrevista_programada" | "en_evaluacion" | "seleccionado" | "no_seleccionado" | "en_reserva" | "retirado"
       candidate_source: "manual" | "bolsa_empleo" | "linkedin" | "referido" | "web_empresa" | "otro"
@@ -1682,8 +2100,12 @@ export type Database = {
       extraction_status: "completada" | "sin_texto" | "fallida"
       intake_batch_status: "abierto" | "cerrado"
       intake_item_status: "listo" | "requiere_datos" | "error" | "registrado"
+      interview_modality: "presencial" | "virtual" | "telefonica"
+      interview_result: "paso" | "no_paso"
+      interview_status: "programada" | "realizada" | "no_asistio" | "cancelada"
       job_portal_kind: "automatico" | "manual"
       notification_kind: "opinion_solicitada" | "opinion_respondida"
+      portal_publication_status: "pendiente" | "publicando" | "publicada" | "retirar" | "retirada" | "error"
       privacy_notice_status: "borrador" | "vigente" | "retirado"
       profile_item_kind: "experiencia" | "formacion" | "habilidad" | "certificacion" | "idioma"
       requirement_assessment: "acreditado" | "no_cumplido" | "sin_evidencia" | "pendiente_verificacion"
@@ -1691,6 +2113,7 @@ export type Database = {
       requirement_priority: "obligatorio" | "deseable"
       salary_period: "hora" | "dia" | "semana" | "mes" | "anio"
       vacancy_status: "borrador" | "publicada" | "cerrada" | "archivada"
+      verification_source: "entrevista" | "documento" | "referencia" | "prueba_tecnica" | "otro"
       work_modality: "presencial" | "remoto" | "hibrido"
     }
     CompositeTypes: {
@@ -1711,7 +2134,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "rrhh"],
-      application_event_type: ["postulacion_creada", "cambio_estado", "evaluacion_generada", "evaluacion_revisada", "observacion"],
+      application_event_type: ["postulacion_creada", "cambio_estado", "evaluacion_generada", "evaluacion_revisada", "observacion", "requisito_verificado", "entrevista_programada", "entrevista_reprogramada", "entrevista_cancelada", "entrevista_resultado"],
       application_intake_method: ["manual", "carga_masiva", "formulario_en_linea", "integracion"],
       application_status: ["nuevo", "en_revision", "preseleccionado", "entrevista_programada", "en_evaluacion", "seleccionado", "no_seleccionado", "en_reserva", "retirado"],
       candidate_source: ["manual", "bolsa_empleo", "linkedin", "referido", "web_empresa", "otro"],
@@ -1726,8 +2149,12 @@ export const Constants = {
       extraction_status: ["completada", "sin_texto", "fallida"],
       intake_batch_status: ["abierto", "cerrado"],
       intake_item_status: ["listo", "requiere_datos", "error", "registrado"],
+      interview_modality: ["presencial", "virtual", "telefonica"],
+      interview_result: ["paso", "no_paso"],
+      interview_status: ["programada", "realizada", "no_asistio", "cancelada"],
       job_portal_kind: ["automatico", "manual"],
       notification_kind: ["opinion_solicitada", "opinion_respondida"],
+      portal_publication_status: ["pendiente", "publicando", "publicada", "retirar", "retirada", "error"],
       privacy_notice_status: ["borrador", "vigente", "retirado"],
       profile_item_kind: ["experiencia", "formacion", "habilidad", "certificacion", "idioma"],
       requirement_assessment: ["acreditado", "no_cumplido", "sin_evidencia", "pendiente_verificacion"],
@@ -1735,6 +2162,7 @@ export const Constants = {
       requirement_priority: ["obligatorio", "deseable"],
       salary_period: ["hora", "dia", "semana", "mes", "anio"],
       vacancy_status: ["borrador", "publicada", "cerrada", "archivada"],
+      verification_source: ["entrevista", "documento", "referencia", "prueba_tecnica", "otro"],
       work_modality: ["presencial", "remoto", "hibrido"],
     },
   },

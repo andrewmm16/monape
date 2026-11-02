@@ -1,0 +1,13 @@
+Logos de los portales (opcional).
+
+Cada archivo se llama como el portal, en minusculas, sin tildes y con guiones, con extension
+.svg, .png o .webp: linkedin.png, computrabajo.png, indeed.png, bumeran.png,
+trabajos-diarios.png, get-on-board.png, torre.png, empleos-peru.png.
+
+Incluidos hoy (iconos de cada sitio, obtenidos el 2026-10-29): bumeran, computrabajo,
+get-on-board, indeed, linkedin y trabajos-diarios. Son de baja resolucion (32 a 128 px);
+conviene reemplazarlos por el logo oficial del portal (kit de prensa o marca) cuando lo tenga.
+Faltan torre y empleos-peru: se muestran sus iniciales.
+
+Si falta el archivo de un portal, la pantalla muestra sus iniciales en lugar del logo.
+Use solo los logos que cada portal permita usar a sus clientes.

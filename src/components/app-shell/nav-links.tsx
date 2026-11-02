@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseIcon, InboxIcon, LayoutDashboardIcon, SettingsIcon, UsersIcon, UserCogIcon } from "lucide-react";
+import { BriefcaseIcon, CalendarDaysIcon, InboxIcon, LayoutDashboardIcon, ScrollTextIcon, SettingsIcon, UsersIcon, UserCogIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
@@ -10,7 +10,9 @@ const ICONS = {
   vacantes: BriefcaseIcon,
   candidatos: UsersIcon,
   postulaciones: InboxIcon,
+  entrevistas: CalendarDaysIcon,
   usuarios: UserCogIcon,
+  auditoria: ScrollTextIcon,
   configuracion: SettingsIcon,
 } as const;
 

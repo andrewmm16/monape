@@ -10,6 +10,9 @@ import { ACTIVITY_COOKIE, IDLE_SIGN_OUT_PATH, isServerIdleExpired } from "@/lib/
  * /api/integraciones/talent/* (2.10) recibe las postulaciones de Talent Apply
  * (POST de un servidor externo, sin sesión) y entrega su feed: la protección es
  * el token de la URL y responden 404 mientras TALENT_APPLY_ENABLED no sea "true".
+ * /api/evaluar-cv es un webhook interno: exige `Authorization: Bearer` con
+ * EVALUATION_WEBHOOK_SECRET y responde 404 si falta o no coincide.
+ * /api/bot/* es la API del robot de portales: mismo esquema con PORTAL_BOT_SECRET.
  */
 const PUBLIC_PATHS = [
   "/ingresar",
@@ -20,6 +23,8 @@ const PUBLIC_PATHS = [
   "/robots.txt",
   "/sitemap.xml",
   "/api/integraciones/talent",
+  "/api/evaluar-cv",
+  "/api/bot",
   IDLE_SIGN_OUT_PATH,
 ];
 
@@ -38,7 +43,9 @@ function isCookielessPublicPath(pathname: string): boolean {
     pathname.startsWith("/empleos/") ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    pathname.startsWith("/api/integraciones/talent/")
+    pathname.startsWith("/api/integraciones/talent/") ||
+    pathname === "/api/evaluar-cv" ||
+    pathname.startsWith("/api/bot/")
   );
 }
 
