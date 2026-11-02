@@ -56,6 +56,7 @@ async function main() {
       diaryFile: path.resolve("bot/.state/mutaciones.json"),
       autoRestore: auto ? { graceMs: graceMinutes * 60_000, maxLifeMs: maxLifeMinutes * 60_000 } : undefined,
       // Los incidentes del robot (la misma carpeta que usa el robot y el informe).
+      tolerancesFile: path.resolve(process.env.BOT_TOLERANCES_FILE ?? "bot/.state/tolerancias.json"),
       incidentsDir: path.resolve(argValue("--incidentes") ?? process.env.BOT_INCIDENTS_DIR ?? "bot/.state/incidentes"),
       // El informe se regenera solo únicamente mientras el entrenamiento está activo.
       reportFile: everyMinutes !== undefined ? path.resolve("bot/.state/informe-entrenamiento.md") : undefined,

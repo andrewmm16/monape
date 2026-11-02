@@ -288,7 +288,8 @@ describe("reanudación contra el portal ficticio (Chromium real, un navegador co
     };
     api.queue.push(job());
 
-    portal.mutator.apply("linkedin", "renombrar_campo");
+    // «boton_en_menu» sigue deteniendo al robot (el botón de publicar es estricto); «renombrar_campo» ya lo absorbe la tolerancia.
+    portal.mutator.apply("linkedin", "boton_en_menu");
     const first = await runRound([slot], () => {});
     expect(first.newlyHalted).toEqual([{ slug: "linkedin", reason: ERROR_CODES.pageChanged }]);
     expect(first.allHalted).toBe(false);

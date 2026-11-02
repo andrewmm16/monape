@@ -1,12 +1,14 @@
-import type { BrowserContext, Page } from "@playwright/test";
+import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { ERROR_CODES, PortalError } from "../errors";
+import { activeSelector, probeElement, resolveCss, resolveElement, type Raiz, type ResolveOptions, type Vars } from "../selectors";
+import { captureStructure } from "../structure";
 import type { ApplicantSummary, ActivePublication, PortalAdapter, PublishResult, ResumeFile, VacancyData } from "../types";
 
 /**
  * Base de los adaptadores de los portales FICTICIOS. Solo reúne lo que no
  * depende de la estructura de cada portal (pestaña propia, detección de sesión
  * y CAPTCHA, descarga del CV). Los selectores NO se comparten: cada portal
- * tiene los suyos, como pasa con los reales.
+ * declara su propio «libro de selectores» (ver `selectors.ts`), como pasa con los reales.
  */
 
 /** Pestañas ya asignadas por contexto: con un navegador compartido cada adaptador usa la suya. */
@@ -72,12 +74,12 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
   abstract readonly slug: string;
   /** Prefijo del sitio en el servidor ficticio, por ejemplo "/linkedin" ("" para el alias de la raíz). */
   protected abstract readonly sitePath: string;
-  /** Elemento que aparece cuando el portal pide verificar que se es humano. */
-  protected abstract readonly captchaSelector: string;
   /** Origen ficticio (https, dominio .test) para el enlace que se informa a la app. */
   protected abstract readonly externalOrigin: string;
 
   private page: Page | undefined;
+  /** Tiempo máximo por cada forma de buscar un elemento del libro (las páginas ya están cargadas). */
+  private readonly resolveTimeoutMs: number;
 
   constructor(
     protected readonly context: BrowserContext,
@@ -85,30 +87,94 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
     timeoutMs = 15_000,
   ) {
     context.setDefaultTimeout(timeoutMs);
+    this.resolveTimeoutMs = Math.min(timeoutMs, 1_500);
   }
 
   protected get root(): string {
     return `${this.baseUrl}${this.sitePath}`;
   }
 
-  /** Detecta lo que solo una persona puede resolver y se detiene. */
-  protected async guard(page: Page): Promise<void> {
+  // ---------------------------------------------------------------- libro de selectores
+
+  /** Encuentra una clave del libro del portal (ver `selectors.ts`): override → defecto → alternativas si no es estricta. */
+  protected el(page: Raiz, clave: string, options: ResolveOptions = {}): Promise<Locator> {
+    return resolveElement(page, this.slug, clave, { timeoutMs: this.resolveTimeoutMs, ...options });
+  }
+
+  /** Busca sin esperar; `null` si no hay nada (con `all`, todos los que cumplen). */
+  protected probe(page: Raiz, clave: string, options: { vars?: Vars; all?: boolean } = {}): Promise<Locator | null> {
+    return probeElement(page, this.slug, clave, options);
+  }
+
+  /** Selector CSS vigente de una clave (para combinar claves estrictas en una espera). */
+  protected sel(clave: string, vars?: Vars): string {
+    return activeSelector(this.slug, clave, vars);
+  }
+
+  protected async fillField(page: Page, clave: string, value: string): Promise<void> {
+    await (await this.el(page, clave)).fill(value);
+  }
+
+  protected async selectField(page: Page, clave: string, value: string): Promise<void> {
+    await (await this.el(page, clave)).selectOption(value);
+  }
+
+  protected async checkField(page: Page, clave: string): Promise<void> {
+    await (await this.el(page, clave)).check();
+  }
+
+  protected async clickKey(page: Page, clave: string): Promise<void> {
+    await (await this.el(page, clave)).click();
+  }
+
+  /** Falla con pagina_cambio si falta alguno de los elementos que el adaptador usa. */
+  protected async requireKeys(page: Page, claves: string[], where: string): Promise<void> {
+    for (const clave of claves) await this.el(page, clave, { state: "attached", where });
+  }
+
+  /** Detecta lo que solo una persona puede resolver y se detiene; acepta un aviso de cookies si tapa la página. */
+  protected async guard(page: Page, options: { offer?: boolean } = {}): Promise<void> {
     if (new URL(page.url()).pathname === `${this.sitePath}/login`) throw new PortalError(ERROR_CODES.sessionExpired);
-    if ((await page.locator(this.captchaSelector).count()) > 0) throw new PortalError(ERROR_CODES.verificationRequired);
+    if ((await page.locator(this.sel("captcha")).count()) > 0) throw new PortalError(ERROR_CODES.verificationRequired);
+    // Página «No existe» al abrir una oferta concreta: la oferta ya no está en el portal (no es un cambio de su estructura).
+    if (options.offer && (await page.title()).startsWith("No existe")) throw new PortalError(ERROR_CODES.offerNotFound, "la oferta ya no existe en el portal (404)");
+    // Aviso de cookies (tolerante): si tapa la página se acepta; si no hay, no se hace nada.
+    const cookies = await this.probe(page, "aviso_cookies");
+    if (cookies) await cookies.click({ timeout: 2_000 }).catch(() => undefined);
+  }
+
+  // ---------------------------------------------------------------- pestañas y diagnóstico
+
+  /** Esquema de la pantalla donde falló la última operación (se captura al fallar, antes de cerrar la pestaña desechable). */
+  private failureStructure: string | null = null;
+
+  private async rememberFailure(page: Page): Promise<void> {
+    if (this.failureStructure) return;
+    try {
+      this.failureStructure = await Promise.race([
+        captureStructure(page),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3_000).unref()),
+      ]);
+    } catch {
+      // Sin esquema: el incidente se guarda igual.
+    }
+  }
+
+  async captureStructure(): Promise<string> {
+    if (this.failureStructure) return this.failureStructure;
+    if (!this.page || this.page.isClosed()) throw new Error("no hay una pantalla abierta que capturar");
+    return captureStructure(this.page);
   }
 
   /** Una sola pestaña por adaptador: no se abren y cierran pestañas por cada oferta ni se mezclan con las de otros portales. */
   protected async withPage<T>(run: (page: Page) => Promise<T>): Promise<T> {
     if (!this.page || this.page.isClosed()) this.page = await claimPage(this.context);
-    return run(this.page);
-  }
-
-  /** Falla con pagina_cambio si falta alguno de los elementos que el adaptador usa. */
-  protected async requireAll(page: Page, selectors: string[], where: string): Promise<void> {
-    for (const selector of selectors) {
-      if ((await page.locator(selector).count()) === 0) {
-        throw new PortalError(ERROR_CODES.pageChanged, `falta ${selector} en ${where}`);
-      }
+    this.failureStructure = null;
+    try {
+      return await run(this.page);
+    } catch (error) {
+      await this.rememberFailure(this.page);
+      throw error;
     }
   }
 
@@ -137,6 +203,9 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
     const scratch = await this.context.newPage();
     try {
       return await run(scratch);
+    } catch (error) {
+      await this.rememberFailure(scratch);
+      throw error;
     } finally {
       await scratch.close().catch(() => undefined);
     }
@@ -145,17 +214,17 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
   /**
    * Último control antes del envío final, SIN enviar: el botón existe, nada lo tapa
    * (se comprueba con un clic «de prueba» que no pulsa) y el formulario no pide
-   * ningún campo que el robot no rellene.
+   * ningún campo que el robot no rellene. El botón de enviar es ESTRICTO (ver `selectors.ts`).
    */
-  protected async assertSubmittable(page: Page, submitSelector: string, where: string): Promise<void> {
+  protected async assertSubmittable(page: Page, where: string): Promise<void> {
     await this.guard(page);
-    await this.requireAll(page, [submitSelector], where);
+    const button = await this.el(page, "boton_enviar", { where });
     try {
-      await page.click(submitSelector, { trial: true });
+      await button.click({ trial: true });
     } catch {
-      throw new PortalError(ERROR_CODES.pageChanged, `no se puede pulsar ${submitSelector} en ${where}`);
+      throw new PortalError(ERROR_CODES.pageChanged, `no se puede pulsar el botón de enviar [boton_enviar] en ${where}`);
     }
-    const valid = await page.locator(submitSelector).evaluate((button) => (button as HTMLButtonElement).form?.checkValidity() ?? true);
+    const valid = await button.evaluate((element) => (element as HTMLButtonElement).form?.checkValidity() ?? true);
     if (!valid) throw new PortalError(ERROR_CODES.pageChanged, `${where} pide un campo que el robot no rellena`);
   }
 
@@ -170,27 +239,22 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
     page: Page,
     o: {
       homePath: string;
-      homeSelector: string;
-      linkSelector: string;
-      listSelector: string;
-      rowSelector: string;
-      resumeSelector: string;
-      /** Portales que retiran sin pantalla (sin botón) lo omiten. */
-      closeSelector?: string;
+      /** Texto del botón de retirar. Los portales que retiran sin pantalla (sin botón) lo omiten. */
       closeText?: string;
     },
   ): Promise<void> {
     this.gaps = [];
     await page.goto(`${this.baseUrl}${o.homePath}`);
     await this.guard(page);
-    await this.requireAll(page, [o.homeSelector], "el panel de ofertas");
-    const hrefs = (await page.locator(o.linkSelector).evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? "")))
+    await this.requireKeys(page, ["panel_ofertas"], "el panel de ofertas");
+    const links = await this.probe(page, "enlace_ver_candidatos", { all: true });
+    const hrefs = (links ? await links.evaluateAll((items) => items.map((link) => link.getAttribute("href") ?? "")) : [])
       .filter(Boolean)
       .slice(0, MAX_OFFERS)
       .map((href) => new URL(href, this.baseUrl).toString());
     if (hrefs.length === 0) {
       this.gaps.push("lista de candidatos", "enlace al CV");
-      if (o.closeSelector) this.gaps.push("botón de retirar");
+      if (o.closeText) this.gaps.push("botón de retirar");
       return; // sin ofertas todavía: nada que abrir
     }
 
@@ -200,41 +264,91 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
       await page.goto(url);
       await this.guard(page);
       // «attached»: una lista sin filas cuenta como oculta y no es un cambio de página.
-      await page.locator(o.listSelector).waitFor({ state: "attached" });
-      const first = page.locator(o.rowSelector).first();
-      if ((await first.count()) === 0) continue;
-      const href = await first.locator(o.resumeSelector).first().getAttribute("href", { timeout: 500 }).catch(() => null);
-      if (!href) throw new PortalError(ERROR_CODES.pageChanged, `falta ${o.resumeSelector} (con enlace) en el primer postulante`);
+      await this.el(page, "lista_postulantes", { state: "attached", where: "la lista de candidatos" });
+      const rows = await this.probe(page, "fila_postulante", { all: true });
+      if (!rows) continue;
+      const link = await this.probe(rows.first(), "enlace_cv");
+      const href = await link?.getAttribute("href", { timeout: 500 }).catch(() => null);
+      if (!href) throw new PortalError(ERROR_CODES.pageChanged, "falta el enlace al CV (con dirección) en el primer postulante [enlace_cv]");
       resumeChecked = true;
       break;
     }
     if (!resumeChecked) this.gaps.push("enlace al CV");
 
     // Botón de retirar de una oferta activa: la página de la oferta es la de candidatos sin su último tramo.
-    if (!o.closeSelector) return;
+    if (!o.closeText) return;
     for (const url of hrefs) {
       await page.goto(url.replace(/\/[^/]+$/, ""));
       await this.guard(page);
-      if ((await page.locator(o.closeSelector).count()) === 0) continue; // cerrada
-      if ((await page.locator(o.closeSelector, { hasText: o.closeText }).count()) === 0) {
-        throw new PortalError(ERROR_CODES.pageChanged, `${o.closeSelector} ya no dice «${o.closeText}»`);
+      const button = await this.probe(page, "boton_retirar");
+      if (!button) continue; // cerrada
+      if ((await button.filter({ hasText: o.closeText }).count()) === 0) {
+        throw new PortalError(ERROR_CODES.pageChanged, `el botón de retirar [boton_retirar] ya no dice «${o.closeText}»`);
       }
       return;
     }
     this.gaps.push("botón de retirar (no hay ofertas activas)");
   }
 
-  /** Cierra la oferta con el botón de su página y confirma el nuevo estado. */
-  protected async closeJob(page: Page, jobPath: string, closeSelector: string, statusSelector: string, closedText: string): Promise<void> {
+  /**
+   * Lee la lista de postulantes de la página actual. Los subcampos (nombre, correo, teléfono, CV)
+   * se buscan con los selectores del libro dentro de la primera fila. Con `cells`, el portal
+   * entrega nombre, correo y teléfono por posición de celda (solo el CV y el id usan selector/atributo).
+   */
+  protected async readApplicants(page: Page, idAttribute: string, mode: "selectors" | "cells"): Promise<ApplicantSummary[]> {
+    await this.el(page, "lista_postulantes", { state: "attached", where: "la lista de candidatos" });
+    const rows = await this.probe(page, "fila_postulante", { all: true });
+    if (!rows) return [];
+    const first = rows.first();
+    const cv = await resolveCss(first, this.slug, "enlace_cv");
+    if (mode === "cells") {
+      // Sin funciones con nombre dentro del callback (problema `__name` de tsx).
+      return rows.evaluateAll(
+        (items, args) =>
+          items.map((row) => ({
+            externalId: row.getAttribute(args.id) ?? "",
+            fullName: row.children[0]?.textContent?.trim() ?? "",
+            email: row.children[1]?.textContent?.trim() || undefined,
+            phone: row.children[2]?.textContent?.trim() || undefined,
+            resumeRef: row.querySelector(args.cv)?.getAttribute("href") ?? "",
+          })),
+        { id: idAttribute, cv },
+      );
+    }
+    const selectors = {
+      id: idAttribute,
+      cv,
+      name: await resolveCss(first, this.slug, "postulante_nombre"),
+      email: await resolveCss(first, this.slug, "postulante_correo"),
+      phone: await resolveCss(first, this.slug, "postulante_telefono"),
+    };
+    // Sin funciones con nombre dentro del callback: tsx (esbuild) les agrega un ayudante `__name` que no existe en el navegador.
+    return rows.evaluateAll(
+      (items, args) =>
+        items.map((item) => ({
+          externalId: item.getAttribute(args.id) ?? "",
+          fullName: item.querySelector(args.name)?.textContent?.trim() ?? "",
+          email: item.querySelector(args.email)?.textContent?.trim() || undefined,
+          phone: item.querySelector(args.phone)?.textContent?.trim() || undefined,
+          resumeRef: item.querySelector(args.cv)?.getAttribute("href") ?? "",
+        })),
+      selectors,
+    );
+  }
+
+  /** Cierra la oferta con el botón de su página (ESTRICTO) y confirma el nuevo estado. */
+  protected async closeJob(page: Page, jobPath: string, closedText: string): Promise<void> {
     await page.goto(`${this.baseUrl}${jobPath}`);
     await this.guard(page);
-    if ((await page.locator(closeSelector).count()) === 0) {
+    const status = () => page.locator(this.sel("estado_oferta"), { hasText: closedText });
+    const button = await this.probe(page, "boton_retirar");
+    if (!button) {
       // Ya estaba cerrada: retirar es idempotente.
-      if ((await page.locator(statusSelector, { hasText: closedText }).count()) > 0) return;
-      throw new PortalError(ERROR_CODES.pageChanged, `falta ${closeSelector} para retirar la oferta`);
+      if ((await status().count()) > 0) return;
+      throw new PortalError(ERROR_CODES.pageChanged, "falta el botón de retirar la oferta [boton_retirar]");
     }
-    await page.click(closeSelector);
-    await page.locator(statusSelector, { hasText: closedText }).waitFor();
+    await button.click();
+    await status().waitFor();
   }
 
   async downloadResume(_publication: ActivePublication, applicant: ApplicantSummary): Promise<ResumeFile> {

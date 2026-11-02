@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "../errors";
 import type { FileIncidentStore, Incident } from "../incidents";
+import type { RepairService } from "../repair";
 import type { Incoming } from "./commands";
 import type { BotControl } from "./control";
 
@@ -20,7 +21,11 @@ function nonRepairableHint(code: string): string {
   return "Lo resuelve una persona en la PC del robot (sesión o verificación).";
 }
 
-export function incidentMessage(incident: Incident): string {
+/**
+ * `repairActive`: la reparación asistida está activa (hay clave); entonces se avisa de que puede llegar una
+ * propuesta en otro mensaje. Sin ella el texto es el de siempre.
+ */
+export function incidentMessage(incident: Incident, options: { repairActive?: boolean } = {}): string {
   const lines = [
     `Incidente #${incident.id} en ${incident.portal} (${STEP_LABELS[incident.step]}): ${incident.errorCode}.`,
     incident.reparable
@@ -29,14 +34,16 @@ export function incidentMessage(incident: Incident): string {
   ];
   lines.push(
     incident.reparable
-      ? `Aún no hay reparación automática: «sí ${incident.id}» o «no ${incident.id}» solo deja constancia de su decisión.`
+      ? options.repairActive && incident.structure
+        ? `Estoy preparando una propuesta de reparación; si la hay, se la envío en otro mensaje. Mientras tanto, «sí ${incident.id}» o «no ${incident.id}» solo deja constancia de su decisión.`
+        : `Aún no hay reparación automática: «sí ${incident.id}» o «no ${incident.id}» solo deja constancia de su decisión.`
       : `«no ${incident.id}» lo descarta cuando ya lo resolvió.`,
   );
   return lines.join("\n");
 }
 
 /** Decide qué hacer con lo que escribió el responsable. */
-export function createIncomingHandler(control: BotControl, incidents?: FileIncidentStore) {
+export function createIncomingHandler(control: BotControl, incidents?: FileIncidentStore, repair?: RepairService | null) {
   return async (incoming: Incoming): Promise<string> => {
     if (incoming.kind === "command") {
       const reply = control.handle(incoming.command);
@@ -49,12 +56,30 @@ export function createIncomingHandler(control: BotControl, incidents?: FileIncid
     if (incoming.kind === "incidents") {
       const open = (await incidents.list()).filter((incident) => incident.status === "abierto");
       if (open.length === 0) return "No hay incidentes abiertos.";
-      return open
-        .map(
-          (i) =>
-            `#${i.id} ${i.portal} · ${STEP_LABELS[i.step]} · ${i.errorCode} · ${when(i.lastSeenAt)}${i.occurrences > 1 ? ` (${i.occurrences} veces)` : ""}`,
-        )
-        .join("\n");
+      const lines = await Promise.all(
+        open.map(async (i) => {
+          const base = `#${i.id} ${i.portal} · ${STEP_LABELS[i.step]} · ${i.errorCode} · ${when(i.lastSeenAt)}${i.occurrences > 1 ? ` (${i.occurrences} veces)` : ""}`;
+          const p = repair ? await repair.get(i.id).catch(() => null) : null;
+          if (!p || p.estado !== "propuesta") return base;
+          const label = p.probada ? "propuesta PROBADA" : p.ensayo.resultado === "no_cubierto" ? "propuesta SIN PROBAR" : "sin solución probada";
+          return `${base} · ${label}`;
+        }),
+      );
+      return lines.join("\n");
+    }
+
+    // Con una propuesta pendiente de un incidente abierto, «sí» la aplica y «no» la rechaza. Sin propuesta, todo igual que siempre.
+    const proposal = repair ? await repair.pending(incoming.id) : null;
+    if (repair && proposal && (await incidents.get(incoming.id))?.status === "abierto") {
+      if (incoming.decision === "aprobado") {
+        const applied = await repair.apply(incoming.id);
+        if (!applied.ok) return `No pude aplicar la propuesta del incidente #${incoming.id}: ${applied.motivo}. El incidente sigue abierto.`;
+        await incidents.decide(incoming.id, "aprobado");
+        return `Incidente #${incoming.id} marcado como aprobado. Apliqué «${applied.propuesta.selector}» como ${applied.propuesta.clave} en ${applied.propuesta.portal}. La comprobación automática del portal la verificará; si falla dentro de ${repair.verifyMinutes} min, se revierte sola y se lo aviso.`;
+      }
+      await repair.reject(incoming.id);
+      await incidents.decide(incoming.id, "rechazado");
+      return `Incidente #${incoming.id} marcado como rechazado. Descarté la propuesta de reparación.`;
     }
 
     const result = await incidents.decide(incoming.id, incoming.decision);

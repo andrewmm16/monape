@@ -17,6 +17,10 @@ export const ERROR_CODES = {
   resultRejected: "resultado_rechazado",
   /** Retiro pedido sin conocer el id de la oferta (se cerró la vacante mientras se publicaba). */
   withdrawWithoutId: "retiro_sin_id",
+  /** La oferta ya no existe en el portal (vencida, borrada o retirada a mano): no es un cambio de su página. */
+  offerNotFound: "oferta_no_encontrada",
+  /** No se pudieron traer todos los postulantes antes de retirar la oferta: se reintenta para no perderlos. */
+  finalSyncIncomplete: "sincronizacion_pendiente",
 } as const;
 
 /**
@@ -45,6 +49,8 @@ export const NOT_REPAIRABLE = new Set<string>([
   ERROR_CODES.appUnavailable,
   ERROR_CODES.resultRejected,
   ERROR_CODES.withdrawWithoutId,
+  ERROR_CODES.offerNotFound,
+  ERROR_CODES.finalSyncIncomplete,
 ]);
 
 /** La app respondió con un estado de error (distinto de un fallo con el portal). */

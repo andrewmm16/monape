@@ -99,6 +99,14 @@ export interface ResumeResult {
   escalated: { slug: string; reason: string }[];
 }
 
+async function notifyCheck(onCheck: Parameters<typeof runResumeChecks>[3], log: Logger, slug: string, ok: boolean, startedAt: number): Promise<void> {
+  try {
+    await onCheck?.(slug, ok, startedAt);
+  } catch (error) {
+    log(`Comprobación de ${slug}: falló el aviso del resultado: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 /** Hay algún portal reanudable cuya comprobación ya toca. */
 export function resumeDue(slots: AdapterSlot[]): boolean {
   return slots.some((slot) => isResumable(slot) && (slot.resume!.lastCheckAt === null || slot.resume!.now() - slot.resume!.lastCheckAt >= slot.resume!.intervalMs));
@@ -112,7 +120,13 @@ export function resumeDue(slots: AdapterSlot[]): boolean {
  * coincide con un ciclo en el navegador compartido. Un fallo que exige a una persona
  * (sesión, navegador cerrado) deja de ser reanudable y se devuelve en `escalated`.
  */
-export async function runResumeChecks(slots: AdapterSlot[], log: Logger, shouldStop: () => boolean = () => false): Promise<ResumeResult> {
+export async function runResumeChecks(
+  slots: AdapterSlot[],
+  log: Logger,
+  shouldStop: () => boolean = () => false,
+  /** Resultado de cada prueba de estructura (salvo las que exigen a una persona): la reparación asistida verifica o revierte con él. Nunca debe lanzar. */
+  onCheck?: (slug: string, ok: boolean, startedAt: number) => Promise<void> | void,
+): Promise<ResumeResult> {
   const result: ResumeResult = { resumed: [], escalated: [] };
   for (const slot of slots) {
     const schedule = slot.resume;
@@ -120,10 +134,12 @@ export async function runResumeChecks(slots: AdapterSlot[], log: Logger, shouldS
     if (!schedule || !isResumable(slot)) continue;
     if (schedule.lastCheckAt !== null && schedule.now() - schedule.lastCheckAt < schedule.intervalMs) continue;
     schedule.lastCheckAt = schedule.now();
+    const startedAt = Date.now();
     try {
       await slot.deps.adapter.healthCheck();
     } catch (error) {
       const code = errorCodeOf(error);
+      if (!HUMAN_REQUIRED.has(code)) await notifyCheck(onCheck, log, slot.slug, false, startedAt);
       if (HUMAN_REQUIRED.has(code)) {
         slot.haltReason = code;
         result.escalated.push({ slug: slot.slug, reason: code });
@@ -133,6 +149,7 @@ export async function runResumeChecks(slots: AdapterSlot[], log: Logger, shouldS
       }
       continue;
     }
+    await notifyCheck(onCheck, log, slot.slug, true, startedAt);
     slot.halted = false;
     slot.haltReason = undefined;
     schedule.failedChecks = 0;

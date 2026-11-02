@@ -4,6 +4,7 @@ import { FileIncidentStore, type Incident, type IncidentStep } from "./incidents
 import type { Cambio } from "./fake-portal/mutator";
 import type { PasoRobot } from "./fake-portal/mutations";
 import { esc } from "./fake-portal/util";
+import { readTolerances, type EventoTolerancia } from "./selectors";
 
 /**
  * Informe del entrenamiento (solo lectura): cruza el diario de cambios del
@@ -11,7 +12,10 @@ import { esc } from "./fake-portal/util";
  * (`bot/.state/incidentes/*.json`). Por cada cambio estructural dice si el robot lo
  * detectó y cuánto tardó; por cada cosmético, si dio una falsa alarma; además agrupa
  * por tipo de cambio y por portal, y lista las reanudaciones automáticas del robot.
- * Solo usa portal, paso, código y fechas: ningún dato personal.
+ * Un cambio estructural SIN incidente durante cuya ventana el robot usó selectores
+ * alternativos de ese portal (`bot/.state/tolerancias.json`) se clasifica «absorbido
+ * (tolerado)»: ni detectado ni escapado, el robot siguió trabajando gracias a la tolerancia.
+ * Solo usa portal, paso, código, clave lógica y fechas: ningún dato personal.
  */
 const STEP_OF: Record<PasoRobot, IncidentStep> = {
   healthCheck: "prueba_estructura",
@@ -35,9 +39,20 @@ export interface Detection {
   reanudacion: { minutosDetenido: number; minutosTrasRestablecer: number | null } | null;
 }
 
+/** Usos de selectores alternativos del portal durante la ventana del cambio. */
+export interface ToleranciaCambio {
+  eventos: number;
+  /** Claves lógicas del libro de selectores que necesitaron una alternativa. */
+  claves: string[];
+}
+
 export interface FilaCambio {
   cambio: Cambio;
   deteccion: Detection | null;
+  /** Eventos de tolerancia del portal dentro de la ventana del cambio (solo estructurales); `null` si no hubo. */
+  tolerancia: ToleranciaCambio | null;
+  /** Sin incidente pero con tolerancia: el robot lo absorbió. Distinto de detectado y de escapado. */
+  absorbido: boolean;
 }
 
 /** Detectados y escapados de un grupo de cambios estructurales. La tasa solo cuenta los ya cerrados (detectados + escapados). */
@@ -46,6 +61,8 @@ export interface Resumen {
   detectados: number;
   escapados: number;
   sinDetectarAun: number;
+  /** Absorbidos (tolerados): sin incidente pero con eventos de tolerancia. No cuentan como escapados ni en la tasa. */
+  absorbidos: number;
   tasaDeteccionPct: number | null;
   tiempoMedioMin: number | null;
 }
@@ -71,10 +88,12 @@ export interface Informe {
   totales: {
     estructurales: number;
     detectados: number;
-    /** Sin incidente y ya resueltos o restablecidos: el robot no lo notó. */
+    /** Sin incidente, sin tolerancia y ya resueltos o restablecidos: el robot no lo notó. */
     escapados: number;
-    /** Sin incidente y aún activos: todavía puede detectarlos. */
+    /** Sin incidente, sin tolerancia y aún activos: todavía puede detectarlos. */
     sinDetectarAun: number;
+    /** Sin incidente pero con eventos de tolerancia: el robot los absorbió con selectores alternativos. */
+    absorbidos: number;
     tiempoMedioMin: number | null;
     tiempoMaxMin: number | null;
     cosmeticos: number;
@@ -116,29 +135,44 @@ export function atribuir<T extends IncidenteMin>(
 
 function summarize(rows: FilaCambio[]): Resumen {
   const detected = rows.filter((row) => row.deteccion);
-  const undetected = rows.filter((row) => !row.deteccion);
+  const undetected = rows.filter((row) => !row.deteccion && !row.absorbido);
   const escapados = undetected.filter((row) => row.cambio.estado !== "activa").length;
   return {
     aplicados: rows.length,
     detectados: detected.length,
     escapados,
     sinDetectarAun: undetected.length - escapados,
+    absorbidos: rows.filter((row) => row.absorbido).length,
     tasaDeteccionPct: detected.length + escapados ? Math.round((detected.length / (detected.length + escapados)) * 100) : null,
     tiempoMedioMin: mean(detected.map((row) => row.deteccion!.minutos)),
   };
 }
 
+/**
+ * Eventos de tolerancia del mismo portal dentro de la ventana de un cambio: desde que se aplicó
+ * hasta el siguiente cambio del portal o hasta que se resolvió/restableció, lo que ocurra antes.
+ */
+function toleranciaDe(cambio: Cambio, ordered: Cambio[], tolerancias: EventoTolerancia[]): ToleranciaCambio | null {
+  const start = time(cambio.timestamp);
+  const end = Math.min(finDe(cambio, ordered), cambio.resueltaEn ? time(cambio.resueltaEn) : Number.POSITIVE_INFINITY);
+  const inWindow = tolerancias.filter((e) => e.portal === cambio.portal && time(e.timestamp) >= start && time(e.timestamp) <= end);
+  return inWindow.length ? { eventos: inWindow.length, claves: [...new Set(inWindow.map((e) => e.clave))].sort() } : null;
+}
+
 /** Cruza el diario con los incidentes. Un incidente se atribuye al último cambio del mismo portal anterior a él. */
-export function buildReport(cambios: Cambio[], incidentes: Incident[]): Informe {
+export function buildReport(cambios: Cambio[], incidentes: Incident[], tolerancias: EventoTolerancia[] = []): Informe {
   const ordered = [...cambios].sort((a, b) => time(a.timestamp) - time(b.timestamp) || a.id - b.id);
   const rows: FilaCambio[] = ordered.map((cambio) => {
+    const tolerancia = cambio.tipo === "estructural" ? toleranciaDe(cambio, ordered, tolerancias) : null;
     const first = atribuir(cambio, finDe(cambio, ordered), incidentes);
-    if (!first) return { cambio, deteccion: null };
+    if (!first) return { cambio, deteccion: null, tolerancia, absorbido: tolerancia !== null };
     const recovered = first.incident.recoveredAt ? time(first.incident.recoveredAt) : null;
     const restored = cambio.restablecidaEn ?? (cambio.estado === "restablecida" ? cambio.resueltaEn : undefined);
     const afterRestore = recovered !== null && restored ? round1((recovered - time(restored)) / 60_000) : null;
     return {
       cambio,
+      tolerancia,
+      absorbido: false,
       deteccion: {
         incidente: first.incident.id,
         paso: first.incident.step,
@@ -158,7 +192,7 @@ export function buildReport(cambios: Cambio[], incidentes: Incident[]): Informe 
   const cosmeticos = rows.filter((row) => row.cambio.tipo === "cosmetica");
   const detected = estructurales.filter((row) => row.deteccion);
   const minutes = detected.map((row) => row.deteccion!.minutos);
-  const undetected = estructurales.filter((row) => !row.deteccion);
+  const undetected = estructurales.filter((row) => !row.deteccion && !row.absorbido);
 
   const reanudaciones: FilaReanudacion[] = estructurales
     .filter((row) => row.deteccion?.reanudacion)
@@ -195,6 +229,7 @@ export function buildReport(cambios: Cambio[], incidentes: Incident[]): Informe 
       detectados: detected.length,
       escapados: undetected.filter((row) => row.cambio.estado !== "activa").length,
       sinDetectarAun: undetected.filter((row) => row.cambio.estado === "activa").length,
+      absorbidos: estructurales.filter((row) => row.absorbido).length,
       tiempoMedioMin: mean(minutes),
       tiempoMaxMin: minutes.length ? Math.max(...minutes) : null,
       cosmeticos: cosmeticos.length,
@@ -212,25 +247,26 @@ type Table = { headers: string[]; rows: string[][] };
 function tables(report: Informe): { title: string; table: Table }[] {
   const when = (iso: string) => iso.replace("T", " ").slice(0, 19);
   const state = (cambio: Cambio) => (cambio.restablecida_auto ? `${cambio.estado} (auto: ${cambio.motivo ?? "?"})` : cambio.estado);
-  const summaryRow = (name: string, r: Resumen) => [name, String(r.aplicados), String(r.detectados), String(r.escapados), String(r.sinDetectarAun), pct(r.tasaDeteccionPct), optionalMinutes(r.tiempoMedioMin)];
-  const summaryHeaders = ["Aplicados", "Detectados", "Escapados", "Sin detectar aún", "Tasa de detección", "Tiempo medio"];
+  const summaryRow = (name: string, r: Resumen) => [name, String(r.aplicados), String(r.detectados), String(r.escapados), String(r.sinDetectarAun), pct(r.tasaDeteccionPct), optionalMinutes(r.tiempoMedioMin), String(r.absorbidos)];
+  const summaryHeaders = ["Aplicados", "Detectados", "Escapados", "Sin detectar aún", "Tasa de detección", "Tiempo medio", "Absorbidos"];
   return [
     {
       title: "Cambios estructurales (el robot DEBE detectarlos)",
       table: {
-        headers: ["N.º", "Portal", "Cambio", "Aplicado (UTC)", "Estado", "Esperado", "¿Detectado?", "Tiempo", "Incidente", "Paso", "Código"],
-        rows: report.estructurales.map(({ cambio, deteccion }) => [
+        headers: ["N.º", "Portal", "Cambio", "Aplicado (UTC)", "Estado", "Esperado", "¿Detectado?", "Tiempo", "Incidente", "Paso", "Código", "Tolerancias"],
+        rows: report.estructurales.map(({ cambio, deteccion, tolerancia, absorbido }) => [
           String(cambio.id),
           cambio.portal,
           cambio.mutacion,
           when(cambio.timestamp),
           state(cambio),
           cambio.esperado.join("+"),
-          deteccion ? "sí" : cambio.estado === "activa" ? "no (aún)" : "NO",
+          deteccion ? "sí" : absorbido ? "absorbido (tolerado)" : cambio.estado === "activa" ? "no (aún)" : "NO",
           deteccion ? `${deteccion.repeticion ? "≤ " : ""}${minutesText(deteccion.minutos)}` : "–",
           deteccion ? `#${deteccion.incidente}${deteccion.repeticion ? " (repetido)" : ""}` : "–",
           deteccion ? `${deteccion.paso}${deteccion.enPasoEsperado ? "" : " (otro paso)"}` : "–",
           deteccion?.codigo ?? "–",
+          tolerancia ? `${tolerancia.eventos} (${tolerancia.claves.join(", ")})` : "–",
         ]),
       },
     },
@@ -275,7 +311,7 @@ function totalsLines(report: Informe): string[] {
   const t = report.totales;
   const r = report.resumenReanudaciones;
   return [
-    `Estructurales: ${t.estructurales} · detectados: ${t.detectados} · escapados: ${t.escapados} · sin detectar aún (activos): ${t.sinDetectarAun}`,
+    `Estructurales: ${t.estructurales} · detectados: ${t.detectados} · escapados: ${t.escapados} · sin detectar aún (activos): ${t.sinDetectarAun} · absorbidos (tolerados): ${t.absorbidos}`,
     `Tiempo hasta detectar: medio ${optionalMinutes(t.tiempoMedioMin)} · máximo ${optionalMinutes(t.tiempoMaxMin)}`,
     `Cosméticos: ${t.cosmeticos} · falsas alarmas: ${t.falsasAlarmas}`,
     `Reanudaciones automáticas: ${r.total} · tiempo medio en volver tras restablecer el portal: ${optionalMinutes(r.tiempoMedioMin)}`,
@@ -366,6 +402,7 @@ async function main() {
   };
   const diaryFile = path.resolve(valueOf("--diario") ?? "bot/.state/mutaciones.json");
   const incidentsDir = path.resolve(valueOf("--incidentes") ?? process.env.BOT_INCIDENTS_DIR ?? "bot/.state/incidentes");
+  const tolerancesFile = path.resolve(valueOf("--tolerancias") ?? process.env.BOT_TOLERANCES_FILE ?? "bot/.state/tolerancias.json");
   const everyRaw = args.includes("--cada") ? valueOf("--cada") : undefined;
   const everyMinutes = everyRaw === undefined ? undefined : Number(everyRaw);
   if (args.includes("--cada") && (everyMinutes === undefined || !Number.isFinite(everyMinutes) || everyMinutes <= 0 || everyMinutes > 1440)) {
@@ -379,7 +416,7 @@ async function main() {
       return;
     }
     const incidentes = await new FileIncidentStore(incidentsDir, () => {}).list();
-    const report = buildReport(cambios, incidentes);
+    const report = buildReport(cambios, incidentes, readTolerances(tolerancesFile));
     const options = { generadoEn: new Date().toISOString() };
     console.log(renderText(report, options));
 

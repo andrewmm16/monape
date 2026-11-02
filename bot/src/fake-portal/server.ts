@@ -12,6 +12,7 @@ import {
 } from "./candidate";
 import { PORTAL_SLUGS, type FakeApplicant, type FakeJob, type PortalFlags, type PortalSlug } from "./model";
 import { listIncidentsSync } from "../incidents";
+import { readTolerances } from "../selectors";
 import { buildReport, renderHtml, renderMarkdown, writeFileAtomic, type Informe } from "../training-report";
 import { createMutator, type AutoRestoreOptions, type Cambio, type Mutator } from "./mutator";
 import { fill, layout, renderApplicants, renderEmployerHome, renderEmployerJob, renderStep, type Site } from "./sites";
@@ -57,6 +58,8 @@ export interface FakePortalOptions {
     autoRestore?: AutoRestoreOptions;
     /** Carpeta de incidentes del robot: la usan el modo continuo y el informe. Sin ella, se asume que no hay incidentes. */
     incidentsDir?: string;
+    /** Eventos de tolerancia del robot (por ejemplo `bot/.state/tolerancias.json`): el informe distingue los cambios «absorbidos». */
+    tolerancesFile?: string;
     /** Informe en Markdown que se regenera solo (por ejemplo `bot/.state/informe-entrenamiento.md`). Sin él no hay regeneración periódica. */
     reportFile?: string;
     /** Cada cuántos minutos se regenera el informe (por defecto 15). */
@@ -108,7 +111,11 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
   let lastReport: { at: string; report: Informe } | null = null;
   function regenerateReport(): { at: string; report: Informe } {
     const at = new Date((mutation.now ?? Date.now)()).toISOString();
-    const report = buildReport(mutator.state().cambios, readIncidents() as Parameters<typeof buildReport>[1]);
+    const report = buildReport(
+      mutator.state().cambios,
+      readIncidents() as Parameters<typeof buildReport>[1],
+      mutation.tolerancesFile ? readTolerances(mutation.tolerancesFile) : [],
+    );
     lastReport = { at, report };
     if (mutation.reportFile) {
       try {
@@ -159,7 +166,7 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
     const { at, report } = currentReport();
     const t = report.totales;
     const minutes = (value: number | null) => (value === null ? "–" : `${value} min`);
-    const informe = `<p class="small">Informe (<a href="/__fake/informe">ver</a>), generado ${new Date(at).toLocaleTimeString("es-PE")}: detectados ${t.detectados} · escapados ${t.escapados} · falsas alarmas ${t.falsasAlarmas} · tiempo medio de detección ${minutes(t.tiempoMedioMin)} · reanudaciones ${report.resumenReanudaciones.total}.</p>`;
+    const informe = `<p class="small">Informe (<a href="/__fake/informe">ver</a>), generado ${new Date(at).toLocaleTimeString("es-PE")}: detectados ${t.detectados} · escapados ${t.escapados} · falsas alarmas ${t.falsasAlarmas} · absorbidos (tolerados) ${t.absorbidos} · tiempo medio de detección ${minutes(t.tiempoMedioMin)} · reanudaciones ${report.resumenReanudaciones.total}.</p>`;
     return `<section class="card entrenamiento" style="--c:#7c3aed"><h2>Entrenamiento</h2><p>${next}</p>
 <p class="small">${auto} Como máximo ${state.tope} portales con un cambio estructural sin resolver. Diario completo: <a href="/__fake/mutaciones">/__fake/mutaciones</a></p>${informe}
 <h3>Estructurales sin resolver (${pending.length})</h3>${pendingRows ? `<ul>${pendingRows}</ul>` : '<p class="small">Ninguno.</p>'}

@@ -3,7 +3,7 @@ import { ApiError, ERROR_CODES, HUMAN_REQUIRED, PortalError, errorCodeOf } from 
 import { sanitizeText, type IncidentRecorder, type IncidentStep } from "./incidents";
 import type { PublishJournal } from "./journal";
 import type { SeenStore } from "./seen";
-import type { Job, PortalAdapter, ReportBody } from "./types";
+import type { ActivePublication, Job, PortalAdapter, ReportBody } from "./types";
 
 /** Solo ids y conteos: nunca nombres, correos ni teléfonos de postulantes. */
 export type Logger = (message: string) => void;
@@ -31,6 +31,8 @@ export interface RunnerDeps {
   incidents?: IncidentRecorder;
   /** Ofertas ya publicadas cuyo resultado aún no se informó; evita publicar dos veces al reintentar. */
   journal?: PublishJournal;
+  /** Resultado de la prueba de estructura periódica (salvo si exige a una persona): la reparación asistida verifica o revierte con él. Nunca debe lanzar. */
+  onHealthCheck?: (ok: boolean, startedAt: number) => Promise<void> | void;
   /** Pausa entre acciones en el portal. */
   pauseMs: number;
   maxJobs: number;
@@ -123,6 +125,17 @@ async function perform(deps: RunnerDeps, job: Job): Promise<ReportBody> {
       );
       return { outcome: "retirada" };
     }
+    // Última revisión de postulantes ANTES de retirar: una vez retirada, la app deja de pedir esta oferta
+    // y quien postuló desde el ciclo anterior se perdería. Si no se trae todo, no se retira (se reintenta).
+    const last = await syncPublication(deps, { publicationId: job.publicationId, externalId, externalUrl: null, lastSyncedAt: null });
+    if (last.halted) throw new PortalError(last.reason ?? ERROR_CODES.pageChanged, "No se pudo revisar los postulantes antes de retirar la oferta.");
+    if (last.gone) {
+      deps.log(`La oferta de ${job.publicationId} ya no existe en el portal: no hay nada que retirar.`);
+      return { outcome: "retirada" };
+    }
+    if (!last.complete) {
+      throw new PortalError(last.failCode ?? ERROR_CODES.finalSyncIncomplete, "No se trajeron todos los postulantes antes de retirar la oferta; se reintenta para no perderlos.");
+    }
     await deps.adapter.withdraw(externalId);
     return { outcome: "retirada" };
   }
@@ -182,13 +195,27 @@ export async function processQueue(deps: RunnerDeps): Promise<CycleResult> {
   }
 }
 
-/** Trae los postulantes nuevos de las ofertas activas y los entrega a la app. */
-export async function syncApplicants(deps: RunnerDeps): Promise<CycleResult> {
-  const publications = await deps.api.active(deps.adapter.slug);
+/** Resultado de revisar los postulantes de UNA oferta. */
+interface SyncOutcome {
+  /** Algo exige a una persona: el robot debe detenerse. */
+  halted: boolean;
+  reason?: string;
+  /** Se trajeron todos los postulantes nuevos (no quedó ninguno por fallo del portal). */
+  complete?: boolean;
+  /** La oferta ya no existe en el portal. */
+  gone?: boolean;
+  /** Código del primer fallo con el portal, si lo hubo. */
+  failCode?: string;
+}
 
-  for (const publication of publications) {
-    if (!publication.externalId) continue;
+/** Cada cuánto se vuelve a mirar una oferta que no se encontró en el portal. */
+const GONE_RETRY_MS = 60 * 60_000;
 
+/** Ofertas «no encontradas» por robot: se saltan hasta la hora indicada, para no esperar en vano en cada ciclo. */
+const goneOffers = new WeakMap<RunnerDeps, Map<string, number>>();
+
+/** Trae los postulantes nuevos de UNA oferta y los entrega a la app. */
+async function syncPublication(deps: RunnerDeps, publication: ActivePublication): Promise<SyncOutcome> {
     let applicants;
     try {
       applicants = await deps.adapter.listApplicants(publication);
@@ -197,10 +224,11 @@ export async function syncApplicants(deps: RunnerDeps): Promise<CycleResult> {
       deps.log(`No se pudo leer la oferta ${publication.publicationId}: ${describe(error)}`);
       await recordIncident(deps, "leer_postulantes", error, publication.publicationId);
       if (HUMAN_REQUIRED.has(code)) return { halted: true, reason: code };
-      continue;
+      return { halted: false, complete: false, gone: code === ERROR_CODES.offerNotFound, failCode: code };
     }
 
     let complete = true;
+    let failCode: string | undefined;
     let sent = 0;
     for (const applicant of applicants) {
       if (deps.seen.has(publication.publicationId, applicant.externalId)) continue;
@@ -212,6 +240,7 @@ export async function syncApplicants(deps: RunnerDeps): Promise<CycleResult> {
       } catch (error) {
         complete = false;
         const code = errorCodeOf(error);
+        failCode ??= code;
         deps.log(`No se pudo traer un postulante de ${publication.publicationId}: ${describe(error)}`);
         await recordIncident(deps, "descargar_cv", error, publication.publicationId);
         if (HUMAN_REQUIRED.has(code)) return { halted: true, reason: code };
@@ -249,6 +278,28 @@ export async function syncApplicants(deps: RunnerDeps): Promise<CycleResult> {
 
     if (complete) await deps.api.markSynced(publication.publicationId);
     if (sent > 0) deps.log(`Oferta ${publication.publicationId}: ${sent} postulante(s) nuevo(s).`);
+    return { halted: false, complete, failCode };
+}
+
+/** Trae los postulantes nuevos de las ofertas activas y los entrega a la app. */
+export async function syncApplicants(deps: RunnerDeps): Promise<CycleResult> {
+  const publications = await deps.api.active(deps.adapter.slug);
+  const skipped = goneOffers.get(deps) ?? new Map<string, number>();
+  goneOffers.set(deps, skipped);
+
+  for (const publication of publications) {
+    if (!publication.externalId) continue;
+    const retryAt = skipped.get(publication.publicationId);
+    if (retryAt !== undefined && Date.now() < retryAt) continue;
+
+    const outcome = await syncPublication(deps, publication);
+    if (outcome.halted) return { halted: true, reason: outcome.reason };
+    if (outcome.gone) {
+      skipped.set(publication.publicationId, Date.now() + GONE_RETRY_MS);
+      deps.log(`La oferta ${publication.publicationId} ya no existe en el portal: se deja de revisar por ${GONE_RETRY_MS / 60_000} min.`);
+    } else {
+      skipped.delete(publication.publicationId);
+    }
   }
   return { halted: false };
 }
@@ -264,6 +315,14 @@ export async function reportStatus(deps: RunnerDeps, state: "activo" | "necesita
 
 const HEALTH_ATTEMPTS = 2;
 
+async function notifyHealth(deps: RunnerDeps, ok: boolean, startedAt: number): Promise<void> {
+  try {
+    await deps.onHealthCheck?.(ok, startedAt);
+  } catch (error) {
+    deps.log(`No se pudo avisar el resultado de la prueba de estructura: ${describe(error)}`);
+  }
+}
+
 /**
  * Prueba de estructura del portal, si toca. Si falla (dos intentos, por si fue
  * la red), el robot se detiene ANTES de tocar la cola: con la página cambiada,
@@ -276,11 +335,13 @@ async function runHealthCheckIfDue(deps: RunnerDeps): Promise<CycleResult | null
 
   let code = "";
   let lastError: unknown;
+  const startedAt = Date.now();
   for (let attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt++) {
     try {
       await deps.adapter.healthCheck();
       schedule.lastRunAt = schedule.now();
       deps.log("Prueba de estructura del portal: correcta.");
+      await notifyHealth(deps, true, startedAt);
       const gaps = deps.adapter.healthCheckGaps?.() ?? [];
       if (gaps.length > 0) deps.log(`Prueba de estructura: quedó sin cubrir (no hay datos en el portal): ${gaps.join(", ")}.`);
       return null;
@@ -292,6 +353,7 @@ async function runHealthCheckIfDue(deps: RunnerDeps): Promise<CycleResult | null
       await sleep(attempt * 1_000);
     }
   }
+  if (!HUMAN_REQUIRED.has(code)) await notifyHealth(deps, false, startedAt);
   await recordIncident(deps, "prueba_estructura", lastError);
   return { halted: true, reason: code };
 }

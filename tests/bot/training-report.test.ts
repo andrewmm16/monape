@@ -65,6 +65,7 @@ describe("informe de entrenamiento", () => {
       detectados: 2,
       escapados: 1,
       sinDetectarAun: 1,
+      absorbidos: 0,
       tiempoMedioMin: 25,
       tiempoMaxMin: 30,
       cosmeticos: 2,
@@ -120,13 +121,13 @@ describe("informe: tasa por tipo de cambio, por portal y reanudaciones", () => {
   it("agrupa por tipo de cambio y por portal con tasa de detección y tiempo medio", () => {
     const report = buildReport(cambios, incidentes);
     expect(report.porMutacion).toEqual([
-      { mutacion: "enlace_cv", aplicados: 1, detectados: 1, escapados: 0, sinDetectarAun: 0, tasaDeteccionPct: 100, tiempoMedioMin: 4 },
-      { mutacion: "renombrar_campo", aplicados: 2, detectados: 1, escapados: 1, sinDetectarAun: 0, tasaDeteccionPct: 50, tiempoMedioMin: 20 },
+      { mutacion: "enlace_cv", aplicados: 1, detectados: 1, escapados: 0, sinDetectarAun: 0, absorbidos: 0, tasaDeteccionPct: 100, tiempoMedioMin: 4 },
+      { mutacion: "renombrar_campo", aplicados: 2, detectados: 1, escapados: 1, sinDetectarAun: 0, absorbidos: 0, tasaDeteccionPct: 50, tiempoMedioMin: 20 },
     ]);
     expect(report.porPortal).toEqual([
-      { portal: "bumeran", aplicados: 2, detectados: 1, escapados: 1, sinDetectarAun: 0, tasaDeteccionPct: 50, tiempoMedioMin: 4, cosmeticos: 0, falsasAlarmas: 0, reanudaciones: 0 },
-      { portal: "indeed", aplicados: 0, detectados: 0, escapados: 0, sinDetectarAun: 0, tasaDeteccionPct: null, tiempoMedioMin: null, cosmeticos: 1, falsasAlarmas: 1, reanudaciones: 0 },
-      { portal: "linkedin", aplicados: 1, detectados: 1, escapados: 0, sinDetectarAun: 0, tasaDeteccionPct: 100, tiempoMedioMin: 20, cosmeticos: 1, falsasAlarmas: 0, reanudaciones: 1 },
+      { portal: "bumeran", aplicados: 2, detectados: 1, escapados: 1, sinDetectarAun: 0, absorbidos: 0, tasaDeteccionPct: 50, tiempoMedioMin: 4, cosmeticos: 0, falsasAlarmas: 0, reanudaciones: 0 },
+      { portal: "indeed", aplicados: 0, detectados: 0, escapados: 0, sinDetectarAun: 0, absorbidos: 0, tasaDeteccionPct: null, tiempoMedioMin: null, cosmeticos: 1, falsasAlarmas: 1, reanudaciones: 0 },
+      { portal: "linkedin", aplicados: 1, detectados: 1, escapados: 0, sinDetectarAun: 0, absorbidos: 0, tasaDeteccionPct: 100, tiempoMedioMin: 20, cosmeticos: 1, falsasAlarmas: 0, reanudaciones: 1 },
     ]);
   });
 
@@ -151,7 +152,7 @@ describe("informe: tasa por tipo de cambio, por portal y reanudaciones", () => {
 
     const md = renderMarkdown(report, options);
     expect(md).toContain("## Detección por tipo de cambio estructural");
-    expect(md).toContain("| enlace_cv | 1 | 1 | 0 | 0 | 100 % | 4 min |");
+    expect(md).toContain("| enlace_cv | 1 | 1 | 0 | 0 | 100 % | 4 min | 0 |");
     expect(md).toContain("## Detección por portal");
     expect(md).toContain("## Reanudaciones automáticas del robot");
     expect(md).toContain("| #1 | linkedin | renombrar_campo | #1 | 11 min | 6 min |");
@@ -168,6 +169,53 @@ describe("informe: tasa por tipo de cambio, por portal y reanudaciones", () => {
     const report = buildReport([], []);
     expect(report.resumenReanudaciones).toEqual({ total: 0, tiempoMedioMin: null });
     expect(renderMarkdown(report)).toContain("Reanudaciones automáticas: 0");
+  });
+});
+
+describe("informe: cambios absorbidos (tolerados)", () => {
+  const tol = (minutes: number, portal: string, clave = "campo_titulo") => ({ timestamp: at(minutes), portal, clave, indiceUsado: 1 });
+  const cambios: Cambio[] = [
+    cambio({ id: 1, portal: "linkedin", mutacion: "renombrar_campo", tipo: "estructural", estado: "restablecida" }, 0), // absorbido
+    cambio({ id: 2, portal: "bumeran", mutacion: "renombrar_campo", tipo: "estructural", estado: "restablecida" }, 0), // escapado de verdad
+    cambio({ id: 3, portal: "indeed", mutacion: "texto_boton", tipo: "estructural", estado: "restablecida" }, 0), // detectado aunque haya tolerancia
+    cambio({ id: 4, portal: "computrabajo", mutacion: "renombrar_campo", tipo: "estructural" }, 0), // activo, ya absorbido
+    cambio({ id: 5, portal: "linkedin", mutacion: "cosmetico_colores", tipo: "cosmetica" }, 100),
+  ];
+  const incidentes: Incident[] = [incident({ id: 1, portal: "indeed", createdAt: at(30) })];
+  const tolerancias = [
+    tol(5, "linkedin"),
+    tol(8, "linkedin", "campo_empresa"),
+    tol(200, "linkedin"), // posterior al cambio siguiente del portal: no es de este cambio
+    tol(10, "indeed"),
+    tol(12, "computrabajo"),
+  ];
+
+  it("sin incidente y con tolerancia en su ventana: «absorbido», distinto de detectado y de escapado", () => {
+    const report = buildReport(cambios, incidentes, tolerancias);
+    const byId = (id: number) => report.estructurales.find((row) => row.cambio.id === id)!;
+    expect(byId(1)).toMatchObject({ deteccion: null, absorbido: true, tolerancia: { eventos: 2, claves: ["campo_empresa", "campo_titulo"] } });
+    expect(byId(2)).toMatchObject({ deteccion: null, absorbido: false, tolerancia: null });
+    expect(byId(3).deteccion).toMatchObject({ incidente: 1 });
+    expect(byId(3).absorbido).toBe(false);
+    expect(byId(4).absorbido).toBe(true); // aunque siga activo
+    expect(report.totales).toMatchObject({ estructurales: 4, detectados: 1, escapados: 1, sinDetectarAun: 0, absorbidos: 2, cosmeticos: 1 });
+    expect(report.porMutacion.find((r) => r.mutacion === "renombrar_campo")).toMatchObject({ aplicados: 3, escapados: 1, absorbidos: 2, tasaDeteccionPct: 0 });
+  });
+
+  it("sin archivo de tolerancias el informe es el de siempre (absorbidos = 0)", () => {
+    const report = buildReport(cambios, incidentes);
+    expect(report.totales).toMatchObject({ absorbidos: 0, escapados: 2, sinDetectarAun: 1 });
+  });
+
+  it("muestra la columna y los totales en texto, Markdown y HTML", () => {
+    const report = buildReport(cambios, incidentes, tolerancias);
+    const text = renderText(report);
+    expect(text).toContain("absorbido (tolerado)");
+    expect(text).toContain("Tolerancias");
+    expect(text).toContain("2 (campo_empresa, campo_titulo)");
+    expect(text).toContain("absorbidos (tolerados): 2");
+    expect(renderMarkdown(report)).toContain("| Aplicados | Detectados | Escapados | Sin detectar aún | Tasa de detección | Tiempo medio | Absorbidos |");
+    expect(renderHtml(report)).toContain("absorbido (tolerado)");
   });
 });
 

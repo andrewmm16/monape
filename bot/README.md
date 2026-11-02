@@ -44,13 +44,60 @@ Nunca se envían datos de postulantes. Un CAPTCHA, código o sesión vencida se 
 
 Cada fallo con un portal (publicar, retirar, leer postulantes, bajar un CV o la prueba de estructura) queda guardado como un archivo JSON en `bot/.state/incidentes/` (`BOT_INCIDENTS_DIR`; ignorado por git) y avisa una sola vez por WhatsApp. Cada incidente lleva: número, portal, paso, código de error, mensaje sin correos, teléfonos ni parámetros de enlaces, si lo resuelve una persona (`reparable: false`) y, si el adaptador implementa `captureStructure()`, el esquema de la pantalla (campos y botones, **sin** valores ni textos de contenido). El mismo fallo repetido en 6 horas suma `occurrences` en vez de crear otro.
 
-«sí N» / «no N» solo marca el incidente como `aprobado` o `rechazado`: **todavía no hay reparación automática**; es la base para cuando exista.
+«sí N» / «no N» marca el incidente como `aprobado` o `rechazado`. Sin reparación asistida (ver abajo) solo deja constancia; con una propuesta pendiente, «sí N» además la aplica y «no N» la rechaza.
+
+## Selectores tolerantes (libro de selectores)
+
+Los adaptadores no llevan selectores sueltos en el código: cada uno declara un **libro de selectores** (`bot/src/selectors.ts`; ver el `*_BOOK` de cada `bot/src/adapters/fake-*.ts`). Por cada clave lógica (`campo_titulo`, `enlace_cv`, `lista_postulantes`, `boton_enviar`, `boton_retirar`…) hay una descripción, un indicador `estricto`, un selector CSS por defecto y alternativas tolerantes (por rol, etiqueta, texto con sinónimos o un CSS más laxo). Orden de resolución: **override aprobado** (`bot/.state/selectores.json`) → **selector por defecto** → **alternativas** (solo si no es estricto). Si no se encuentra por ninguna vía: `pagina_cambio`, como siempre.
+
+- **Tolerantes** (lectura y rellenado reversible): lista de postulantes, filas, enlace al CV, campos del formulario, botones de navegación («Siguiente», «Atrás») y avisos de cookies (se aceptan).
+- **Estrictos** (solo selector exacto o un override aprobado por una persona): el botón final de enviar/publicar y el botón de retirar, más las marcas que deciden el resultado (publicada / error, marca del paso, CAPTCHA, estado cerrado). Un clic o una lectura equivocados ahí publicarían o retirarían de verdad.
+- Cuando se usa algo distinto del selector por defecto el robot **sigue**, lo deja en el log y anota `{timestamp, portal, clave, indiceUsado}` en `bot/.state/tolerancias.json` (últimos 500, escritura atómica, ignorado por git; `BOT_TOLERANCES_FILE`) para corregir el adaptador sin prisa. Los selectores no llevan datos personales.
+- Efecto en el entrenamiento: `renombrar_campo` y `aviso_cookies` ya no detienen al robot (los absorbe la tolerancia); `texto_boton`, `boton_en_menu` y el resto siguen detectándose. El informe los marca «absorbido (tolerado)» (ver más abajo).
+
+## Reparación asistida por IA (opcional, desactivada sin clave)
+
+Cuando un incidente nuevo es `reparable` y trae el esquema de la pantalla, el robot puede pedir a un modelo **una propuesta**: qué clave del libro de selectores falló y qué selector CSS nuevo usar. Es solo una propuesta: **una persona decide** por WhatsApp.
+
+**Activar.** Ponga `ANTHROPIC_API_KEY=<su clave>` en `.env.bot` (la lee el SDK oficial desde el entorno; el robot no la guarda ni la registra) y reinicie el robot. Sin la clave todo queda desactivado y el robot se comporta como antes; el arranque lo anota en el log.
+
+| Variable | Descripción |
+|---|---|
+| `ANTHROPIC_API_KEY` | Clave de la API. Sin ella no hay reparación asistida. |
+| `BOT_REPAIR_MODEL` | Modelo (ID exacto, por defecto `claude-sonnet-5-5`). |
+| `BOT_REPAIR_MAX_PER_DAY` | Máximo de consultas al modelo por día (0–1000, por defecto 10; 0 = apagado). Se cuentan todas las consultas, también las que no dieron propuesta. |
+| `BOT_REPAIR_VERIFY_MINUTES` | Ventana tras aplicar una propuesta en la que un fallo de la comprobación del portal la revierte sola (1–1440, por defecto 30). |
+| `BOT_REPAIR_MAX_ATTEMPTS` | Intentos máximos por incidente (1–5, por defecto 3): cada propuesta se PRUEBA y, si falla, se pide una corrección al modelo. Cada intento cuenta para `BOT_REPAIR_MAX_PER_DAY`. |
+| `BOT_PROPOSALS_DIR` / `BOT_SELECTORS_FILE` | Carpeta de propuestas (por defecto `bot/.state/propuestas`) y archivo de overrides (por defecto `bot/.state/selectores.json`). |
+
+**Flujo.**
+1. Incidente nuevo reparable con esquema → el robot avisa como siempre y, **sin bloquearse** (todo con try/catch y log), consulta al modelo.
+2. **Ensayo antes de proponer.** Si la respuesta es válida, el robot aplica el selector SOLO EN MEMORIA (override temporal «en ensayo»: no se escribe en `selectores.json` y se retira siempre, pase o falle) y ejecuta el `healthCheck()` del portal (no envía, publica ni retira nada). El ensayo se encola y corre en el turno del robot, junto a las comprobaciones de reanudación: nunca en paralelo con un ciclo, porque el navegador es compartido.
+   - **Pasa:** se guarda la propuesta con `probada: true` y llega un segundo mensaje: «Propuesta PROBADA para #N: usar «selector» como <clave>; la prueba de estructura pasó con este cambio. Responda «sí N» para aplicarla o «no N» para rechazarla.»
+   - **Falla:** se reintenta hasta `BOT_REPAIR_MAX_ATTEMPTS`, devolviendo al modelo el selector probado, el error saneado del ensayo y un esquema fresco de la pantalla. Si se agotan los intentos NO se envía nada aplicable, solo «No encontré una solución probada para #N tras K intentos; hace falta revisar el adaptador.» (la última propuesta queda guardada con `probada: false` solo como consulta y «sí N» no la aplica).
+   - **Paso no cubierto** (la prueba de estructura no recorre el paso que falló, p. ej. bajar un CV o leer postulantes sin datos en el portal; se sabe por `healthCheckGaps()`): se envía «Propuesta SIN PROBAR (la prueba de estructura no cubre este paso) …»; «sí N» sí la aplica y la verificación ocurre después (punto 5).
+   Queda en `bot/.state/propuestas/<idIncidente>.json`: `incidenteId`, `portal`, `clave`, `selector`, `confianza`, `razon`, `modelo`, `tokensEntrada`, `tokensSalida` (suma de todos los intentos), `creadaEn`, `estado` (`propuesta` | `aplicada` | `revertida` | `rechazada`), `probada`, `intentos` y `ensayo` (`resultado`: `paso` | `fallo` | `no_cubierto`, `mensaje`, `en`). La orden «incidentes» indica si hay propuesta probada.
+3. Se descarta (solo log) si el modelo se niega (`refusal`) o se corta (`max_tokens`), si la respuesta no cumple el formato, si responde «sin propuesta», si la clave no existe en el libro de ese portal o si el selector tiene más de 200 caracteres, contiene `<`, `{`, `}`, `;`, `javascript:` o saltos de línea.
+4. «sí N» escribe el override en `selectores.json` (con `aprobadoEn` e `incidenteId`), marca la propuesta `aplicada` y responde que la comprobación automática la verificará; «no N» la marca `rechazada`. Si pasaron más de 24 h entre el ensayo y la aprobación, antes de aplicar se vuelve a ensayar y, si ya no pasa, no se aplica y se avisa. Sin propuesta aplicable, «sí/no» funciona como siempre.
+5. La siguiente prueba de estructura del portal (reanudación automática o prueba periódica; al aplicar se adelanta) usa el override. Si **pasa**, queda activo y se avisa «Reparación aplicada y verificada». Si **falla dentro de `BOT_REPAIR_VERIFY_MINUTES`**, el override se revierte solo (se restaura el anterior, si lo había), la propuesta pasa a `revertida` y se avisa. Los archivos se escriben de forma atómica y se leen tolerando archivos dañados, así que un ciclo del robot nunca ve un `selectores.json` a medias.
+
+**Qué datos salen hacia el modelo.** Solo el esquema de la pantalla del incidente (campos y botones, ya saneado: sin valores ni textos de contenido), el mensaje de error saneado (sin correos, teléfonos ni parámetros de enlaces), el portal, el paso, el código de error y el libro de selectores del portal (claves, descripciones y selectores). **Nunca** postulantes, CVs ni datos de la app.
+
+**Coste.** No se publica una cifra aproximada: el coste de cada consulta lo muestran los campos `tokensEntrada` y `tokensSalida` guardados en cada propuesta (multiplíquelos por la tarifa vigente de su plan). Cada consulta usa `max_tokens` 2000, esfuerzo bajo, 30 s de límite y un reintento.
+
+El ensayo y la verificación posterior son complementarios: el ensayo evita enviar propuestas que no funcionan; la comprobación posterior y la reversión automática siguen siendo la red de seguridad (el portal puede cambiar entre la prueba y la aprobación).
+
+Limitaciones: la verificación es la prueba de estructura del portal; si esa prueba no recorre el elemento reparado, "verificada" no lo prueba. Un portal detenido por `fallos_seguidos` (no por `pagina_cambio`) no se reanuda solo, así que su override se comprobará en la siguiente prueba periódica o al reiniciar el robot.
 
 ## Cómo funciona un ciclo
 
 1. `POST /api/bot/publicaciones/siguiente` → trabajo (publicar o retirar). Se repite hasta vaciar la cola.
 2. El adaptador lo hace en el portal y el robot lo informa en `.../[id]/resultado`.
 3. `GET /api/bot/publicaciones/activas` → ofertas publicadas. Por cada una: el adaptador lista los postulantes, baja el CV de los nuevos y los envía a `POST /api/bot/postulantes` (multipart). Al terminar sin fallos, `.../[id]/sincronizada`.
+
+**Retiro.** Antes de retirar una oferta el robot hace una última revisión de sus postulantes (una vez retirada, la app deja de pedirla). Si no logra traerlos todos, NO la retira y reintenta (la app permite 3 intentos y luego marca `retiro_fallido`). Si la oferta ya no existe en el portal (`oferta_no_encontrada`), da el retiro por hecho.
+
+**Oferta que desaparece.** Si al abrir una oferta el portal responde «no existe», el robot guarda un incidente NO reparable (`oferta_no_encontrada`, no es un cambio de la página) y no la vuelve a visitar durante 60 minutos, en vez de esperar el tiempo máximo en cada ciclo. Hoy esa señal solo la detectan los adaptadores ficticios (`guard(page, { offer: true })` en `fake-base.ts`); los adaptadores reales deben lanzar `PortalError(ERROR_CODES.offerNotFound)` cuando el portal indique que la oferta no existe. La app todavía no muestra este estado a RRHH: queda solo en incidentes y log.
 
 La app deduplica por oferta e id externo, así que repetir un envío es inofensivo. `bot/.state/enviados.json` solo evita bajar CV ya entregados.
 
@@ -74,6 +121,8 @@ Copie `bot/env.example` a `.env.bot` (en la raíz; está ignorado por git). `POR
 | `BOT_NOTIFY_PHONE` | Número del responsable para avisos por WhatsApp (solo dígitos, con código de país, sin «+»). Vacío = sin avisos. |
 | `BOT_WHATSAPP_DIR` | Carpeta de la sesión de WhatsApp (por defecto `bot/.state/whatsapp`). |
 | `BOT_INCIDENTS_DIR` | Carpeta de los incidentes (por defecto `bot/.state/incidentes`). |
+| `BOT_TOLERANCES_FILE` | Eventos en que se usó un selector alternativo (por defecto `bot/.state/tolerancias.json`). |
+| `ANTHROPIC_API_KEY`, `BOT_REPAIR_MODEL`, `BOT_REPAIR_MAX_PER_DAY`, `BOT_REPAIR_VERIFY_MINUTES` | Reparación asistida por IA (opcional): ver «Reparación asistida por IA». |
 
 ## Comandos
 
@@ -136,14 +185,14 @@ Para probar si el robot detecta los cambios de estructura de un portal, cuánto 
 
 | Cambio | Portales | Debe notarlo |
 |---|---|---|
-| `renombrar_campo` (name/id del título) | los 5 | prueba de estructura y publicar |
+| `renombrar_campo` (name/id del título) | los 5 | prueba de estructura y publicar; **ahora lo absorbe la tolerancia** (el campo se halla por su etiqueta): sale «absorbido (tolerado)» en el informe |
 | `texto_boton` (botón de retirar y estado «cerrado») | todos menos Trabajos Diarios (su adaptador retira por POST) | retirar |
 | `boton_en_menu` (botones tras «Más acciones») | los 5 | prueba de estructura y publicar |
 | `paso_extra` (paso nuevo en el asistente) | linkedin, bumeran | prueba de estructura y publicar |
 | `reordenar_pasos` (pasos 2 y 3 intercambiados) | linkedin, bumeran | prueba de estructura y publicar |
 | `campo_obligatorio` (campo nuevo en el paso 1) | los 5 | publicar; además la prueba de estructura en linkedin, bumeran e indeed |
 | `campo_a_lista` (ubicación pasa a lista desplegable) | los 5 | publicar |
-| `aviso_cookies` (ventana que tapa el formulario) | los 5 | publicar; además la prueba de estructura en linkedin, bumeran e indeed |
+| `aviso_cookies` (ventana que tapa el formulario) | los 5 | **ahora lo absorbe la tolerancia** (se acepta el aviso): «absorbido (tolerado)» en el informe |
 | `paginacion_postulantes` (lista paginada con otras marcas) | los 5 | leer postulantes y la prueba de estructura (esta última solo si ya hay una oferta publicada) |
 | `enlace_cv` (el enlace de descarga pasa a ser un botón con JavaScript) | los 5 | bajar el CV (solo al traer postulantes nuevos) |
 | `cosmetico_colores`, `_tamanos`, `_tipografia`, `_espaciado`, `_orden_visual` | los 5 | **nada**: publicar y la prueba de estructura deben seguir bien |
@@ -163,7 +212,7 @@ Con la reanudación automática del robot (abajo) no hace falta reiniciarlo tras
 
 **Informe automático.** Mientras el entrenamiento está activo, el servidor de portales regenera cada `BOT_FAKE_REPORT_MINUTES` (1–1440, por defecto 15) el archivo `bot/.state/informe-entrenamiento.md` (escritura atómica) y lo expone en `/__fake/informe` (HTML; `?actualizar=1` lo regenera ahora). El bloque «Entrenamiento» del panel `/` lo enlaza y muestra la hora de la última generación y los totales (detectados, escapados, falsas alarmas, tiempo medio de detección, reanudaciones). Además de las tablas por cambio, el informe trae la tasa de detección y el tiempo medio **por tipo de cambio** y **por portal**, y una línea por cada reanudación automática (cuánto estuvo detenido el robot y cuánto tardó en volver desde que se restableció el portal).
 
-**Informe por consola** (solo lectura): `npm run bot:training-report` cruza el diario con los incidentes y escribe en consola, por cada estructural, si fue detectado (hay un incidente del mismo portal creado después del cambio y antes del siguiente cambio de ese portal), el tiempo hasta detectarlo y el código; por cada cosmético, si hubo falsa alarma; y los totales (detectados, escapados, sin detectar aún, falsas alarmas). `-- --md [archivo]` lo guarda además en Markdown dentro de `bot/.state/` (por defecto `informe-entrenamiento.md`). `-- --cada <minutos>` lo repinta cada tanto (modo vigilancia). No incluye mensajes de incidentes ni datos personales. Limitación: si el mismo fallo sigue «abierto» en un incidente anterior, el robot lo cuenta como repetición (no crea otro); el informe lo marca «repetido» y el tiempo es una cota superior. Decida los incidentes (`sí N` / `no N`) para que los siguientes cambios generen incidentes nuevos.
+**Informe por consola** (solo lectura): `npm run bot:training-report` cruza el diario con los incidentes y escribe en consola, por cada estructural, si fue detectado (hay un incidente del mismo portal creado después del cambio y antes del siguiente cambio de ese portal), el tiempo hasta detectarlo y el código; por cada cosmético, si hubo falsa alarma; y los totales (detectados, escapados, sin detectar aún, falsas alarmas). `-- --md [archivo]` lo guarda además en Markdown dentro de `bot/.state/` (por defecto `informe-entrenamiento.md`). `-- --cada <minutos>` lo repinta cada tanto (modo vigilancia). Un estructural sin incidente durante cuya ventana el robot usó selectores alternativos de ese portal (`bot/.state/tolerancias.json`, `-- --tolerancias <archivo>`) se clasifica **«absorbido (tolerado)»**, distinto de detectado y de escapado: tiene su columna «Tolerancias» (eventos y claves), el total «absorbidos (tolerados)» y la columna «Absorbidos» de las tablas por tipo y por portal (no entran en la tasa de detección). No incluye mensajes de incidentes ni datos personales. Limitación: si el mismo fallo sigue «abierto» en un incidente anterior, el robot lo cuenta como repetición (no crea otro); el informe lo marca «repetido» y el tiempo es una cota superior. Decida los incidentes (`sí N` / `no N`) para que los siguientes cambios generen incidentes nuevos.
 
 **Configurar el robot para entrenar.** `BOT_HEALTH_CHECK_HOURS` acepta decimales (se comprobó en `config.ts` y en `createHealthSchedule`: `0.5` = 30 minutos). La prueba solo corre dentro de un ciclo, así que también hay que bajar `BOT_POLL_SECONDS`. Con un cambio cada 30 minutos se recomienda `BOT_HEALTH_CHECK_HOURS=0.25` (15 minutos) y `BOT_POLL_SECONDS=120`: el robot ve el cambio, como mucho, unos 15 a 17 minutos después. Con los valores por defecto (24 h y 10 min) casi todo quedaría «escapado». **Recomendado para entrenar en modo continuo:** `BOT_HEALTH_CHECK_HOURS=0.25`, `BOT_POLL_SECONDS=120` y `BOT_RESUME_CHECK_MINUTES=5` (el robot reanuda un portal restablecido a los pocos minutos). Se ponen en el entorno o en su `.env.bot` (este encargo no lo edita).
 
@@ -175,6 +224,6 @@ Antes de escribirlo hacen falta, de la cuenta de empresa real: capturas o HTML g
 
 Reutilice una sola pestaña para todas las operaciones (como `withPage` en `fake-base.ts`, que además reparte una pestaña distinta a cada adaptador cuando comparten navegador) en vez de abrir y cerrar una por oferta: se nota menos y carga menos al portal.
 
-Para que los incidentes lleven el esquema de la pantalla, implemente `captureStructure()` con `captureStructure(page)` de `bot/src/structure.ts` (una línea). Para buscar cada elemento use `findElement(page, "botón publicar", [estrategias…])` de `bot/src/locate.ts`: prueba varias formas (rol, etiqueta, texto, sinónimos) de la más estable a la menos y avisa con `onFallback` cuando solo funcionó una alternativa, antes de que se rompa del todo. Cada adaptador declara sus propias estrategias; nunca se inventan.
+Para que los incidentes lleven el esquema de la pantalla, implemente `captureStructure()` con `captureStructure(page)` de `bot/src/structure.ts` (los `fake-*` lo heredan de `fake-base.ts` y lo capturan en la pantalla donde falló). Para buscar cada elemento declare un **libro de selectores** (`registerBook(slug, {...})` de `bot/src/selectors.ts`) y use `resolveElement(page, slug, "clave")`, que envuelve `findElement` de `bot/src/locate.ts`: override aprobado → selector por defecto → alternativas (rol, etiqueta, texto, sinónimos) si la entrada no es estricta, y deja constancia cuando solo funcionó una alternativa. Marque `estricto(...)` el botón de enviar/publicar y el de retirar. Cada adaptador declara sus propios selectores; nunca se inventan.
 
 Dos trampas que ya aparecieron con el portal falso: (1) el código que se pasa a `evaluate`/`evaluateAll` corre en el navegador y no debe declarar funciones con nombre (con `tsx` falla con `__name is not defined`); (2) esperar con `waitFor()` una tabla vacía agota el tiempo porque Playwright la considera oculta: use `{ state: "attached" }`. Pruebe cada adaptador también con `npm run bot`, no solo con vitest.

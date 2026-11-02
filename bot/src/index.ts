@@ -8,6 +8,9 @@ import { acquireLock } from "./lock";
 import { BotControl } from "./notify/control";
 import { createIncomingHandler, incidentMessage } from "./notify/incoming";
 import { createNotifier } from "./notify";
+import { createRepairFromConfig, type RepairService } from "./repair";
+import { TrialQueue, rehearseOnAdapter, type Rehearse } from "./repair/trial";
+import { configureSelectorState } from "./selectors";
 import { allStopped, createResumeSchedule, isResumable, resumeDue, runResumeChecks, runRound, type AdapterSlot } from "./round";
 import { createHealthSchedule, type Logger } from "./runner";
 import { FileSeenStore } from "./seen";
@@ -40,6 +43,8 @@ function haltMessage(reason: string | undefined, portal?: string, resumeMinutes 
 
 async function main() {
   const config = loadConfig();
+  // Dónde se guardan los selectores aprobados y las tolerancias (ver selectors.ts).
+  configureSelectorState({ overridesFile: config.selectorsFile, tolerancesFile: config.tolerancesFile, log });
   // Un solo robot a la vez: dos se pisan la cola de publicaciones y el perfil del navegador.
   const releaseLock = acquireLock(path.join(path.dirname(config.stateFile), "robot.lock"));
   // Un solo navegador para todos los portales: cada adaptador usa su propia pestaña.
@@ -47,7 +52,13 @@ async function main() {
   const control = new BotControl(config.adapter);
   const notifier = createNotifier(config, log);
   // Cada fallo con un portal queda guardado y se avisa una sola vez por incidente nuevo.
-  const incidents = new FileIncidentStore(config.incidentsDir, log, (incident) => notifier.notify(incidentMessage(incident)));
+  // La reparación asistida (si hay ANTHROPIC_API_KEY) se crea más abajo; sin ella todo sigue igual que antes.
+  let repair: RepairService | null = null;
+  const incidents = new FileIncidentStore(config.incidentsDir, log, async (incident) => {
+    await notifier.notify(incidentMessage(incident, { repairActive: repair !== null }));
+    // Sin esperar: la consulta al modelo no debe detener al robot (y nunca lanza).
+    void repair?.handleNewIncident(incident);
+  });
   const api = new BotApi(config.apiUrl, config.secret);
   // Un solo registro de enviados para todos (los ids de publicación son únicos entre portales).
   const seen = new FileSeenStore(config.stateFile);
@@ -64,6 +75,8 @@ async function main() {
       seen,
       // Cada portal con su propio calendario de prueba de estructura.
       health: config.healthCheckHours > 0 ? createHealthSchedule(config.healthCheckHours) : undefined,
+      // Cada prueba de estructura verifica (o revierte) lo que la reparación asistida aplicó en ese portal.
+      onHealthCheck: (ok, startedAt) => repair?.onHealthResult(adapter.slug, ok, startedAt),
       log,
       incidents,
       journal,
@@ -73,6 +86,26 @@ async function main() {
   }));
   const multi = slots.length > 1;
 
+  // Los ensayos de propuestas usan el navegador compartido: se encolan y corren en el turno del robot (nunca en paralelo con un ciclo).
+  const trials = new TrialQueue();
+  const rehearse: Rehearse = (portal, clave, selector, step) =>
+    trials.enqueue(async () => {
+      const slot = slots.find((s) => s.slug === portal);
+      return slot ? rehearseOnAdapter(slot.deps.adapter, clave, selector, step) : { resultado: "fallo", mensaje: `portal desconocido: ${portal}` };
+    });
+  repair = createRepairFromConfig(config, {
+    rehearse,
+    notify: (text) => notifier.notify(text),
+    log,
+    // Tras aplicar un selector, la comprobación del portal toca ya: la siguiente vuelta lo usa.
+    onApplied: (portal) => {
+      const slot = slots.find((s) => s.slug === portal);
+      if (slot?.resume) slot.resume.lastCheckAt = null;
+      if (slot?.deps.health) slot.deps.health.lastRunAt = null;
+    },
+  });
+  log(repair ? `Reparación asistida activa (modelo ${config.repairModel}, hasta ${config.repairMaxPerDay} consultas al día).` : "Reparación asistida desactivada (sin ANTHROPIC_API_KEY).");
+
   let stopping = false;
   const stop = () => {
     stopping = true;
@@ -81,7 +114,7 @@ async function main() {
   process.on("SIGTERM", stop);
 
   // Un fallo del canal de avisos nunca debe impedir que el robot trabaje.
-  await notifier.start(createIncomingHandler(control, incidents)).catch((error) => log(`Avisos desactivados: ${String(error)}`));
+  await notifier.start(createIncomingHandler(control, incidents, repair)).catch((error) => log(`Avisos desactivados: ${String(error)}`));
 
   log(`Robot iniciado (adaptador ${config.adapter}, cada ${config.pollSeconds} s).`);
   await notifier.notify(`Robot iniciado (adaptador ${config.adapter}). Envíe «ayuda» para ver las órdenes.`);
@@ -89,7 +122,8 @@ async function main() {
 
   /** Comprobación de los portales detenidos por `pagina_cambio` (solo su prueba de estructura). Devuelve `true` si alguno volvió. */
   async function checkResumes(): Promise<boolean> {
-    const { resumed, escalated } = await runResumeChecks(slots, log, () => stopping);
+    await trials.drain();
+    const { resumed, escalated } = await runResumeChecks(slots, log, () => stopping, (slug, ok, startedAt) => repair?.onHealthResult(slug, ok, startedAt));
     for (const slug of resumed) {
       control.autoResumes += 1;
       control.setHalted(slug, null);
@@ -146,6 +180,7 @@ async function main() {
       for (let waited = 0; waited < config.pollSeconds && !stopping && !control.consumeWake(); waited++) {
         await new Promise((resolve) => setTimeout(resolve, 1_000));
         // Un portal detenido por `pagina_cambio` se comprueba a su hora aunque falte para el siguiente ciclo.
+        if (!control.paused && !stopping && trials.pending > 0) await trials.drain();
         if (!control.paused && !stopping && resumeDue(slots)) {
           const back = await checkResumes();
           if (allStopped(slots)) break;

@@ -7,8 +7,12 @@ export type Strategy = (page: Page) => Locator;
 export interface FindOptions {
   /** Tiempo máximo por cada alternativa. */
   timeoutMs?: number;
+  /** «visible» (por defecto) o «attached» (basta con que exista en la página, p. ej. una lista vacía). */
+  state?: "visible" | "attached";
   /** Se llama cuando solo funcionó una alternativa (no la primera): el portal cambió algo pequeño. */
   onFallback?: (description: string, used: number) => void;
+  /** Se llama siempre que se encuentra el elemento, con el índice de la forma que funcionó (0 = la primera). */
+  onFound?: (description: string, used: number) => void;
 }
 
 /**
@@ -21,16 +25,17 @@ export async function findElement(
   page: Page,
   description: string,
   strategies: Strategy[],
-  { timeoutMs = 3_000, onFallback }: FindOptions = {},
+  { timeoutMs = 3_000, state = "visible", onFallback, onFound }: FindOptions = {},
 ): Promise<Locator> {
   for (let index = 0; index < strategies.length; index++) {
     const locator = strategies[index](page).first();
     try {
-      await locator.waitFor({ state: "visible", timeout: timeoutMs });
+      await locator.waitFor({ state, timeout: timeoutMs });
     } catch {
       continue;
     }
     if (index > 0) onFallback?.(description, index);
+    onFound?.(description, index);
     return locator;
   }
   throw new PortalError(ERROR_CODES.pageChanged, `No se encontró «${description}» (se probaron ${strategies.length} formas).`);
