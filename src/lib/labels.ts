@@ -222,5 +222,7 @@ export const PORTAL_ERROR_LABELS: Record<string, string> = {
   retiro_fallido: "El robot no pudo retirar la oferta tras varios intentos y sigue publicada en el portal. Desmarque el portal para pedir el retiro de nuevo, o retírela a mano.",
   fallos_seguidos: "El robot falló varias veces seguidas y se detuvo; revise el portal.",
   portal_no_disponible: "El portal no respondió (caído o sin conexión). No es un cambio de su página; el robot lo reintenta.",
+  oferta_no_encontrada: "La oferta ya no existe en el portal (vencida, borrada o retirada a mano). El robot dejó de revisarla.",
+  sincronizacion_pendiente: "Antes de retirar la oferta el robot no logró traer todos los postulantes; reintenta para no perderlos.",
   api_no_disponible: "El robot no pudo comunicarse con la aplicación para informar un resultado.",
 };

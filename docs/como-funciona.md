@@ -147,7 +147,9 @@ Al publicarla, si no es confidencial:
 
 ### Paso 5 · Difundir en los portales de empleo
 
-La plataforma **no puede** publicar sola en Computrabajo, Bumeran, LinkedIn o Indeed. Esos portales no ofrecen una vía pública y gratuita para hacerlo. Luis copia el aviso en cada portal, como se hace hoy.
+La plataforma **no tiene una vía oficial** para publicar en Computrabajo, Bumeran, LinkedIn o Indeed: esos portales no ofrecen una API pública y gratuita, y sus condiciones de uso prohíben los robots. Hoy Luis copia el aviso en cada portal, como siempre.
+
+Existe además un **robot** (carpeta `bot/`, pestaña «Portales» de la vacante) que publica la oferta, trae a los postulantes con su CV y retira la oferta al cerrar la vacante. **Solo está probado contra portales ficticios: todavía no existe el adaptador de ningún portal real** y falta la autorización escrita de la empresa. Antes de retirar una oferta, el robot hace una última revisión de postulantes para no perder a los más recientes; si no logra traerlos todos, no la retira y reintenta. Ver [bot/README.md](../bot/README.md).
 
 Los postulantes postulan **dentro de cada portal**, sin pasos adicionales.
 
