@@ -25,7 +25,7 @@ function OpinionStatus({ opinion, isMe }: { opinion: OpinionState; isMe: boolean
         {opinion.answeredAt ? (
           <Badge variant="secondary">Respondida</Badge>
         ) : (
-          <Badge className="bg-amber-100 text-amber-950 dark:bg-amber-900 dark:text-amber-50">Pendiente</Badge>
+          <Badge className="bg-warning text-warning-foreground">Pendiente</Badge>
         )}
       </div>
       <p className="text-xs text-muted-foreground">
@@ -34,7 +34,7 @@ function OpinionStatus({ opinion, isMe }: { opinion: OpinionState; isMe: boolean
         {opinion.answeredAt ? ` · respondida el ${formatDateTime(opinion.answeredAt)}` : ""}
       </p>
       {isMe && !opinion.answeredAt ? (
-        <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-50">
+        <p className="flex items-start gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
           <BellRingIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
           Le pidieron su opinión. Regístrela como observación en «Observaciones e historial».
         </p>

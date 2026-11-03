@@ -61,7 +61,7 @@ export default async function DashboardPage() {
       {pendingOpinions.length > 0 ? (
         <section
           aria-label="Pendientes de su opinión"
-          className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:bg-amber-950 dark:text-amber-50"
+          className="rounded-lg border border-warning-foreground/40 bg-warning px-4 py-3 text-warning-foreground"
         >
           <h2 className="flex items-center gap-2 font-medium">
             <BellRingIcon className="size-4" aria-hidden />
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
       </section>
 
       {summary.vacancies_pending_criteria > 0 ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-50">
+        <p className="rounded-md border border-warning-foreground/40 bg-warning px-4 py-3 text-sm text-warning-foreground">
           {summary.vacancies_pending_criteria === 1
             ? "Hay 1 vacante con criterios de evaluación sin aprobar."
             : `Hay ${summary.vacancies_pending_criteria} vacantes con criterios de evaluación sin aprobar.`}{" "}
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
                   <span className="truncate text-muted-foreground">{APPLICATION_STATUS_LABELS[status]}</span>
                   <span className="h-2 rounded-full bg-muted" aria-hidden>
                     <span
-                      className="block h-2 rounded-full bg-primary"
+                      className="block h-2 rounded-full bg-brand"
                       style={{ width: total === 0 ? 0 : `${Math.max(4, (total / maxStage) * 100)}%` }}
                     />
                   </span>

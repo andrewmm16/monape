@@ -1,4 +1,4 @@
-ROLES Y PERMISOS - PLATAFORMA DE RECLUTAMIENTO DE INTERRUPTIVO PERU
+ROLES Y PERMISOS - PLATAFORMA DE RECLUTAMIENTO DE ITERRUPTIVO PERU
 Estado: Etapa 1 (actualizado el 23/10/2026). Describe lo que la aplicacion permite HOY,
 no lo planificado.
 

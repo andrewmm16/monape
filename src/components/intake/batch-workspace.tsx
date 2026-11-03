@@ -115,7 +115,7 @@ function ItemRow({
             {item.nameEvidence ? (
               <div className="mt-1 max-w-56 text-xs text-muted-foreground">Del CV: «{item.nameEvidence}»</div>
             ) : values.fullName.trim() === "" ? (
-              <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">Escriba el nombre.</div>
+              <div className="mt-1 text-xs text-warning-foreground">Escriba el nombre.</div>
             ) : null}
           </TableCell>
           <TableCell>{field("email", "Correo", "email")}</TableCell>
@@ -128,7 +128,7 @@ function ItemRow({
       )}
       <TableCell className="max-w-64 text-xs whitespace-normal">
         {item.duplicates.length > 0 ? (
-          <div className="mb-1 flex gap-1 text-amber-700 dark:text-amber-300">
+          <div className="mb-1 flex gap-1 text-warning-foreground">
             <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
             <div>
               <div className="font-medium">Posible duplicado</div>
@@ -143,7 +143,7 @@ function ItemRow({
           </div>
         ) : null}
         {item.status !== "error" && item.fromOcr ? (
-          <p className="mb-1 font-medium text-amber-700 dark:text-amber-300">
+          <p className="mb-1 font-medium text-warning-foreground">
             Datos leídos de un escaneo: revise con cuidado el nombre, el correo y el teléfono.
           </p>
         ) : null}
@@ -304,7 +304,7 @@ export function BatchWorkspace({
             void uploadFiles([...event.dataTransfer.files]);
           }}
           className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center text-sm transition-colors ${
-            dragging ? "border-primary bg-primary/5" : "hover:border-primary/60"
+            dragging ? "border-brand bg-brand/5" : "hover:border-brand/60"
           }`}
         >
           <UploadIcon className="size-6 text-muted-foreground" aria-hidden />
@@ -328,7 +328,7 @@ export function BatchWorkspace({
               {uploads.map((entry) => (
                 <li key={entry.key} className="flex items-start gap-2">
                   {entry.state === "listo" ? (
-                    <CheckCircle2Icon className="mt-0.5 size-4 text-emerald-600" aria-hidden />
+                    <CheckCircle2Icon className="mt-0.5 size-4 text-success-foreground" aria-hidden />
                   ) : entry.state === "error" ? (
                     <AlertTriangleIcon className="mt-0.5 size-4 text-destructive" aria-hidden />
                   ) : (

@@ -148,7 +148,7 @@ export function InterviewFormDialog({ trigger, defaultOpen = false, applicationI
             {isPastDate ? (
               <p
                 role="status"
-                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-50"
+                className="rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground"
               >
                 La fecha ya pasó. Se admite para registrar una entrevista que ya se hizo; después podrá registrar su resultado.
               </p>
@@ -384,8 +384,8 @@ export function RecordResultDialog({
                   <label
                     key={option.value}
                     className={cn(
-                      "flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:border-primary/60",
-                      outcome === option.value && "border-primary bg-primary/5 font-medium",
+                      "flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:border-brand/60",
+                      outcome === option.value && "border-brand bg-brand/5 font-medium",
                     )}
                   >
                     <input type="radio" value={option.value} className="size-4 accent-primary" {...form.register("outcome")} />

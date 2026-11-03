@@ -55,7 +55,7 @@ export function ResumesSection({
                 </div>
                 <a
                   href={`/api/resumes/${resume.id}/download`}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
                   rel="noreferrer"
                 >
                   <DownloadIcon className="size-4" aria-hidden /> Descargar

@@ -27,8 +27,8 @@ type Item = Awaited<ReturnType<typeof listEvaluationItems>>[number];
 type Verification = Awaited<ReturnType<typeof listRequirementVerifications>>[number];
 
 const VERIFIED_TONES = {
-  acreditado: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  no_cumplido: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
+  acreditado: "bg-success text-success-foreground",
+  no_cumplido: "bg-danger text-danger-foreground",
 } as const;
 
 /** Origen de la valoración: lo que dice el CV o lo que RRHH comprobó después. */
@@ -56,15 +56,15 @@ function ScoreMeter({ score, potential }: { score: number; potential: number }) 
         role="img"
         aria-label={`${Math.round(score)} % del peso acreditado; hasta ${Math.round(potential)} % si se confirman los requisitos sin evidencia o pendientes`}
       >
-        <span className="h-full bg-primary" style={{ width: `${score}%` }} />
-        <span className="ml-0.5 h-full bg-primary/30" style={{ width: `${Math.max(0, potential - score)}%` }} />
+        <span className="h-full bg-brand" style={{ width: `${score}%` }} />
+        <span className="ml-0.5 h-full bg-brand/30" style={{ width: `${Math.max(0, potential - score)}%` }} />
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-primary" aria-hidden /> Acreditado {formatPercent(score)}
+          <span className="size-2 rounded-full bg-brand" aria-hidden /> Acreditado {formatPercent(score)}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-primary/30" aria-hidden /> Sin evidencia o pendiente{" "}
+          <span className="size-2 rounded-full bg-brand/30" aria-hidden /> Sin evidencia o pendiente{" "}
           {formatPercent(potential - score)}
         </span>
         <span>Aparentemente no cumplido {formatPercent(100 - potential)}</span>
@@ -129,7 +129,7 @@ export function EvaluationCard({
           {` · ${evaluation.author?.full_name ?? SYSTEM_ACTOR_LABEL}`}
         </CardDescription>
         {outdated ? (
-          <p className="text-sm text-amber-700 dark:text-amber-400">
+          <p className="text-sm text-warning-foreground">
             Los criterios de la vacante cambiaron después de esta evaluación (vigente: v{currentCriteriaVersion}). Genere una nueva
             evaluación.
           </p>
@@ -202,7 +202,7 @@ export function EvaluationCard({
                     <div className="mt-2 space-y-1">
                       <p className="text-xs font-medium">Evidencia en el CV:</p>
                       {evidence.map((e, index) => (
-                        <blockquote key={index} className="border-l-2 border-primary/40 pl-2 text-xs italic">
+                        <blockquote key={index} className="border-l-2 border-brand/40 pl-2 text-xs italic">
                           {e.quote}
                         </blockquote>
                       ))}

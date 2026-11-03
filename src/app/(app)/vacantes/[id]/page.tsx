@@ -239,7 +239,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
             className={cn(
               "-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap",
               tab === item.id
-                ? "border-primary font-medium text-primary"
+                ? "border-brand font-medium text-brand"
                 : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >

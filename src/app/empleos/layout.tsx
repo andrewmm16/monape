@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function PublicJobsLayout({ children }: LayoutProps<"/empleos">) {
   const { companyName } = requirePublicJobsConfig();
   return (
-    <div className="flex min-h-screen flex-col bg-muted/40">
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b bg-background">
         <div className="mx-auto flex h-14 max-w-4xl items-center px-4">
           <Link href="/empleos" className="text-sm font-semibold">

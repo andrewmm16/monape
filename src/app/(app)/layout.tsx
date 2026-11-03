@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { BrandLogo } from "@/components/common/brand-logo";
 import { BotAlertBanner } from "@/components/app-shell/bot-alert-banner";
 import { InactivityGuard } from "@/components/app-shell/inactivity-guard";
 import { MobileNav } from "@/components/app-shell/mobile-nav";
 import { NavLinks, type NavItem } from "@/components/app-shell/nav-links";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
+import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { readActivityTime } from "@/lib/auth/activity-cookie";
 import { ACTIVITY_COOKIE, serverIdleMs } from "@/lib/auth/inactivity";
@@ -47,10 +49,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="hidden w-60 shrink-0 border-r bg-sidebar p-4 md:block">
+      <aside className="hidden w-60 shrink-0 border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:block">
         <Link href="/panel" className="mb-6 block px-3">
-          <span className="block text-sm font-semibold">Interruptivo Perú</span>
-          <span className="block text-xs text-muted-foreground">Reclutamiento y selección</span>
+          <BrandLogo tone="onDark" className="h-5" />
+          <span className="mt-2 block text-xs text-sidebar-foreground/70">Reclutamiento y selección</span>
         </Link>
         <NavLinks items={items} />
       </aside>
@@ -61,6 +63,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <span className="text-sm font-medium md:hidden">Reclutamiento</span>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell initial={notifications} />
             <UserMenu name={user.fullName} email={user.email} roleLabel={ROLE_LABELS[user.role]} />
           </div>

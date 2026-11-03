@@ -79,7 +79,7 @@ export function ApplicationsTable({
             aria-current={params.vista === view.id ? "page" : undefined}
             className={cn(
               "rounded-md border px-3 py-1.5 text-sm whitespace-nowrap",
-              params.vista === view.id ? "border-primary bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:text-foreground",
+              params.vista === view.id ? "border-brand bg-brand/10 font-medium text-brand" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {view.label}
@@ -210,7 +210,7 @@ export function ApplicationsTable({
                   <TableCell className="hidden md:table-cell">
                     {row.assigned_evaluator_name ?? "—"}
                     {row.assigned_evaluator_name && row.opinion_requested_at && !row.opinion_answered_at ? (
-                      <span className="block text-xs text-amber-700 dark:text-amber-300">Pendiente</span>
+                      <span className="block text-xs text-warning-foreground">Pendiente</span>
                     ) : null}
                   </TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground xl:table-cell">No disponible (Etapa 3)</TableCell>

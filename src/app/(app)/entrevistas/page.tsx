@@ -61,7 +61,7 @@ export default async function InterviewsPage({ searchParams }: PageProps<"/entre
       {pending.length > 0 ? (
         <section
           aria-labelledby="pendientes"
-          className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/30 dark:text-amber-50"
+          className="space-y-3 rounded-lg border border-warning-foreground/40 bg-warning p-4 text-warning-foreground"
         >
           <div>
             <h2 id="pendientes" className="text-lg font-semibold">

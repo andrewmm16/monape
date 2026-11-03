@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/brand-logo";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { NavLinks, type NavItem } from "./nav-links";
 
@@ -15,9 +16,10 @@ export function MobileNav({ items }: { items: NavItem[] }) {
           <MenuIcon />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 bg-sidebar p-4">
+      <SheetContent side="left" className="w-72 bg-sidebar p-4 text-sidebar-foreground [&>[data-slot=sheet-close]]:text-sidebar-foreground">
         <SheetHeader className="px-0">
-          <SheetTitle>Reclutamiento</SheetTitle>
+          <SheetTitle className="sr-only">Reclutamiento</SheetTitle>
+          <BrandLogo tone="onDark" className="h-5" />
         </SheetHeader>
         <NavLinks items={items} onNavigate={() => setOpen(false)} />
       </SheetContent>

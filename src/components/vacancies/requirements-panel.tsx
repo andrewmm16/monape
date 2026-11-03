@@ -33,13 +33,13 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
             versión aprobada.
           </CardDescription>
           {approved ? (
-            <p className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+            <p className="flex items-center gap-1.5 text-sm text-success-foreground">
               <CheckCircle2Icon className="size-4" aria-hidden />
               Versión {vacancy.criteria_version} aprobada
               {vacancy.approver ? ` por ${vacancy.approver.full_name}` : ""} el {formatDateTime(vacancy.criteria_approved_at)}
             </p>
           ) : (
-            <p className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+            <p className="flex items-center gap-1.5 text-sm text-warning-foreground">
               <TriangleAlertIcon className="size-4" aria-hidden />
               {vacancy.criteria_version > 0
                 ? `Hay cambios sin aprobar (última versión aprobada: ${vacancy.criteria_version}).`

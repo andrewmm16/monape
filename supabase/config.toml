@@ -248,7 +248,7 @@ otp_expiry = 3600
 
 # Uncomment to customize email template
 [auth.email.template.invite]
-subject = "Invitación a la plataforma de reclutamiento de Interruptivo Perú"
+subject = "Invitación a la plataforma de reclutamiento de Iterruptivo Perú"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.recovery]

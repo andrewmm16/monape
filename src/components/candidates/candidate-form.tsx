@@ -87,7 +87,7 @@ export function CandidateForm({ candidateId, defaultValues, vacancies, onDone }:
         <AlertDialog open={duplicates.length > 0} onOpenChange={(open) => !open && setDuplicates([])}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogMedia className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+              <AlertDialogMedia className="bg-warning text-warning-foreground">
                 <TriangleAlertIcon />
               </AlertDialogMedia>
               <AlertDialogTitle>Posibles candidatos duplicados</AlertDialogTitle>

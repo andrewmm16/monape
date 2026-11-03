@@ -22,7 +22,7 @@ const POLL_MS = 60_000;
 const ANNOUNCED_KEY = "notificaciones-anunciadas";
 
 const AMBER_TOAST =
-  "border-amber-400! bg-amber-50! text-amber-950! dark:border-amber-700! dark:bg-amber-950! dark:text-amber-50!";
+  "border-warning-foreground/40! bg-warning! text-warning-foreground!";
 
 function describe(item: NotificationItem): { title: string; detail: string } {
   const candidate = item.candidateName ?? "una postulación";
@@ -138,12 +138,12 @@ export function NotificationBell({ initial }: { initial: NotificationFeed }) {
           className={cn(
             "relative",
             hasUnread &&
-              "bg-amber-400 text-amber-950 ring-2 ring-amber-300 hover:bg-amber-300 hover:text-amber-950 dark:bg-amber-400 dark:text-amber-950",
+              "bg-warning text-warning-foreground ring-2 ring-warning-foreground/40 hover:bg-warning/80 hover:text-warning-foreground",
           )}
         >
           {hasUnread ? <BellRingIcon /> : <BellIcon />}
           {hasUnread ? (
-            <span className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full bg-amber-600 px-1 text-[11px] leading-5 font-semibold text-white tabular-nums">
+            <span className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full bg-warning-foreground px-1 text-[11px] leading-5 font-semibold text-warning tabular-nums">
               {feed.unread > 9 ? "9+" : feed.unread}
             </span>
           ) : null}
@@ -171,7 +171,7 @@ export function NotificationBell({ initial }: { initial: NotificationFeed }) {
                   onSelect={() => open(item)}
                   className={cn(
                     "flex flex-col items-start gap-0.5 border-l-4 border-transparent py-2",
-                    !item.read && "border-amber-400 bg-amber-50 dark:bg-amber-950/60",
+                    !item.read && "border-warning-foreground/40 bg-warning",
                   )}
                 >
                   <span className={cn("text-sm", !item.read && "font-medium")}>{title}</span>

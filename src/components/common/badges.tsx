@@ -12,10 +12,10 @@ import { cn } from "@/lib/utils";
 
 const tone = {
   neutral: "bg-muted text-foreground",
-  info: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100",
-  success: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  warning: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  attention: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-100",
+  info: "bg-info text-info-foreground",
+  success: "bg-success text-success-foreground",
+  warning: "bg-warning text-warning-foreground",
+  attention: "bg-attention text-attention-foreground",
   muted: "bg-transparent text-muted-foreground border-border",
 } as const;
 

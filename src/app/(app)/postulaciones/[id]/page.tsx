@@ -192,7 +192,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                       : "el candidato aún no tiene CV"}
                 </p>
                 {newerResume && canManage ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-50">
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
                     <span>Existe una versión más reciente del CV (v{newerResume.version}).</span>
                     <ActionButton size="sm" variant="outline" action={linkCurrentResume.bind(null, application.id)}>
                       Usar versión {newerResume.version}
@@ -200,7 +200,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   </div>
                 ) : null}
                 {!criteriaApproved ? (
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                  <p className="text-sm text-warning-foreground">
                     Los criterios de la vacante no están aprobados.{" "}
                     <Link href={`/vacantes/${application.vacancy.id}?tab=criterios`} className="underline">
                       Revisarlos

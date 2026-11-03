@@ -1,4 +1,4 @@
-# Plataforma de reclutamiento y selección · Interruptivo Perú
+# Plataforma de reclutamiento y selección · Iterruptivo Perú
 
 Aplicación web privada para el área de Recursos Humanos: vacantes con criterios ponderados, registro de candidatos y CV, extracción de texto, evaluación de compatibilidad **explicable y orientativa**, seguimiento del proceso y auditoría.
 

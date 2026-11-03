@@ -15,10 +15,10 @@ import type { Tables } from "@/types/database";
 type Requirement = Pick<Tables<"vacancy_requirements">, "id" | "description" | "priority" | "weight">;
 
 const ASSESSMENT_CELL = {
-  acreditado: { label: "Cumple", Icon: CircleCheckIcon, className: "text-emerald-700 dark:text-emerald-300" },
-  no_cumplido: { label: "No cumple", Icon: CircleXIcon, className: "text-red-700 dark:text-red-300" },
+  acreditado: { label: "Cumple", Icon: CircleCheckIcon, className: "text-success-foreground" },
+  no_cumplido: { label: "No cumple", Icon: CircleXIcon, className: "text-destructive" },
   sin_evidencia: { label: "Sin evidencia", Icon: CircleMinusIcon, className: "text-muted-foreground" },
-  pendiente_verificacion: { label: "Pendiente", Icon: ClockIcon, className: "text-amber-700 dark:text-amber-300" },
+  pendiente_verificacion: { label: "Pendiente", Icon: ClockIcon, className: "text-warning-foreground" },
 } as const;
 
 function Origin({ item }: { item: CompareItem }) {
@@ -31,8 +31,8 @@ function Origin({ item }: { item: CompareItem }) {
   }
   const tone =
     item.assessment === "no_cumplido"
-      ? "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100"
-      : "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100";
+      ? "bg-danger text-danger-foreground"
+      : "bg-success text-success-foreground";
   return (
     <Badge variant="outline" className={cn("border-transparent text-[11px]", tone)}>
       Verificado · {VERIFICATION_SOURCE_LABELS[item.verification_source]}
@@ -74,7 +74,7 @@ export function ComparisonTable({
         {label}
       </th>
       {candidates.map((candidate) => (
-        <td key={candidate.id} className={cn("px-3 py-2 align-top", rankOf.get(candidate.id) === 1 && "bg-primary/5")}>
+        <td key={candidate.id} className={cn("px-3 py-2 align-top", rankOf.get(candidate.id) === 1 && "bg-brand/5")}>
           {render(candidate)}
         </td>
       ))}
@@ -97,7 +97,7 @@ export function ComparisonTable({
                   key={candidate.id}
                   scope="col"
                   data-testid="compare-column"
-                  className={cn("min-w-48 px-3 py-3 text-left align-top font-normal", rank === 1 && "bg-primary/5")}
+                  className={cn("min-w-48 px-3 py-3 text-left align-top font-normal", rank === 1 && "bg-brand/5")}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xs font-semibold text-muted-foreground">{rank}.º</span>
@@ -121,7 +121,7 @@ export function ComparisonTable({
                       {formatPercent(candidate.score)} acreditado · hasta {formatPercent(candidate.scorePotential)}
                     </div>
                     {candidate.evaluationOutdated ? (
-                      <div className="text-xs text-amber-700 dark:text-amber-400">Evaluación desactualizada: reevaluar</div>
+                      <div className="text-xs text-warning-foreground">Evaluación desactualizada: reevaluar</div>
                     ) : null}
                   </div>
                   {canSchedule ? (
@@ -154,8 +154,8 @@ export function ComparisonTable({
                     key={candidate.id}
                     className={cn(
                       "px-3 py-2 align-top",
-                      rankOf.get(candidate.id) === 1 && "bg-primary/5",
-                      item?.assessment === "acreditado" && "bg-emerald-50 dark:bg-emerald-950/30",
+                      rankOf.get(candidate.id) === 1 && "bg-brand/5",
+                      item?.assessment === "acreditado" && "bg-success",
                     )}
                   >
                     {item && cell ? (

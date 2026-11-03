@@ -34,11 +34,11 @@ export type InterviewItemData = {
 };
 
 const BADGE_TONES = {
-  paso: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  no_paso: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
-  no_asistio: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
+  paso: "bg-success text-success-foreground",
+  no_paso: "bg-danger text-danger-foreground",
+  no_asistio: "bg-warning text-warning-foreground",
   cancelada: "bg-muted text-muted-foreground",
-  programada: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100",
+  programada: "bg-info text-info-foreground",
 } as const;
 
 /** Distintivo del estado o resultado de la entrevista: Pasó, No pasó, No asistió, Cancelada o Programada. */
@@ -64,7 +64,7 @@ export function LocationText({ location }: { location: string | null }) {
   const url = safeHttpUrl(location);
   if (!url) return <span className="break-words">{location}</span>;
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline underline-offset-2">
+    <a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-brand underline underline-offset-2">
       {location}
     </a>
   );
@@ -88,7 +88,7 @@ export function InterviewItem({
   return (
     <li
       data-testid="interview-item"
-      className={cn("space-y-2 rounded-lg border bg-card p-3 text-sm shadow-xs", highlight && "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20")}
+      className={cn("space-y-2 rounded-lg border bg-card p-3 text-sm shadow-xs", highlight && "border-warning-foreground/40 bg-warning/60")}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-0.5">

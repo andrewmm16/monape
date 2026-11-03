@@ -8,7 +8,7 @@ import { DUPLICATE_REASON_LABELS } from "@/lib/labels";
 export function PossibleDuplicate({ reasons }: { reasons: string[] | null }) {
   if (!reasons?.length) return null;
   return (
-    <div className="mt-1 text-xs text-amber-700 dark:text-amber-300" data-testid="possible-duplicate">
+    <div className="mt-1 text-xs text-warning-foreground" data-testid="possible-duplicate">
       Posible duplicado: {reasons.map((reason) => DUPLICATE_REASON_LABELS[reason] ?? reason).join(", ")}
     </div>
   );
