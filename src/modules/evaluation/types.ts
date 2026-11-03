@@ -20,6 +20,8 @@ export type Evidence = {
   quote: string;
   start?: number;
   end?: number;
+  /** Palabras del CV (tal como están escritas) que dieron origen a este extracto. */
+  matched?: string[];
 };
 
 export type ItemAssessment = {

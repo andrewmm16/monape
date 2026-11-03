@@ -26,7 +26,7 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v3 (antes reglas-v2)`, `src/modules/evaluation/rule-engine.ts`)
 
 Determinista: con el mismo texto, los mismos criterios y la misma fecha de evaluación, da el mismo resultado. La fecha importa solo para los empleos «a la actualidad» (regla 5). Las evaluaciones anteriores al 28/10/2026 indican `reglas-v1`, que no calculaba años por fechas.
 
@@ -131,3 +131,16 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
   - Solo se probó con textos ficticios, no con CV reales extraídos de PDF.
 - Las evaluaciones con IA pueden contener errores de interpretación; por eso se verifican citas y se exige revisión humana.
 - No se evalúan ni infieren características protegidas, y la interfaz no las solicita.
+
+## Cambios de reglas-v3
+
+El motor sigue siendo determinista y local, pero ahora razona por **oraciones** y no solo por palabras sueltas:
+
+- **Variantes de palabra:** busca singular/plural y masculino/femenino («comprobante» ≈ «comprobantes», «contador» ≈ «contadora»). No mezcla palabras distintas aunque se parezcan («contador» ≠ «contacto»).
+- **Evidencia = la oración completa** del CV donde aparece el término, eligiendo primero las oraciones que reúnen más términos distintos del requisito. Las palabras encontradas se resaltan en pantalla.
+- **Años de experiencia:** además de «3 años de experiencia», reconoce «tres años como…», «5+ años en…», «experiencia de más de 4 años». Cuenta primero la mención que está en la misma oración que el término. No toma la edad («26 años») ni la antigüedad de una empresa («30 años en el mercado»).
+- **Negaciones e intereses:** «sin experiencia en SAP» o «interés en Contabilidad» no acreditan el requisito; quedan «Por confirmar».
+- **Formación:** un requisito de título o estudios solo se acredita si el término aparece en una frase de estudios concluidos (bachiller, titulado, universidad…). Estudios «en curso» o el término en un cargo («Asistente Contable») no bastan.
+- **Nivel:** si el puesto pide nivel intermedio o avanzado y el CV declara solo nivel básico, queda «Por confirmar».
+
+**Límite que se mantiene:** el motor no entiende el significado. Una oración puede contener las palabras y no demostrar el requisito. Por eso el resultado es una referencia y lo decide una persona.

@@ -138,8 +138,8 @@ describe("años de experiencia calculados con las fechas del CV", () => {
     req("exp", { category: "experiencia", keywords: ["Excel"], minYears, ...overrides });
   const dated = cv("Analista de Datos", "Empresa Uno", "03/2019 - 12/2022", "- Reportes en Excel");
 
-  it("usa la versión reglas-v2", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v2");
+  it("usa la versión reglas-v3", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v3");
   });
 
   it("acredita cuando la cota mínima por fechas alcanza el mínimo", () => {
@@ -269,5 +269,123 @@ describe("normalizeForSearch", () => {
     const result = normalizeForSearch("1 ".repeat(100000));
     expect(performance.now() - started).toBeLessThan(500);
     expect(result.text).toHaveLength(199999);
+  });
+});
+
+describe("reglas-v3: oraciones, años y variantes", () => {
+  const CONTADORA = `Carmen Quispe
+Contadora Pública Colegiada | Asistente Contable
+Contadora pública colegiada con 6 años de experiencia en contabilidad general, tributación peruana y cierres mensuales.
+Registré y concilié más de 800 comprobantes mensuales en SAP Business One.`;
+  const REF = new Date("2026-11-03T00:00:00Z");
+  const years = (overrides: Partial<RequirementInput> = {}) =>
+    evaluateWithRules(CONTADORA, [req("exp", { keywords: ["contabilidad", "contable"], minYears: 3, category: "experiencia", ...overrides })], {
+      referenceDate: REF,
+    })[0]!;
+
+  it("la evidencia de los años es la oración que los menciona, no la cabecera", () => {
+    const result = years();
+    expect(result.assessment).toBe("acreditado");
+    expect(result.evidence[0]!.quote).toContain("6 años de experiencia en contabilidad general");
+    expect(result.evidence[0]!.quote).not.toMatch(/^Carmen/);
+    expect(result.rationale).toContain("6 años");
+  });
+
+  it("no acredita si los años no alcanzan el mínimo", () => {
+    expect(years({ minYears: 8 }).assessment).toBe("pendiente_verificacion");
+  });
+
+  it("entiende años escritos con letras y otras formas", () => {
+    const found = (text: string) => findYearsNear(normalizeForSearch(text), [{ start: 0, end: 4 }]);
+    expect(found("Cargo con tres años de experiencia en ventas")).toBe(3);
+    expect(found("Cargo, 5+ años de experiencia en ventas")).toBe(5);
+    expect(found("Ventas: cuatro años como ejecutivo comercial")).toBe(4);
+    expect(found("Ventas, experiencia de más de 7 años")).toBe(7);
+    expect(found("Ventas: 2 años trabajando en retail")).toBe(2);
+  });
+
+  it("no confunde la edad ni la antigüedad de una empresa con experiencia", () => {
+    const found = (text: string) => findYearsNear(normalizeForSearch(text), [{ start: 0, end: 4 }]);
+    expect(found("Ventas. Tengo 26 años y vivo en Lima")).toBeNull();
+    expect(found("Ventas en una empresa con 30 años en el mercado")).toBeNull();
+  });
+
+  it("prefiere la mención de años de la misma oración que el término", () => {
+    const text = "Trabajé en ventas durante la campaña. Antes: 10 años de experiencia en logística. Ventas minoristas con 2 años de experiencia.";
+    const haystack = normalizeForSearch(text);
+    const matches = findTermOccurrences(haystack, "ventas minoristas");
+    expect(findYearsNear(haystack, matches, text)).toBe(2);
+  });
+
+  it("encuentra singular, plural y género", () => {
+    const [plural] = evaluateWithRules("Revisé comprobantes de pago y facturas.", [req("c", { keywords: ["comprobante de pago"] })]);
+    expect(plural!.assessment).toBe("acreditado");
+    const [genero] = evaluateWithRules("Trabajo como contadora en una empresa.", [req("g", { keywords: ["contador"] })]);
+    expect(genero!.assessment).toBe("acreditado");
+    expect(genero!.evidence[0]!.matched).toEqual(["contadora"]);
+  });
+
+  it("no mezcla palabras distintas aunque se parezcan", () => {
+    const [result] = evaluateWithRules("Buen contacto con clientes y contable.", [req("c", { keywords: ["contador"] })]);
+    expect(result!.assessment).toBe("sin_evidencia");
+  });
+
+  it("la evidencia es la oración completa y reúne los términos distintos", () => {
+    const text = "Manejo Excel. Elaboré reportes en Excel avanzado con tablas dinámicas y BUSCARV para gerencia. Otro párrafo.";
+    const [result] = evaluateWithRules(text, [req("x", { keywords: ["Excel", "tablas dinámicas", "BUSCARV"] })]);
+    expect(result!.evidence.map((e) => e.quote)).toContain("Elaboré reportes en Excel avanzado con tablas dinámicas y BUSCARV para gerencia.");
+  });
+
+  it("una mención negada no acredita el requisito", () => {
+    const [negado] = evaluateWithRules("Sin experiencia en SAP, pero con ganas de aprender.", [req("sap", { keywords: ["SAP"] })]);
+    expect(negado!.assessment).toBe("pendiente_verificacion");
+    expect(negado!.rationale).toContain("parecen negarlo");
+    const [mixto] = evaluateWithRules("Sin experiencia en SAP. Luego usé SAP Business One a diario.", [req("sap", { keywords: ["SAP"] })]);
+    expect(mixto!.assessment).toBe("acreditado");
+  });
+});
+
+describe("reglas-v3: formación y nivel", () => {
+  const titulo = req("t", { description: "Título o bachiller en Contabilidad", keywords: ["Contabilidad"] });
+
+  it("el término en un cargo o un interés no acredita una formación", () => {
+    const [interes] = evaluateWithRules("Asistente Administrativa con interés en Contabilidad", [titulo]);
+    expect(interes!.assessment).toBe("pendiente_verificacion");
+    expect(interes!.rationale).toContain("expresar un interés");
+    const [cargo] = evaluateWithRules("Asistente Contable en Empresa SAC. Atención de clientes.", [req("t2", { ...titulo, keywords: ["Contable"] })]);
+    expect(cargo!.assessment).toBe("pendiente_verificacion");
+  });
+
+  it("acredita la formación cuando está en una frase de estudios", () => {
+    const [bachiller] = evaluateWithRules("Bachiller en Contabilidad - Universidad Ficticia (2021)", [titulo]);
+    expect(bachiller!.assessment).toBe("acreditado");
+    const [uni] = evaluateWithRules("Contabilidad, Universidad Nacional Ficticia, 2016-2021", [titulo]);
+    expect(uni!.assessment).toBe("acreditado");
+  });
+
+  it("un nivel básico no acredita un puesto que pide nivel intermedio o avanzado", () => {
+    const excel = req("x", { description: "Excel intermedio-avanzado", keywords: ["Excel"], category: "herramienta" });
+    const [basico] = evaluateWithRules("Manejo de Excel básico para reportes.", [excel]);
+    expect(basico!.assessment).toBe("pendiente_verificacion");
+    expect(basico!.rationale).toContain("nivel básico");
+    const [intermedio] = evaluateWithRules("Excel básico-intermedio para reportes.", [excel]);
+    expect(intermedio!.assessment).toBe("acreditado");
+    const [avanzado] = evaluateWithRules("Excel avanzado con tablas dinámicas.", [excel]);
+    expect(avanzado!.assessment).toBe("acreditado");
+  });
+});
+
+describe("reglas-v3: estudios en curso e intereses", () => {
+  it("estudios en curso no acreditan un título", () => {
+    const titulo = req("t", { description: "Título o bachiller en Contabilidad", keywords: ["Contabilidad"] });
+    const [encurso] = evaluateWithRules("Contabilidad (6.º ciclo de 10, en curso) - Instituto Superior Lima Sur", [titulo]);
+    expect(encurso!.assessment).toBe("pendiente_verificacion");
+    expect(encurso!.rationale).toContain("puede estar en curso");
+  });
+
+  it("un interés o una aspiración no acredita nada", () => {
+    const [interes] = evaluateWithRules("Asistente Administrativa con interés en Contabilidad", [req("c", { keywords: ["Contabilidad"] })]);
+    expect(interes!.assessment).toBe("pendiente_verificacion");
+    expect(interes!.rationale).toContain("expresar un interés");
   });
 });
