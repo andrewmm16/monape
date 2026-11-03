@@ -289,6 +289,8 @@ export async function syncApplicants(deps: RunnerDeps): Promise<CycleResult> {
 
   for (const publication of publications) {
     if (!publication.externalId) continue;
+    // Publicada a mano por RRHH: no es del robot (su código no existe en la pestaña del robot y daría falsos «oferta no encontrada»).
+    if (publication.manual === true) continue;
     const retryAt = skipped.get(publication.publicationId);
     if (retryAt !== undefined && Date.now() < retryAt) continue;
 

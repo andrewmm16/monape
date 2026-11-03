@@ -147,6 +147,27 @@ describe("postulantes", () => {
     expect(api.synced).toEqual([PUBLICATION_ID]);
   });
 
+  it("se salta las ofertas publicadas a mano (manual=true): no abre el portal, no baja CVs ni marca nada", async () => {
+    api.activePublications = [{ ...ACTIVE, manual: true }];
+    const adapter = makeAdapter({ listApplicants: vi.fn(async () => [applicant("a")]) });
+    expect(await syncApplicants(deps(adapter))).toEqual({ halted: false });
+    expect(adapter.listApplicants).not.toHaveBeenCalled();
+    expect(adapter.downloadResume).not.toHaveBeenCalled();
+    expect(api.sent).toHaveLength(0);
+    expect(api.synced).toEqual([]);
+    expect(logs).toEqual([]); // y sin ruido en el log
+  });
+
+  it("las manuales no estorban a las del robot: se revisan solo las del robot; manual=false o ausente cuentan como del robot", async () => {
+    const other = { ...ACTIVE, publicationId: "22222222-2222-4222-8222-222222222222", externalId: "ext-2" };
+    const third = { ...ACTIVE, publicationId: "33333333-3333-4333-8333-333333333333", externalId: "ext-3", manual: false };
+    api.activePublications = [{ ...ACTIVE, manual: true }, other, third];
+    const adapter = makeAdapter({ listApplicants: vi.fn(async () => [applicant("a")]) });
+    await syncApplicants(deps(adapter));
+    expect(adapter.listApplicants).toHaveBeenCalledTimes(2);
+    expect(api.synced.sort()).toEqual([other.publicationId, third.publicationId].sort());
+  });
+
   it("no vuelve a bajar el CV de quien ya se entregó", async () => {
     api.activePublications = [ACTIVE];
     const adapter = makeAdapter({ listApplicants: vi.fn(async () => [applicant("a")]) });

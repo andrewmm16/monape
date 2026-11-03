@@ -33,6 +33,12 @@ export interface ActivePublication {
   externalId: string | null;
   externalUrl: string | null;
   lastSyncedAt: string | null;
+  /**
+   * La oferta la publicó una persona a mano en el portal y la registró en la app: el robot no la creó, no sabe
+   * leerla y no la toca. Los avisos de sus postulantes llegan por el lector de correo. Si la app aún no envía el
+   * campo, se entiende `false` (comportamiento anterior).
+   */
+  manual?: boolean;
 }
 
 /** Fila de la lista de postulantes del portal, sin el CV todavía. */

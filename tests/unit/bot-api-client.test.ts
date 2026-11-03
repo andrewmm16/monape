@@ -31,6 +31,16 @@ describe("cliente de la API del robot", () => {
     ]);
   });
 
+  it("la lista de ofertas activas conserva el campo `manual` que envíe la app", async () => {
+    const publications = [
+      { publicationId: "p-1", externalId: "e-1", externalUrl: null, lastSyncedAt: null, manual: true },
+      { publicationId: "p-2", externalId: "e-2", externalUrl: null, lastSyncedAt: null },
+    ];
+    const { api, fetchImpl } = client(() => ok({ publications }));
+    expect(await api.active("trabajos-diarios")).toEqual(publications);
+    expect(fetchImpl.mock.calls[0]![0]).toBe("https://app.test/api/bot/publicaciones/activas?portal=trabajos-diarios");
+  });
+
   it("informa el estado del robot", async () => {
     const { api, fetchImpl } = client(() => ok({ status: "ok" }));
     await api.reportStatus("trabajos-diarios", "necesita_persona", "verificacion_requerida");
