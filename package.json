@@ -21,6 +21,7 @@
     "bot:whatsapp-login": "tsx --env-file-if-exists=.env.bot bot/src/whatsapp-login.ts",
     "bot:fake-portal": "tsx bot/src/fake-portal/main.ts",
     "bot:training-report": "tsx --env-file-if-exists=.env.bot bot/src/training-report.ts",
+    "bot:medir-reparacion": "tsx --env-file-if-exists=.env.bot bot/src/repair/medir.ts",
     "bot:demo-queue": "tsx --env-file-if-exists=.env.local scripts/demo-robot-queue.ts",
     "test:e2e": "playwright test",
     "test:secrets": "node scripts/check-client-bundle.mjs",
