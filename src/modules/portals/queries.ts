@@ -8,7 +8,7 @@ export type PortalPublicationRow = {
   portal: Pick<Tables<"job_portals">, "id" | "name" | "bot_enabled">;
   publication: Pick<
     Tables<"portal_publications">,
-    "id" | "status" | "external_id" | "external_url" | "error_code" | "published_at" | "last_synced_at" | "requested_at"
+    "id" | "status" | "manual" | "external_id" | "external_url" | "error_code" | "published_at" | "last_synced_at" | "requested_at"
   > | null;
 };
 
@@ -29,7 +29,7 @@ export async function listPortalPublications(supabase: AppSupabaseClient, vacanc
       .order("position"),
     supabase
       .from("portal_publications")
-      .select("id, portal_id, status, external_id, external_url, error_code, published_at, last_synced_at, requested_at")
+      .select("id, portal_id, status, manual, external_id, external_url, error_code, published_at, last_synced_at, requested_at")
       .eq("vacancy_id", vacancyId),
   ]);
   if (portals.error) throw toAppError(portals.error);

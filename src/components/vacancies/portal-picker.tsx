@@ -52,7 +52,9 @@ export function PortalPicker({
   // Solo guarda lo que la persona tocó; el resto se deduce del estado actual.
   const [touched, setTouched] = useState<ReadonlyMap<string, boolean>>(new Map());
 
-  const editable = (row: PortalTileRow) => canPublish && row.portal.bot_enabled && !isBusy(row);
+  // Una publicada a mano no la toca el robot: se retira desde «Marcar publicada a mano».
+  const editable = (row: PortalTileRow) =>
+    canPublish && row.portal.bot_enabled && !isBusy(row) && !(row.publication?.manual && row.publication.status === "publicada");
   const checkedOf = (row: PortalTileRow) =>
     editable(row) ? (touched.get(row.portal.id) ?? isActive(row)) : isActive(row) || row.publication?.status === "publicando";
 
@@ -114,7 +116,9 @@ export function PortalPicker({
             const id = `portal-${portal.id}`;
             const checked = checkedOf(row);
             const enabled = editable(row);
-            const note = !portal.bot_enabled
+            const note = publication?.manual && publication.status === "publicada"
+              ? "Publicada a mano"
+              : !portal.bot_enabled
               ? "Robot aún no disponible"
               : willChange(add, remove, portal.id)
                 ? remove.includes(portal.id)
@@ -128,7 +132,7 @@ export function PortalPicker({
                   className={cn(
                     "relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border bg-card p-3 text-center transition-colors",
                     enabled ? "cursor-pointer hover:bg-accent/40" : "cursor-not-allowed opacity-60",
-                    checked && "border-primary bg-primary/5 ring-2 ring-primary/40",
+                    checked && "border-brand bg-brand/5 ring-2 ring-brand/40",
                   )}
                 >
                   <Checkbox
@@ -187,7 +191,7 @@ export function PortalPicker({
                       href={publication.external_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                      className="inline-flex items-center gap-1 text-brand hover:underline"
                     >
                       Ver oferta en el portal <ExternalLinkIcon className="size-3.5" />
                     </a>

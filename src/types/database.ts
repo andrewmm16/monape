@@ -1037,6 +1037,7 @@ export type Database = {
           external_url: string | null
           id: string
           last_synced_at: string | null
+          manual: boolean
           portal_id: string
           published_at: string | null
           requested_at: string
@@ -1053,6 +1054,7 @@ export type Database = {
           external_url?: string | null
           id?: string
           last_synced_at?: string | null
+          manual?: boolean
           portal_id: string
           published_at?: string | null
           requested_at?: string
@@ -1069,6 +1071,7 @@ export type Database = {
           external_url?: string | null
           id?: string
           last_synced_at?: string | null
+          manual?: boolean
           portal_id?: string
           published_at?: string | null
           requested_at?: string
@@ -1665,6 +1668,7 @@ export type Database = {
           external_id: string | null
           external_url: string | null
           last_synced_at: string | null
+          manual: boolean | null
         }[]
       }
       bot_mark_synced: {
@@ -1777,6 +1781,21 @@ export type Database = {
       log_user_deletion: {
         Args: {
           p_user_id: string | null
+        }
+        Returns: undefined
+      }
+      mark_portal_published_manually: {
+        Args: {
+          p_vacancy_id: string | null
+          p_portal_id: string | null
+          p_external_id: string | null
+          p_external_url?: string | null
+        }
+        Returns: string
+      }
+      mark_portal_withdrawn_manually: {
+        Args: {
+          p_publication_id: string | null
         }
         Returns: undefined
       }

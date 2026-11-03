@@ -63,3 +63,48 @@ export async function applyPortalSelection(vacancyId: string, add: string[], rem
     message: failed === 0 ? summary : `${summary} ${failed} cambio(s) no se pudo(ieron) aplicar; revise el estado de cada portal.`,
   };
 }
+
+/**
+ * RRHH publicó la oferta a mano en un portal y registra su código (y, si lo tiene, el
+ * enlace) para que el lector de correo ligue los avisos de postulación con la vacante.
+ * Repetirlo sobre una publicación manual corrige el código.
+ */
+export async function markPortalPublishedManually(
+  vacancyId: string,
+  portalId: string,
+  externalId: string,
+  externalUrl?: string,
+): Promise<ActionResult> {
+  return runAction("portals.mark_published_manually", async () => {
+    await requirePermission("vacancies:manage");
+    const vacancy = parseInput(z.uuid(), vacancyId);
+    const portal = parseInput(z.uuid(), portalId);
+    const code = parseInput(z.string().trim().min(1, "Escriba el código de la oferta.").max(200, "El código es demasiado largo."), externalId);
+    const url = parseInput(z.string().trim().max(500, "El enlace es demasiado largo.").optional(), externalUrl);
+    if (url && !url.startsWith("https://")) throw new AppError("El enlace debe empezar por https://.", "validation");
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("mark_portal_published_manually", {
+      p_vacancy_id: vacancy,
+      p_portal_id: portal,
+      p_external_id: code,
+      p_external_url: url || null,
+    });
+    if (error) throw toAppError(error);
+    revalidatePath(`/vacantes/${vacancy}`);
+    return null;
+  }, "Publicación registrada. El lector de correo la usará para ligar las postulaciones.");
+}
+
+/** RRHH retiró a mano una oferta que había registrado como publicada a mano. */
+export async function markPortalWithdrawnManually(publicationId: string, vacancyId: string): Promise<ActionResult> {
+  return runAction("portals.mark_withdrawn_manually", async () => {
+    await requirePermission("vacancies:manage");
+    const publication = parseInput(z.uuid(), publicationId);
+    const vacancy = parseInput(z.uuid(), vacancyId);
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("mark_portal_withdrawn_manually", { p_publication_id: publication });
+    if (error) throw toAppError(error);
+    revalidatePath(`/vacantes/${vacancy}`);
+    return null;
+  }, "Publicación marcada como retirada.");
+}

@@ -95,6 +95,20 @@ describe("autorización", () => {
 });
 
 describe("cola de publicaciones", () => {
+  it("la lista de activas informa si cada publicación es manual (falta = false)", async () => {
+    mocks.rpc.mockResolvedValueOnce({
+      data: [
+        { publication_id: PUBLICATION, external_id: "a1", external_url: "https://p.pe/a1", last_synced_at: null, manual: true },
+        { publication_id: "b", external_id: "b1", external_url: "https://p.pe/b1", last_synced_at: null, manual: false },
+        { publication_id: "c", external_id: "c1", external_url: "https://p.pe/c1", last_synced_at: null, manual: null },
+      ],
+      error: null,
+    });
+    const response = await listActivePublications(req("/api/bot/publicaciones/activas?portal=trabajos-diarios", { method: "GET" }));
+    const body = (await response.json()) as { publications: { manual: boolean }[] };
+    expect(body.publications.map((p) => p.manual)).toEqual([true, false, false]);
+  });
+
   it("devuelve el trabajo reservado o null si no hay", async () => {
     mocks.rpc.mockResolvedValueOnce({
       data: [{ publication_id: PUBLICATION, action: "publicar", external_id: null, vacancy: { title: "Operario" } }],

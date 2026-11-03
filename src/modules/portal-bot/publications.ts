@@ -87,6 +87,8 @@ export async function listActivePublications(request: Request): Promise<Response
         externalId: row.external_id,
         externalUrl: row.external_url,
         lastSyncedAt: row.last_synced_at,
+        /** La gestiona una persona (no el robot): el robot no la sincroniza ni la retira. */
+        manual: row.manual ?? false,
       })),
     });
   } catch (error) {

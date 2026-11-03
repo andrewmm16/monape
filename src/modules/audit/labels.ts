@@ -101,6 +101,10 @@ function describeText(entry: AuditEntry, metadata: Record<string, unknown>): str
     return typeof metadata.portal === "string" ? `Pidió publicar en ${metadata.portal}` : "Pidió publicar en un portal";
   }
   if (action === "publicacion_portal_retiro") return "Pidió retirar una oferta de un portal";
+  if (action === "publicacion_portal_manual") {
+    return typeof metadata.portal === "string" ? `Registró una publicación a mano en ${metadata.portal}` : "Registró una publicación a mano en un portal";
+  }
+  if (action === "publicacion_portal_retiro_manual") return "Marcó como retirada una oferta publicada a mano";
   if (action === "publicacion_portal_publicada") return "El robot publicó una oferta en un portal";
   if (action === "publicacion_portal_retirada") return "El robot retiró una oferta de un portal";
   if (action === "publicacion_portal_error") return "El robot informó un error al trabajar en un portal";

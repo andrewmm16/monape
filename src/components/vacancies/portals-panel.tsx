@@ -1,3 +1,4 @@
+import { ManualPublication } from "@/components/vacancies/manual-publication";
 import { PortalPicker } from "@/components/vacancies/portal-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { portalLogo } from "@/modules/portals/logos";
@@ -45,6 +46,12 @@ export function PortalsPanel({
         vacancyId={vacancyId}
         canPublish={vacancyStatus === "publicada"}
         rows={rows.map((row) => ({ ...row, logo: portalLogo(row.portal.name) }))}
+      />
+      <ManualPublication
+        key={rows.map((row) => `${row.publication?.status ?? "-"}${row.publication?.manual ? "m" : ""}`).join()}
+        vacancyId={vacancyId}
+        canPublish={vacancyStatus === "publicada"}
+        rows={rows}
       />
     </div>
   );
