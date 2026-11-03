@@ -5,6 +5,23 @@ export const applicationStatusSchema = z.enum(Constants.public.Enums.application
   error: "Seleccione el nuevo estado",
 });
 
+/**
+ * Estados que RRHH puede elegir a mano. «En evaluación» lo pone la entrevista
+ * al registrar que la persona pasó. Los demás del catálogo antiguo
+ * (preseleccionado, en reserva) ya no se ofrecen, pero siguen siendo válidos
+ * en la base de datos para no perder historial.
+ */
+export const SELECTABLE_STATUSES = [
+  "nuevo",
+  "en_revision",
+  "entrevista_programada",
+  "seleccionado",
+  "no_seleccionado",
+] as const satisfies readonly Enums<"application_status">[];
+
+/** Estados antiguos que ya no se ofrecen ni se filtran. */
+const LEGACY_STATUSES: readonly Enums<"application_status">[] = ["preseleccionado", "en_reserva"];
+
 /** Estados que exigen motivo (también lo verifica la base de datos). */
 export const STATUSES_REQUIRING_REASON = ["no_seleccionado", "retirado"] as const;
 
@@ -40,7 +57,11 @@ export const changeStatusSchema = z
   .refine(
     (v) => !(STATUSES_REQUIRING_REASON as readonly string[]).includes(v.status) || v.reason.length > 0,
     { message: "Indique el motivo", path: ["reason"] },
-  );
+  )
+  .refine((v) => (SELECTABLE_STATUSES as readonly string[]).includes(v.status), {
+    message: "Ese estado ya no se usa",
+    path: ["status"],
+  });
 
 export type ChangeStatusInput = z.input<typeof changeStatusSchema>;
 
@@ -106,7 +127,9 @@ export function isDiscardedStatus(status: Enums<"application_status">): boolean 
 
 /** Estados que muestra cada vista (para el selector de estado). */
 export function statusesOfView(view: ApplicationView): Enums<"application_status">[] {
-  return Constants.public.Enums.application_status.filter((status) => isDiscardedStatus(status) === (view === "descartados"));
+  return Constants.public.Enums.application_status.filter(
+    (status) => isDiscardedStatus(status) === (view === "descartados") && !LEGACY_STATUSES.includes(status),
+  );
 }
 
 /** Parámetros del listado de candidatos por vacante (en la URL). */

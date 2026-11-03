@@ -114,7 +114,7 @@ function outdatedNote(input: DraftInput): string | null {
 const SUGGESTION_FROM: readonly Status[] = ["nuevo", "en_revision"];
 
 const SUGGESTION_BY_LEVEL: Record<Enums<"compatibility_level">, Status> = {
-  alta: "preseleccionado",
+  alta: "entrevista_programada",
   parcial: "en_revision",
   pendiente: "en_revision",
   // Se produce con requisitos aparentemente no cumplidos o con un «no cumple» verificado (ver scoring.ts).

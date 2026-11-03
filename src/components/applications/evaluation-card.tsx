@@ -1,25 +1,16 @@
-import Link from "next/link";
 import { AssessmentBadge, CompatibilityBadge } from "@/components/common/badges";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTime, formatNumericDate, formatPercent } from "@/lib/format";
+import { formatDateTime, formatNumericDate } from "@/lib/format";
 import {
   ASSESSMENT_DESCRIPTIONS,
-  ASSESSMENT_LABELS,
-  EVALUATION_METHOD_LABELS,
-  REQUIREMENT_CATEGORY_LABELS,
-  REQUIREMENT_PRIORITY_LABELS,
-  REVIEW_OUTCOME_LABELS,
-  SYSTEM_ACTOR_LABEL,
   VERIFICATION_SOURCE_LABELS,
   VERIFICATION_SOURCE_PHRASES,
 } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { listEvaluationItems, listEvaluations, listRequirementVerifications } from "@/modules/applications/queries";
-import { Constants } from "@/types/database";
-import { ReviewForm } from "./review-form";
 import { RemoveVerificationDialog, VerifyRequirementDialog } from "./verification-dialog";
 
 type Evaluation = Awaited<ReturnType<typeof listEvaluations>>[number];
@@ -50,30 +41,61 @@ function OriginBadge({ item }: { item: Item }) {
 
 function ScoreMeter({ score, potential }: { score: number; potential: number }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
+      <div className="flex items-baseline gap-2">
+        <span className="text-4xl font-semibold tabular-nums">{Math.round(score)} %</span>
+        <span className="text-sm text-muted-foreground">de afinidad con el puesto</span>
+      </div>
       <div
         className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
         role="img"
-        aria-label={`${Math.round(score)} % del peso acreditado; hasta ${Math.round(potential)} % si se confirman los requisitos sin evidencia o pendientes`}
+        aria-label={`${Math.round(score)} % acreditado en el CV; hasta ${Math.round(potential)} % si se confirman los requisitos sin evidencia`}
       >
         <span className="h-full bg-brand" style={{ width: `${score}%` }} />
         <span className="ml-0.5 h-full bg-brand/30" style={{ width: `${Math.max(0, potential - score)}%` }} />
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-brand" aria-hidden /> Acreditado {formatPercent(score)}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-brand/30" aria-hidden /> Sin evidencia o pendiente{" "}
-          {formatPercent(potential - score)}
-        </span>
-        <span>Aparentemente no cumplido {formatPercent(100 - potential)}</span>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Mide cuánto del puesto aparece en el CV. Si algo «no aparece», puede que la persona lo cumpla y no lo haya escrito.
+      </p>
     </div>
   );
 }
 
-type Evidence = { quote?: string };
+type Evidence = { quote?: string; matched?: string[] };
+
+/** Términos que el motor encontró en el CV («El CV menciona: a, b, c.»). */
+function mentionedTerms(rationale: string | null): string[] {
+  const match = rationale?.match(/El CV menciona: ([^.]*)\./);
+  return match?.[1] ? match[1].split(",").map((t) => t.trim()).filter(Boolean) : [];
+}
+
+/** Términos que se buscaron y no estaban («…términos configurados (a, b, c).»). */
+function searchedTerms(rationale: string | null): string[] {
+  const match = rationale?.match(/configurados \(([^)]*)\)/);
+  return match?.[1] ? match[1].split(",").map((t) => t.trim()).filter(Boolean) : [];
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, (char) => `\\${char}`);
+
+/** La frase del CV con lo encontrado resaltado. */
+function Quote({ text, terms }: { text: string; terms: string[] }) {
+  const ordered = [...terms].sort((a, b) => b.length - a.length);
+  if (ordered.length === 0) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${ordered.map(escapeRegExp).join("|")})`, "gi"));
+  return (
+    <>
+      {parts.map((part, index) =>
+        ordered.some((t) => t.toLowerCase() === part.toLowerCase()) ? (
+          <mark key={index} className="rounded-sm bg-brand/20 px-0.5 font-medium not-italic text-foreground">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
 
 export function EvaluationCard({
   applicationId,
@@ -96,21 +118,19 @@ export function EvaluationCard({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Evaluación de compatibilidad</CardTitle>
+          <CardTitle>Afinidad con el puesto</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState
             title="Evaluación pendiente"
-            description="Aún no se ha evaluado esta postulación. La evaluación es orientativa y no modifica el estado del proceso."
+            description="Aún no se ha evaluado esta postulación. Pulse «Evaluar con motor de reglas» para ver cuánto se parece su CV al puesto."
           />
         </CardContent>
       </Card>
     );
   }
 
-  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
   const outdated = evaluation.criteria_version < currentCriteriaVersion;
-  const verifiedCount = items.filter((item) => item.verification_source).length;
   // Solo se verifica sobre la evaluación más reciente y con criterios vigentes.
   const canVerify = canReview && !outdated && history[0]?.id === evaluation.id;
   const currentVerification = new Map(verifications.map((v) => [v.requirement_id, v]));
@@ -119,188 +139,132 @@ export function EvaluationCard({
     <Card>
       <CardHeader className="gap-2">
         <CardTitle className="flex flex-wrap items-center gap-2">
-          Evaluación de compatibilidad <CompatibilityBadge level={evaluation.level} />
+          Afinidad con el puesto <CompatibilityBadge level={evaluation.level} />
         </CardTitle>
-        <CardDescription>
-          {EVALUATION_METHOD_LABELS[evaluation.method]} · {evaluation.method_version}
-          {evaluation.model ? ` · modelo ${evaluation.model}` : ""} · metodología de puntuación {evaluation.scoring_version} ·
-          criterios v{evaluation.criteria_version}
-          {evaluation.resume ? ` · CV v${evaluation.resume.version}` : ""} · {formatDateTime(evaluation.created_at)}
-          {` · ${evaluation.author?.full_name ?? SYSTEM_ACTOR_LABEL}`}
-        </CardDescription>
+        <CardDescription>Referencia para RRHH: la decisión final es de una persona.</CardDescription>
         {outdated ? (
           <p className="text-sm text-warning-foreground">
-            Los criterios de la vacante cambiaron después de esta evaluación (vigente: v{currentCriteriaVersion}). Genere una nueva
-            evaluación.
+            Los criterios de la vacante cambiaron después de esta evaluación. Vuelva a evaluar.
           </p>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
         <ScoreMeter score={evaluation.score} potential={evaluation.score_potential} />
         <p className="text-sm">{evaluation.summary}</p>
-        <p className="text-sm font-medium">
-          Requisitos verificados: {verifiedCount} de {items.length}
-        </p>
 
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">Detalle por requisito</h3>
-          <ul className="space-y-3">
+          <div className="hidden grid-cols-2 gap-0 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase sm:grid">
+            <span>Lo que busca el puesto</span>
+            <span className="pl-4">Lo que dice el CV</span>
+          </div>
+          <ul className="space-y-2">
             {items.map((item) => {
               const evidence = (Array.isArray(item.evidence) ? item.evidence : []) as Evidence[];
               const verified = Boolean(item.verification_source);
               const verification = item.requirement_id ? currentVerification.get(item.requirement_id) : undefined;
               const hasVerification = verified || Boolean(verification);
+              const found = mentionedTerms(item.rationale);
+              const searched = searchedTerms(item.rationale);
               return (
-                <li key={item.id} className="rounded-md border p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="font-medium">{item.description}</div>
-                      <div className="mt-1 flex flex-wrap gap-1 text-xs text-muted-foreground">
-                        <span>{REQUIREMENT_CATEGORY_LABELS[item.category]}</span>·
-                        <span>{REQUIREMENT_PRIORITY_LABELS[item.priority]}</span>·
-                        <span>
-                          peso {item.weight} ({totalWeight ? Math.round((item.weight / totalWeight) * 100) : 0} %)
-                        </span>
+                <li key={item.id} className="overflow-hidden rounded-md border">
+                  <div className="grid sm:grid-cols-2 sm:divide-x">
+                    <div className="space-y-1.5 p-3">
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase sm:hidden">Lo que busca el puesto</p>
+                      <p className="font-medium">{item.description}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge variant="outline">{item.priority === "obligatorio" ? "Obligatorio" : "Deseable"}</Badge>
                         {item.is_essential ? <Badge variant="outline">Legal o esencial</Badge> : null}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-                      <OriginBadge item={item} />
-                      {verified ? (
-                        <span
-                          className={cn(
-                            "inline-flex h-5 items-center rounded-4xl px-2 text-xs font-medium",
-                            VERIFIED_TONES[item.assessment === "no_cumplido" ? "no_cumplido" : "acreditado"],
-                          )}
-                        >
-                          {item.assessment === "no_cumplido" ? "No cumple" : "Cumple"}
-                        </span>
-                      ) : (
-                        <span title={ASSESSMENT_DESCRIPTIONS[item.assessment]}>
-                          <AssessmentBadge assessment={item.assessment} />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {verified && item.verification_source ? (
-                    <div className="mt-2 space-y-1 text-sm">
-                      <p>
-                        Verificado en {VERIFICATION_SOURCE_PHRASES[item.verification_source]} el{" "}
-                        {formatNumericDate(item.verified_at)} por {item.verifier?.full_name ?? "RRHH"}:{" "}
-                        <span className="whitespace-pre-wrap">«{item.verification_note}»</span>
-                      </p>
-                      {item.cv_assessment ? (
-                        <p className="text-xs text-muted-foreground">
-                          Según el CV: {ASSESSMENT_LABELS[item.cv_assessment].toLowerCase()}
+                    <div className="space-y-2 border-t p-3 sm:border-t-0">
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase sm:hidden">Lo que dice el CV</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {verified ? <OriginBadge item={item} /> : null}
+                        {verified ? (
+                          <span
+                            className={cn(
+                              "inline-flex h-5 items-center rounded-4xl px-2 text-xs font-medium",
+                              VERIFIED_TONES[item.assessment === "no_cumplido" ? "no_cumplido" : "acreditado"],
+                            )}
+                          >
+                            {item.assessment === "no_cumplido" ? "No cumple" : "Cumple"}
+                          </span>
+                        ) : (
+                          <span title={ASSESSMENT_DESCRIPTIONS[item.assessment]}>
+                            <AssessmentBadge assessment={item.assessment} />
+                          </span>
+                        )}
+                      </div>
+                      {verified && item.verification_source ? (
+                        <p className="text-sm">
+                          Verificado en {VERIFICATION_SOURCE_PHRASES[item.verification_source]} el {formatNumericDate(item.verified_at)} por{" "}
+                          {item.verifier?.full_name ?? "RRHH"}: <span className="whitespace-pre-wrap">«{item.verification_note}»</span>
                         </p>
                       ) : null}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-muted-foreground">{item.rationale}</p>
-                  )}
-                  {evidence.length > 0 ? (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs font-medium">Evidencia en el CV:</p>
-                      {evidence.map((e, index) => (
-                        <blockquote key={index} className="border-l-2 border-brand/40 pl-2 text-xs italic">
-                          {e.quote}
-                        </blockquote>
-                      ))}
-                    </div>
-                  ) : null}
-                  {canVerify && item.requirement_id ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <VerifyRequirementDialog
-                        applicationId={applicationId}
-                        requirementId={item.requirement_id}
-                        requirementDescription={item.description}
-                        initialValues={
-                          verification
-                            ? {
-                                result: verification.result as "acreditado" | "no_cumplido",
-                                source: verification.source,
-                                note: verification.note,
+                      {evidence.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {evidence.map((e, index) => (
+                            <blockquote key={index} className="border-l-2 border-brand/40 pl-2 text-xs italic">
+                              <Quote text={e.quote ?? ""} terms={[...(e.matched ?? []), ...found]} />
+                            </blockquote>
+                          ))}
+                        </div>
+                      ) : item.assessment === "sin_evidencia" ? (
+                        <p className="text-sm text-muted-foreground">
+                          El CV no menciona este requisito.
+                          {searched.length > 0 ? ` Se buscó: ${searched.join(", ")}.` : ""}
+                        </p>
+                      ) : !verified && item.rationale ? (
+                        <p className="text-sm text-muted-foreground">{item.rationale}</p>
+                      ) : null}
+                      {canVerify && item.requirement_id ? (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <VerifyRequirementDialog
+                            applicationId={applicationId}
+                            requirementId={item.requirement_id}
+                            requirementDescription={item.description}
+                            initialValues={
+                              verification
+                                ? {
+                                    result: verification.result as "acreditado" | "no_cumplido",
+                                    source: verification.source,
+                                    note: verification.note,
+                                  }
+                                : undefined
+                            }
+                            trigger={
+                              <Button type="button" size="sm" variant="outline" className="h-9 sm:h-7">
+                                {hasVerification ? "Cambiar" : "Verificar"}
+                              </Button>
+                            }
+                          />
+                          {hasVerification ? (
+                            <RemoveVerificationDialog
+                              applicationId={applicationId}
+                              requirementId={item.requirement_id}
+                              requirementDescription={item.description}
+                              trigger={
+                                <Button type="button" size="sm" variant="ghost" className="h-9 sm:h-7">
+                                  Quitar verificación
+                                </Button>
                               }
-                            : undefined
-                        }
-                        trigger={
-                          <Button type="button" size="sm" variant="outline" className="h-9 sm:h-7">
-                            {hasVerification ? "Cambiar" : "Verificar"}
-                          </Button>
-                        }
-                      />
-                      {hasVerification ? (
-                        <RemoveVerificationDialog
-                          applicationId={applicationId}
-                          requirementId={item.requirement_id}
-                          requirementDescription={item.description}
-                          trigger={
-                            <Button type="button" size="sm" variant="ghost" className="h-9 sm:h-7">
-                              Quitar verificación
-                            </Button>
-                          }
-                        />
+                            />
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
-                  ) : null}
+                  </div>
                 </li>
               );
             })}
           </ul>
         </div>
 
-        <div className="space-y-1 rounded-md bg-muted/50 p-3">
-          <h3 className="text-sm font-semibold">Limitaciones de esta evaluación</h3>
-          <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-            {evaluation.limitations.map((limitation) => (
-              <li key={limitation}>{limitation}</li>
-            ))}
-          </ul>
-          <p className="pt-1 text-xs text-muted-foreground">
-            Valoraciones posibles:{" "}
-            {Constants.public.Enums.requirement_assessment.map((a) => ASSESSMENT_DESCRIPTIONS[a]).join(" ")}
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Revisión de RRHH</h3>
-          {evaluation.review_status === "revisada" && evaluation.review_outcome ? (
-            <div className="text-sm">
-              <p>
-                <span className="font-medium">{REVIEW_OUTCOME_LABELS[evaluation.review_outcome]}</span>
-                {evaluation.reviewer ? ` · ${evaluation.reviewer.full_name}` : ""} · {formatDateTime(evaluation.reviewed_at)}
-              </p>
-              {evaluation.review_notes ? <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{evaluation.review_notes}</p> : null}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Pendiente de revisión.</p>
-          )}
-          {canReview && evaluation.review_status === "pendiente_revision" ? (
-            <ReviewForm applicationId={applicationId} evaluationId={evaluation.id} />
-          ) : null}
-        </div>
-
-        {history.length > 1 ? (
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold">Historial de evaluaciones</h3>
-            <ul className="divide-y rounded-md border text-sm">
-              {history.map((entry) => (
-                <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-                  <Link
-                    href={`/postulaciones/${applicationId}?evaluacion=${entry.id}`}
-                    className={entry.id === evaluation.id ? "font-semibold" : "hover:underline"}
-                  >
-                    {formatDateTime(entry.created_at)} · {EVALUATION_METHOD_LABELS[entry.method]} · criterios v{entry.criteria_version}
-                  </Link>
-                  <span className="flex items-center gap-2">
-                    <CompatibilityBadge level={entry.level} />
-                    <span className="text-xs text-muted-foreground">{formatPercent(entry.score)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Evaluado el {formatDateTime(evaluation.created_at)}
+          {evaluation.resume ? ` · CV versión ${evaluation.resume.version}` : ""}.
+        </p>
       </CardContent>
     </Card>
   );

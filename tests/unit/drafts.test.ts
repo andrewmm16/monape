@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatDate } from "@/lib/format";
-import { changeStatusSchema } from "@/modules/applications/schemas";
+import { changeStatusSchema, SELECTABLE_STATUSES } from "@/modules/applications/schemas";
 import {
   buildObservationDraft,
   buildReasonDraft,
@@ -51,7 +51,7 @@ describe("buildObservationDraft", () => {
   it("resume la evaluación con fecha, método, versiones, nivel y puntuación", () => {
     const draft = buildObservationDraft(input({}, UNRELATED));
     expect(draft.split("\n")[0]).toBe(
-      `Resumen de la evaluación del ${formatDate(CREATED_AT)} (Motor de reglas (determinista), criterios v1, CV v2): Evaluación pendiente, 0 % del peso acreditado. Es orientativa.`,
+      `Resumen de la evaluación del ${formatDate(CREATED_AT)} (Motor de reglas (determinista), criterios v1, CV v2): Faltan datos en el CV, 0 % del peso acreditado. Es orientativa.`,
     );
   });
 
@@ -85,7 +85,7 @@ describe("buildObservationDraft", () => {
 
 describe("suggestStatus", () => {
   it("sugiere el siguiente paso según la compatibilidad", () => {
-    expect(suggestStatus(input({ score: 85, level: "alta" }, STRONG), "nuevo")?.status).toBe("preseleccionado");
+    expect(suggestStatus(input({ score: 85, level: "alta" }, STRONG), "nuevo")?.status).toBe("entrevista_programada");
     expect(suggestStatus(input({ score: 50, level: "parcial" }, STRONG), "nuevo")?.status).toBe("en_revision");
     expect(suggestStatus(input({ score: 0, level: "pendiente" }, UNRELATED), "nuevo")?.status).toBe("en_revision");
     expect(suggestStatus(input({ method: "ia", score: 10, level: "baja" }, [item("SQL", "no_cumplido")]), "en_revision")?.status).toBe(
@@ -95,7 +95,7 @@ describe("suggestStatus", () => {
 
   it("explica en qué se basa la sugerencia", () => {
     expect(suggestStatus(input({ score: 85, level: "alta" }, STRONG), "nuevo")?.basis).toBe(
-      `Compatibilidad alta (85 % acreditado) en la evaluación del ${formatDate(CREATED_AT)}`,
+      `Afinidad alta (85 % acreditado) en la evaluación del ${formatDate(CREATED_AT)}`,
     );
   });
 
@@ -143,7 +143,8 @@ describe("buildReasonDraft", () => {
       expect(reason.length, status).toBeLessThanOrEqual(REASON_MAX_LENGTH);
       const note = buildStatusNoteDraft(input({ method: "ia", score: 30, level: "baja" }, many, 3), status);
       const parsed = changeStatusSchema.safeParse({ applicationId: "00000000-0000-4000-8000-000000000001", status, reason, note });
-      expect(parsed.success, status).toBe(true);
+      // Los estados antiguos (preseleccionado, en reserva) ya no se aceptan al elegir a mano.
+      expect(parsed.success, status).toBe((SELECTABLE_STATUSES as readonly string[]).includes(status));
     }
   });
 

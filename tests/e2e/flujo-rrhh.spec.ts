@@ -15,9 +15,6 @@ const admin = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_AD
 test.skip(!rrhh.email || !rrhh.password, "Requiere un proyecto Supabase de pruebas (E2E_RRHH_EMAIL / E2E_RRHH_PASSWORD).");
 test.describe.configure({ mode: "serial" });
 
-// Postulación creada en el flujo de RRHH; la usa la prueba de «Pedir opinión».
-let applicationUrl: string | undefined;
-let candidateName: string | undefined;
 
 async function signIn(page: import("@playwright/test").Page, email: string, password: string) {
   await page.goto("/ingresar");
@@ -99,11 +96,9 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   await expect(page.getByText("Evidencia en el CV:")).toBeVisible();
   await expect(page.getByText("Limitaciones de esta evaluación")).toBeVisible();
   await expect(page.getByText("Nuevo").first()).toBeVisible();
-  applicationUrl = page.url().split("?")[0]!;
-  candidateName = `Persona Ficticia ${suffix}`;
 
   // Estado sugerido por la evaluación, con su motivo; nada se guarda solo.
-  await expect(page.getByLabel("Nuevo estado")).toHaveValue("preseleccionado");
+  await expect(page.getByLabel("Nuevo estado")).toHaveValue("entrevista_programada");
   await expect(page.getByLabel(/^Motivo/)).toHaveValue(/^Se preselecciona porque el CV acredita 1 de 1 requisitos obligatorios/);
   await expect(page.getByLabel("Observación interna (opcional)")).toHaveValue(/Siguiente paso: programar la entrevista/);
   // Las sugerencias no se insertan dos veces.
@@ -126,44 +121,6 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   await duplicateDialog.getByRole("button", { name: "Revisar datos" }).click();
   await expect(duplicateDialog).toHaveCount(0);
   await expect(page).toHaveURL(/\/candidatos\/nuevo/);
-});
-
-test("RRHH pide una opinión y solo la persona consultada recibe la notificación", async ({ page, browser }, testInfo) => {
-  test.skip(!admin.email || !admin.password || testInfo.project.name !== "escritorio", "Requiere usuario administrador.");
-  test.skip(!applicationUrl || !candidateName, "Requiere la postulación creada en el flujo de RRHH.");
-  const aboutCandidate = new RegExp(candidateName!);
-
-  await signIn(page, rrhh.email!, rrhh.password!);
-  await page.goto(applicationUrl!);
-  await page.getByLabel("Pedir opinión a").selectOption({ label: process.env.E2E_ADMIN_NAME ?? "Administración Ficticia" });
-  await page.getByRole("button", { name: "Pedir opinión" }).click();
-  await expect(page.getByText("Solicitud de opinión enviada.")).toBeVisible();
-  await expect(page.getByText("Pendiente", { exact: true })).toBeVisible();
-
-  // La persona consultada ve el aviso amarillo, la campana y la postulación.
-  const adminPage = await (await browser.newContext({ locale: "es-PE" })).newPage();
-  await signIn(adminPage, admin.email!, admin.password!);
-  await expect(adminPage.getByText(aboutCandidate).first()).toBeVisible();
-  await adminPage.getByRole("button", { name: /Notificaciones: \d+ sin leer/ }).click();
-  await adminPage.getByRole("menuitem", { name: aboutCandidate }).first().click();
-  await expect(adminPage).toHaveURL(applicationUrl!);
-  await expect(adminPage.getByText("Le pidieron su opinión.")).toBeVisible();
-
-  // Quien la pidió no recibe esa notificación.
-  await page.reload();
-  await page.getByRole("button", { name: /^Notificaciones/ }).click();
-  await expect(page.getByRole("menuitem", { name: /le pidió su opinión/ }).filter({ hasText: candidateName! })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-
-  // Responde con una observación: queda respondida y RRHH recibe su notificación.
-  await adminPage.getByLabel("Nueva observación").fill("Opinión E2E: perfil adecuado.");
-  await adminPage.getByRole("button", { name: "Registrar observación" }).click();
-  await expect(adminPage.getByText("Respondida", { exact: true })).toBeVisible();
-
-  await page.reload();
-  await expect(page.getByText("Respondida", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /Notificaciones: \d+ sin leer/ }).click();
-  await expect(page.getByRole("menuitem", { name: /respondió su solicitud de opinión/ }).filter({ hasText: candidateName! })).toHaveCount(1);
 });
 
 test("RRHH no ve la gestión de usuarios", async ({ page }, testInfo) => {

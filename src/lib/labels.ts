@@ -121,10 +121,10 @@ export const VERIFICATION_SOURCE_PHRASES: Record<Enums<"verification_source">, s
 };
 
 export const ASSESSMENT_LABELS: Record<Enums<"requirement_assessment">, string> = {
-  acreditado: "Acreditado",
-  no_cumplido: "Aparentemente no cumplido",
-  sin_evidencia: "Sin evidencia suficiente",
-  pendiente_verificacion: "Pendiente de verificación",
+  acreditado: "Aparece en el CV",
+  no_cumplido: "Probablemente no cumple",
+  sin_evidencia: "No aparece en el CV",
+  pendiente_verificacion: "Por confirmar",
 };
 
 export const ASSESSMENT_DESCRIPTIONS: Record<Enums<"requirement_assessment">, string> = {
@@ -135,10 +135,10 @@ export const ASSESSMENT_DESCRIPTIONS: Record<Enums<"requirement_assessment">, st
 };
 
 export const COMPATIBILITY_LEVEL_LABELS: Record<Enums<"compatibility_level">, string> = {
-  alta: "Compatibilidad alta",
-  parcial: "Compatibilidad parcial",
-  baja: "Compatibilidad baja",
-  pendiente: "Evaluación pendiente",
+  alta: "Afinidad alta",
+  parcial: "Afinidad media",
+  baja: "Afinidad baja",
+  pendiente: "Faltan datos en el CV",
 };
 
 export const EVALUATION_METHOD_LABELS: Record<Enums<"evaluation_method">, string> = {

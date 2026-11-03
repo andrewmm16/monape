@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFormAction } from "@/hooks/use-form-action";
 import { APPLICATION_STATUS_LABELS } from "@/lib/labels";
 import { changeApplicationStatus } from "@/modules/applications/actions";
-import { changeStatusSchema, STATUSES_REQUIRING_REASON, type ChangeStatusInput } from "@/modules/applications/schemas";
+import { changeStatusSchema, SELECTABLE_STATUSES, STATUSES_REQUIRING_REASON, type ChangeStatusInput } from "@/modules/applications/schemas";
 import {
   buildReasonDraft,
   buildStatusNoteDraft,
@@ -40,7 +40,7 @@ export function StatusForm({
   current: Status;
   draft: DraftInput | null;
 }) {
-  const options = Constants.public.Enums.application_status.filter((status) => status !== current);
+  const options = SELECTABLE_STATUSES.filter((status) => status !== current);
   const suggestion = draft ? suggestStatus(draft, current) : null;
   const draftsFor = (status: string) =>
     draft && isStatus(status)

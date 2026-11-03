@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { EvaluationCard } from "@/components/applications/evaluation-card";
 import { NoteForm } from "@/components/applications/note-form";
-import { OpinionRequest, type OpinionState } from "@/components/applications/opinion-request";
 import { StatusForm } from "@/components/applications/status-form";
 import { ActionButton } from "@/components/common/action-button";
 import { ApplicationStatusBadge } from "@/components/common/badges";
@@ -33,7 +32,6 @@ import { listApplicationInterviews } from "@/modules/interviews/queries";
 import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
 import { getAiStatus } from "@/modules/evaluation/service";
-import { listActiveProfiles } from "@/modules/users/queries";
 
 export const metadata: Metadata = { title: "Postulación" };
 
@@ -51,24 +49,14 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const canManage = can(user.role, "applications:manage");
   const canEvaluate = can(user.role, "evaluations:run");
 
-  const [evaluations, events, profiles, currentResume, verifications, interviews] = await Promise.all([
+  const [evaluations, events, currentResume, verifications, interviews] = await Promise.all([
     listEvaluations(supabase, application.id),
     listApplicationEvents(supabase, application.id),
-    canManage ? listActiveProfiles(supabase) : Promise.resolve([]),
     getCurrentResume(supabase, application.candidate.id),
     listRequirementVerifications(supabase, application.id),
     listApplicationInterviews(supabase, application.id),
   ]);
   const schedulable = canManage && canScheduleInterview(application.status, application.vacancy.status);
-  // A quién se puede pedir opinión: cualquier usuario activo salvo uno mismo.
-  const people = profiles.filter((p) => p.id !== user.id);
-  const opinion: OpinionState = {
-    profileId: application.assigned_evaluator_id,
-    name: application.opinion_from?.full_name ?? null,
-    requestedBy: application.opinion_requester?.full_name ?? null,
-    requestedAt: application.opinion_requested_at,
-    answeredAt: application.opinion_answered_at,
-  };
   const newerResume =
     currentResume && application.resume && currentResume.id !== application.resume.id ? currentResume : null;
   const requested = typeof search.evaluacion === "string" ? evaluations.find((e) => e.id === search.evaluacion) : undefined;
@@ -127,8 +115,90 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="mx-auto max-w-3xl">
         <div className="space-y-6">
+          {canEvaluate ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <ActionButton
+                  action={runEvaluation.bind(null, application.id, "reglas")}
+                  disabled={!criteriaApproved}
+                  pendingLabel="Evaluando…"
+                  variant={evaluations.length > 0 ? "outline" : "default"}
+                >
+                  {evaluations.length > 0 ? "Volver a evaluar" : "Evaluar con motor de reglas"}
+                </ActionButton>
+                {ai?.available ? (
+                  <ActionButton
+                    variant="outline"
+                    action={runEvaluation.bind(null, application.id, "ia")}
+                    disabled={!criteriaApproved}
+                    pendingLabel="Consultando al asistente de IA…"
+                    confirm={{
+                      title: "¿Evaluar con IA?",
+                      description:
+                        "Se enviará el texto del CV, sin datos de contacto, al proveedor de IA aprobado por la empresa. La propuesta del modelo se verificará contra el CV y deberá revisarla RRHH.",
+                      confirmLabel: "Evaluar con IA",
+                    }}
+                  >
+                    Evaluar con IA
+                  </ActionButton>
+                ) : null}
+                <span className="text-xs text-muted-foreground">
+                  CV evaluado:{" "}
+                  {application.resume
+                    ? `versión ${application.resume.version} (${application.resume.original_filename})`
+                    : currentResume
+                      ? `versión vigente (${currentResume.version})`
+                      : "el candidato aún no tiene CV"}
+                </span>
+              </div>
+              {newerResume && canManage ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
+                  <span>Existe una versión más reciente del CV (v{newerResume.version}).</span>
+                  <ActionButton size="sm" variant="outline" action={linkCurrentResume.bind(null, application.id)}>
+                    Usar versión {newerResume.version}
+                  </ActionButton>
+                </div>
+              ) : null}
+              {!criteriaApproved ? (
+                <p className="text-sm text-warning-foreground">
+                  Los criterios de la vacante no están aprobados.{" "}
+                  <Link href={`/vacantes/${application.vacancy.id}?tab=criterios`} className="underline">
+                    Revisarlos
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <EvaluationCard
+            applicationId={application.id}
+            evaluation={selected}
+            items={items}
+            history={evaluations}
+            currentCriteriaVersion={application.vacancy.criteria_version}
+            canReview={can(user.role, "evaluations:review")}
+            verifications={verifications}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Estado del proceso</CardTitle>
+              <CardDescription>Su decisión. Último cambio: {formatDateTime(application.status_changed_at)}.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ApplicationStatusBadge status={application.status} />
+              {canManage ? (
+                <StatusForm
+                  key={`${application.status}-${latest?.id ?? "sin-evaluacion"}`}
+                  applicationId={application.id}
+                  current={application.status}
+                  draft={draftInput}
+                />
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card id="entrevistas">
             <CardHeader>
               <CardTitle>Entrevistas</CardTitle>
@@ -172,118 +242,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               )}
             </CardContent>
           </Card>
-
-          {canEvaluate ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Generar evaluación</CardTitle>
-                <CardDescription>
-                  Compara el CV vigente con los criterios aprobados (versión {application.vacancy.criteria_version}). La
-                  evaluación es orientativa, queda registrada y nunca cambia el estado del proceso.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm">
-                  CV evaluado:{" "}
-                  {application.resume
-                    ? `versión ${application.resume.version} (${application.resume.original_filename})`
-                    : currentResume
-                      ? `versión vigente (${currentResume.version})`
-                      : "el candidato aún no tiene CV"}
-                </p>
-                {newerResume && canManage ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
-                    <span>Existe una versión más reciente del CV (v{newerResume.version}).</span>
-                    <ActionButton size="sm" variant="outline" action={linkCurrentResume.bind(null, application.id)}>
-                      Usar versión {newerResume.version}
-                    </ActionButton>
-                  </div>
-                ) : null}
-                {!criteriaApproved ? (
-                  <p className="text-sm text-warning-foreground">
-                    Los criterios de la vacante no están aprobados.{" "}
-                    <Link href={`/vacantes/${application.vacancy.id}?tab=criterios`} className="underline">
-                      Revisarlos
-                    </Link>
-                  </p>
-                ) : null}
-                <div className="flex flex-wrap gap-2">
-                  <ActionButton
-                    action={runEvaluation.bind(null, application.id, "reglas")}
-                    disabled={!criteriaApproved}
-                    pendingLabel="Evaluando…"
-                  >
-                    Evaluar con motor de reglas
-                  </ActionButton>
-                  <ActionButton
-                    variant="outline"
-                    action={runEvaluation.bind(null, application.id, "ia")}
-                    disabled={!criteriaApproved || !ai?.available}
-                    pendingLabel="Consultando al asistente de IA…"
-                    confirm={{
-                      title: "¿Evaluar con IA?",
-                      description:
-                        "Se enviará el texto del CV, sin datos de contacto, al proveedor de IA aprobado por la empresa. La propuesta del modelo se verificará contra el CV y deberá revisarla RRHH.",
-                      confirmLabel: "Evaluar con IA",
-                    }}
-                  >
-                    Evaluar con IA
-                  </ActionButton>
-                </div>
-                {ai && !ai.available ? <p className="text-xs text-muted-foreground">IA no disponible: {ai.reason}</p> : null}
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <EvaluationCard
-            applicationId={application.id}
-            evaluation={selected}
-            items={items}
-            history={evaluations}
-            currentCriteriaVersion={application.vacancy.criteria_version}
-            canReview={can(user.role, "evaluations:review")}
-            verifications={verifications}
-          />
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Estado del proceso</CardTitle>
-              <CardDescription>
-                Decisión humana, independiente de la compatibilidad. Último cambio: {formatDateTime(application.status_changed_at)}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ApplicationStatusBadge status={application.status} />
-              {canManage ? (
-                <StatusForm
-                  key={`${application.status}-${latest?.id ?? "sin-evaluacion"}`}
-                  applicationId={application.id}
-                  current={application.status}
-                  draft={draftInput}
-                />
-              ) : null}
-            </CardContent>
-          </Card>
-
-          {canManage ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Opinión solicitada</CardTitle>
-                <CardDescription>Pida a otra persona del proceso que revise esta postulación.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <OpinionRequest
-                  key={`${opinion.profileId}-${opinion.requestedAt}`}
-                  applicationId={application.id}
-                  opinion={opinion}
-                  people={people}
-                  isMe={opinion.profileId === user.id}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
 
           <Card>
             <CardHeader>

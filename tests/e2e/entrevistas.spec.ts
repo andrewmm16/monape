@@ -171,7 +171,7 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   const english = resultDialog.getByLabel("Resultado de «Inglés intermedio»");
   await expect(english).toBeVisible();
   await expect(resultDialog.getByText(/Inglés intermedio/).first()).toBeVisible();
-  await expect(resultDialog.getByText("Valoración actual: Sin evidencia suficiente")).toBeVisible();
+  await expect(resultDialog.getByText("Valoración actual: No aparece en el CV")).toBeVisible();
   await english.selectOption({ label: "Cumple" });
   await resultDialog.getByRole("button", { name: "Registrar resultado" }).click();
   await expect(page.getByText(/Resultado registrado\. La postulación está en «En evaluación»/)).toBeVisible();

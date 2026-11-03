@@ -157,7 +157,7 @@ export function EvaluatePendingButton({
             ) : null}
             <p>
               Se {summary.evaluated === 1 ? "evaluó" : "evaluaron"} {plural(summary.evaluated, "postulación", "postulaciones")}; la
-              lista está ordenada por compatibilidad.
+              lista está ordenada por afinidad.
             </p>
             {summary.ocrRead ? (
               <p>{plural(summary.ocrRead, "escaneado leído", "escaneados leídos")} automáticamente.</p>

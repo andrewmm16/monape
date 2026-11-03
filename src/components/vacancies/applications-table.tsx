@@ -9,7 +9,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { CompareBar, COMPARE_CHECKBOX_NAME } from "./compare-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatPercent } from "@/lib/format";
-import { APPLICATION_STATUS_LABELS, COMPATIBILITY_LEVEL_LABELS, INTAKE_METHOD_LABELS } from "@/lib/labels";
+import { APPLICATION_STATUS_LABELS, COMPATIBILITY_LEVEL_LABELS } from "@/lib/labels";
 import { APPLICATIONS_PAGE_SIZE } from "@/modules/applications/queries";
 import { isDiscardedStatus, statusesOfView, type ApplicationListParams } from "@/modules/applications/schemas";
 import { cn } from "@/lib/utils";
@@ -19,16 +19,16 @@ import { Constants, type Views } from "@/types/database";
 const isComparable = (row: Views<"application_overview">) =>
   Boolean(row.evaluation_id) && row.status !== null && !isDiscardedStatus(row.status);
 
-function ShortList({ items, empty }: { items: string[] | null; empty: string }) {
-  if (!items?.length) return <span className="text-muted-foreground">{empty}</span>;
+/** Una línea con los primeros requisitos (por ejemplo «Cumple: Excel, SAP +2 más»). */
+function ReasonLine({ label, items, empty }: { label: string; items: string[] | null; empty: string }) {
+  if (!items?.length) return empty ? <p className="text-muted-foreground">{empty}</p> : null;
+  const shown = items.slice(0, 3);
+  const more = items.length - shown.length;
   return (
-    <ul className="list-disc space-y-0.5 pl-4">
-      {items.map((item) => (
-        <li key={item} className="line-clamp-2">
-          {item}
-        </li>
-      ))}
-    </ul>
+    <p className="line-clamp-3">
+      <span className="font-medium">{label}:</span> {shown.join(", ")}
+      {more > 0 ? ` y ${more} más` : ""}
+    </p>
   );
 }
 
@@ -103,8 +103,8 @@ export function ApplicationsTable({
             </NativeSelectOption>
           ))}
         </NativeSelect>
-        <NativeSelect name="level" defaultValue={params.level} aria-label="Compatibilidad" className="md:w-52">
-          <NativeSelectOption value="">Toda compatibilidad</NativeSelectOption>
+        <NativeSelect name="level" defaultValue={params.level} aria-label="Afinidad" className="md:w-52">
+          <NativeSelectOption value="">Toda afinidad</NativeSelectOption>
           {Constants.public.Enums.compatibility_level.map((level) => (
             <NativeSelectOption key={level} value={level}>
               {COMPATIBILITY_LEVEL_LABELS[level]}
@@ -113,7 +113,7 @@ export function ApplicationsTable({
           <NativeSelectOption value="sin_evaluar">Sin evaluar</NativeSelectOption>
         </NativeSelect>
         <NativeSelect name="sort" defaultValue={params.sort} aria-label="Ordenar por" className="md:w-48">
-          <NativeSelectOption value="puntuacion">Ordenar por puntuación</NativeSelectOption>
+          <NativeSelectOption value="puntuacion">Mayor afinidad primero</NativeSelectOption>
           <NativeSelectOption value="fecha">Más recientes</NativeSelectOption>
           <NativeSelectOption value="nombre">Nombre (A-Z)</NativeSelectOption>
         </NativeSelect>
@@ -148,15 +148,9 @@ export function ApplicationsTable({
                   <span className="sr-only">Comparar</span>
                 </TableHead>
                 <TableHead>Candidato</TableHead>
-                <TableHead>Compatibilidad orientativa</TableHead>
-                <TableHead className="hidden lg:table-cell">Requisitos acreditados</TableHead>
-                <TableHead className="hidden lg:table-cell">Brechas / sin evidencia</TableHead>
-                <TableHead className="hidden xl:table-cell">Pendiente de verificar</TableHead>
-                <TableHead>Estado del proceso</TableHead>
-                <TableHead className="hidden md:table-cell">Postulación</TableHead>
-                <TableHead className="hidden md:table-cell">Portal e ingreso</TableHead>
-                <TableHead className="hidden md:table-cell">Opinión solicitada</TableHead>
-                <TableHead className="hidden xl:table-cell">Notificación</TableHead>
+                <TableHead>Afinidad</TableHead>
+                <TableHead className="hidden md:table-cell">Por qué</TableHead>
+                <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -177,43 +171,34 @@ export function ApplicationsTable({
                     <Link href={`/postulaciones/${row.id}`} className="font-medium hover:underline">
                       {row.candidate_name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{row.vacancy_title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Postuló el {formatDate(row.applied_at)}
+                      {row.portal_name ? ` · ${row.portal_name}` : ""}
+                    </div>
                     <PossibleDuplicate reasons={row.possible_duplicate_reasons} />
                   </TableCell>
                   <TableCell className="whitespace-normal">
-                    <CompatibilityBadge level={row.level} />
                     {row.evaluation_id ? (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {formatPercent(row.score)} acreditado · hasta {formatPercent(row.score_potential)}
-                        {row.evaluation_outdated ? <div>Criterios actualizados: reevaluar</div> : null}
-                        {row.review_status === "pendiente_revision" ? <div>Pendiente de revisión de RRHH</div> : null}
-                      </div>
-                    ) : null}
+                      <>
+                        <div className="text-lg font-semibold tabular-nums">{formatPercent(row.score)}</div>
+                        <CompatibilityBadge level={row.level} />
+                        {row.evaluation_outdated ? <div className="mt-1 text-xs text-warning-foreground">Criterios cambiados: vuelva a evaluar</div> : null}
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Sin evaluar</span>
+                    )}
                   </TableCell>
-                  <TableCell className="hidden max-w-56 text-xs whitespace-normal lg:table-cell">
-                    <ShortList items={row.top_met} empty="—" />
-                  </TableCell>
-                  <TableCell className="hidden max-w-56 text-xs whitespace-normal lg:table-cell">
-                    <ShortList items={row.top_gaps} empty="—" />
-                  </TableCell>
-                  <TableCell className="hidden max-w-56 text-xs whitespace-normal xl:table-cell">
-                    <ShortList items={row.top_pending} empty="—" />
+                  <TableCell className="hidden max-w-72 space-y-1 text-xs whitespace-normal md:table-cell">
+                    {row.evaluation_id ? (
+                      <>
+                        <ReasonLine label="Cumple" items={row.top_met} empty="Ningún requisito aparece en el CV" />
+                        <ReasonLine label="Falta" items={row.top_gaps} empty="" />
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>{row.status ? <ApplicationStatusBadge status={row.status} /> : null}</TableCell>
-                  <TableCell className="hidden md:table-cell">{formatDate(row.applied_at)}</TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {row.portal_name ?? "—"}
-                    {row.intake_method ? (
-                      <span className="block text-xs text-muted-foreground">{INTAKE_METHOD_LABELS[row.intake_method]}</span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {row.assigned_evaluator_name ?? "—"}
-                    {row.assigned_evaluator_name && row.opinion_requested_at && !row.opinion_answered_at ? (
-                      <span className="block text-xs text-warning-foreground">Pendiente</span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground xl:table-cell">No disponible (Etapa 3)</TableCell>
                 </TableRow>
               ))}
             </TableBody>

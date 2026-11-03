@@ -87,7 +87,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/postulacio
                 <TableHead>Vacante</TableHead>
                 <TableHead>Portal</TableHead>
                 <TableHead className="hidden md:table-cell">Ingreso</TableHead>
-                <TableHead>Compatibilidad orientativa</TableHead>
+                <TableHead>Afinidad</TableHead>
                 <TableHead>Fecha</TableHead>
               </TableRow>
             </TableHeader>

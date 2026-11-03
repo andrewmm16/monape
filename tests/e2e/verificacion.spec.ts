@@ -70,7 +70,7 @@ test("RRHH verifica un requisito sin evidencia, ve el origen, la puntuación sub
 
   const english = page.getByRole("listitem").filter({ hasText: "Inglés intermedio" }).filter({ hasText: "Peso" });
   await expect(english).toContainText("Según el CV");
-  await expect(english).toContainText("Sin evidencia suficiente");
+  await expect(english).toContainText("No aparece en el CV");
   await expect(page.getByText("Requisitos verificados: 0 de 2")).toBeVisible();
   await expect(page.getByText("Acreditado 50 %")).toBeVisible();
 

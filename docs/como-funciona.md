@@ -35,7 +35,7 @@ Nadie se registra solo: solo Administración puede dar acceso a otra persona. Lo
 | **Candidato** | La persona, con sus datos de contacto y sus CV. |
 | **Postulación** | Un candidato en una vacante concreta. Un candidato solo puede tener una postulación en proceso a la vez. |
 | **Evaluación de compatibilidad** | La comparación del CV con los requisitos aprobados. Es orientativa. |
-| **Estado del proceso** | En qué punto está cada postulación: Nuevo, En revisión, Preseleccionado, Entrevista programada, En evaluación, Seleccionado, No seleccionado, En reserva o Retirado. Solo lo cambia una persona. |
+| **Estado del proceso** | En qué punto está cada postulación: Nuevo, En revisión, Entrevista programada, Seleccionado o No seleccionado. («En evaluación» lo pone la entrevista cuando la persona pasa.) Solo lo cambia una persona. |
 | **Portal de origen** | El sitio donde la persona encontró la vacante: Computrabajo, Bumeran, LinkedIn, Indeed, etc. |
 | **Lote** | Un grupo de CV que se suben juntos, todos del mismo portal y para la misma vacante. |
 | **Bandeja de entrada** | La pantalla «Postulaciones nuevas», que reúne lo que va llegando a todas las vacantes. |
@@ -46,13 +46,12 @@ Nadie se registra solo: solo Administración puede dar acceso a otra persona. Lo
 
 Después de iniciar sesión, el menú lateral muestra:
 
-- **Panel:** resumen del día. Muestra las solicitudes de opinión pendientes, los candidatos por etapa, los candidatos por vacante publicada (con cuántos faltan evaluar) y la actividad reciente.
+- **Panel:** resumen del día. Muestra los candidatos por etapa, los candidatos por vacante publicada (con cuántos faltan evaluar) y la actividad reciente.
 - **Postulaciones:** la bandeja de entrada.
 - **Vacantes:** la lista de puestos y el botón para crear uno nuevo.
 - **Candidatos:** todos los candidatos, con búsqueda y filtros.
 - **Usuarios:** solo para Administración. Sirve para invitar personas, cambiar su rol y desactivar cuentas.
 
-En el encabezado hay una **campana** que se pone amarilla cuando alguien pide una opinión.
 
 La sesión se cierra sola tras **30 minutos sin actividad**. Un minuto antes aparece el aviso «¿Sigue ahí?».
 
@@ -74,9 +73,8 @@ La sesión se cierra sola tras **30 minutos sin actividad**. Un minuto antes apa
  7. La plataforma lee cada CV, registra a cada persona y la evalúa sola
  8. Las postulaciones aparecen en la bandeja «Postulaciones nuevas»
  9. Luis revisa la evaluación de cada candidato
-10. (Opcional) Luis pide la opinión de Ana
-11. Luis decide el estado de cada candidato
-12. Luis cierra la vacante                    (estado: Cerrada)
+10. Luis decide el estado de cada candidato
+11. Luis cierra la vacante                    (estado: Cerrada)
 
 (*) Cuando la plataforma esté en internet. Hoy solo funciona en el equipo local.
 ```
@@ -200,14 +198,16 @@ Las postulaciones de personas que se retiraron no se vuelven a evaluar. Si los c
 
 ### Paso 8 · Leer la evaluación
 
+> **La pantalla de una postulación, en corto.** Arriba está lo principal: la **afinidad con el puesto** (un porcentaje y qué requisitos acredita el CV, con la frase que lo prueba) y, debajo, el **estado del proceso**, que decide una persona. Después van las entrevistas y las observaciones con el historial de cambios de estado. La afinidad es solo una referencia: no cambia el estado ni decide por nadie.
+
 Luis abre la postulación de Lucía. La evaluación muestra, **por cada requisito**, una de estas valoraciones:
 
 | Valoración | Qué significa |
 |---|---|
-| **Acreditado** | El CV lo menciona. Se muestra la frase exacta del CV como prueba. |
-| **Sin evidencia suficiente** | El CV no lo menciona. **No significa que la persona no lo cumpla**: puede que no lo haya escrito. |
-| **Pendiente de verificación** | Hace falta que una persona lo compruebe en una entrevista, con documentos o referencias. |
-| **Aparentemente no cumplido** | La información indica que no se cumple. La evaluación automática por reglas **nunca** usa esta valoración, porque la ausencia de una mención no prueba nada. |
+| **Aparece en el CV** | El CV lo menciona. Se muestra la frase exacta del CV como prueba. |
+| **No aparece en el CV** | El CV no lo menciona. **No significa que la persona no lo cumpla**: puede que no lo haya escrito. |
+| **Por confirmar** | Hace falta que una persona lo compruebe en una entrevista, con documentos o referencias. |
+| **Probablemente no cumple** | La información indica que no se cumple. La evaluación automática por reglas **nunca** usa esta valoración, porque la ausencia de una mención no prueba nada. |
 
 Con esas valoraciones calcula:
 
@@ -219,25 +219,19 @@ Resultado en el ejemplo:
 
 | Requisito (peso) | Lucía Ramos | Mario Torres |
 |---|---|---|
-| SQL (8) | Acreditado: «Experiencia con SQL Server…» | Acreditado |
+| SQL (8) | Aparece en el CV: «Experiencia con SQL Server…» | Acreditado |
 | Excel avanzado (6) | Acreditado | Sin evidencia |
-| Título en ingeniería industrial (5) | Acreditado: «Formación en ingeniería industrial…» | Acreditado |
+| Título en ingeniería industrial (5) | Aparece en el CV: «Formación en ingeniería industrial…» | Acreditado |
 | Power BI (4) | Sin evidencia | Acreditado |
 | Inglés (3) | Sin evidencia | Sin evidencia |
 | **Puntuación** | 19 de 26 ≈ **73 %** (máximo alcanzable 100 %) | 17 de 26 ≈ **65 %** (máximo alcanzable 100 %) |
-| **Nivel orientativo** | **Compatibilidad alta** (70 % o más, sin obligatorios incumplidos) | **Compatibilidad parcial** (entre 40 % y 70 %) |
+| **Nivel orientativo** | **Afinidad alta** (70 % o más, sin obligatorios incumplidos) | **Afinidad media** (entre 40 % y 70 %) |
 
 El CV de Rosa es una **imagen escaneada** que la plataforma leyó con OCR. En su ficha, el texto aparece con el aviso «Texto obtenido por reconocimiento automático de imagen (OCR local). Puede contener errores: revíselo antes de decidir.» Luis compara el texto con el CV y corrige una palabra mal leída con **«Corregir texto»**. Después vuelve a evaluar.
 
 Si el OCR no hubiera podido leerlo (una foto borrosa, por ejemplo), la ficha mostraría el botón **«Leer escaneo automáticamente»** para reintentarlo. También queda siempre la opción de transcribir el texto a mano. La plataforma nunca reemplaza un texto que RRHH ya corrigió o transcribió.
 
-Cada evaluación nace **«Pendiente de revisión»**. Luis la revisa y pulsa **«Registrar revisión»** con una de estas opciones:
-
-- **Conforme**;
-- **Conforme con observaciones**, que exige escribirlas;
-- **Requiere nueva evaluación**, que también exige observaciones.
-
-Si corrige algo, por ejemplo el texto del CV, puede volver a evaluar. El historial conserva todas las evaluaciones.
+Si corrige algo, por ejemplo el texto del CV, puede volver a evaluar con **«Volver a evaluar»**. Las evaluaciones anteriores quedan guardadas.
 
 **Lo que dice el CV y lo que se comprobó.** Cada requisito de la evaluación muestra de dónde sale su valoración:
 
@@ -297,32 +291,28 @@ En la misma ficha puede marcar qué requisitos comprobó en la entrevista, con �
 
 Las entrevistas también se pueden **reprogramar** o **cancelar**; cancelar pide un motivo. Cuando una postulación pasa a «Seleccionado», «No seleccionado» o «Retirado», sus demás entrevistas programadas se cancelan solas, con el motivo «Cancelada automáticamente» y su registro en el historial. Una entrevista de una postulación cerrada o de una vacante archivada ya no se puede reprogramar. La plataforma **no envía invitaciones ni correos**: el aviso al candidato y a los entrevistadores lo hace RRHH por su cuenta.
 
-### Paso 9 · Pedir una segunda opinión (opcional)
-
-Luis duda con Mario y pulsa **«Pedir opinión»**, eligiendo a Ana. La campana de Ana se pone amarilla. Ana abre la postulación y responde con una observación. Entonces Luis recibe el aviso de que ya hay respuesta.
-
-### Paso 10 · Decidir el estado
+### Paso 9 · Decidir el estado
 
 En la postulación, el formulario de estado **propone** un estado según la evaluación:
 
 | Nivel de la evaluación | Estado propuesto |
 |---|---|
-| Compatibilidad alta | Preseleccionado |
-| Compatibilidad parcial | En revisión |
+| Afinidad alta | Entrevista programada |
+| Afinidad media | En revisión |
 | Evaluación pendiente | En revisión |
 
 La propuesta **no se guarda sola**. La plataforma redacta un borrador del motivo y de la observación interna, que Luis puede editar. Luis revisa, cambia lo que quiera y pulsa **«Actualizar estado»**.
 
-- Lucía pasa a **Preseleccionado**.
-- Mario queda **En revisión** hasta tener la opinión de Ana.
+- Lucía pasa a **Entrevista programada** y Luis agenda su entrevista.
+- Mario queda **En revisión** mientras Luis decide.
 
 Si Luis elige un estado que no concuerda con la evaluación, la plataforma muestra un aviso, pero le deja decidir.
 
-Para «No seleccionado» y «Retirado» el **motivo es obligatorio**. Cada cambio guarda el estado anterior, el nuevo, quién lo hizo, cuándo y por qué.
+Para «No seleccionado» el **motivo es obligatorio**. Cada cambio guarda el estado anterior, el nuevo, quién lo hizo, cuándo y por qué.
 
-A medida que avanza el proceso, Luis va moviendo a cada persona a **Entrevista programada**, **En evaluación** y, al final, a **Seleccionado**, **No seleccionado** o **En reserva**.
+A medida que avanza el proceso, Luis mueve a cada persona a **Entrevista programada** y, al final, a **Seleccionado** o **No seleccionado**. Los estados antiguos (Preseleccionado, En reserva) ya no se ofrecen; si alguna postulación vieja los tiene, se siguen mostrando.
 
-### Paso 11 · Cerrar la vacante
+### Paso 10 · Cerrar la vacante
 
 Cuando el puesto se cubre, Luis pulsa **«Cerrar»** en la vacante. Desde ese momento:
 
