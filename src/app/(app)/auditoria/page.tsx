@@ -24,7 +24,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
   if (!can(user.role, "audit:read")) return <AccessDenied message="Solo la administración consulta la auditoría." />;
   const params = auditParamsSchema.parse(await searchParams);
   const supabase = await createSupabaseServerClient();
-  const [{ rows, total, page }, profiles] = await Promise.all([listAuditLog(supabase, params), listActiveProfiles(supabase)]);
+  const [{ rows, total, page, context }, profiles] = await Promise.all([listAuditLog(supabase, params), listActiveProfiles(supabase)]);
 
   const hasFilters = Boolean(params.actor || params.group || params.from || params.to);
   const hrefForPage = (target: number) => {
@@ -40,7 +40,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
     <>
       <PageHeader
         title="Auditoría"
-        description="Registro de lo que se hace en la plataforma, de lo más reciente a lo más antiguo. No se puede modificar y no muestra contenido de CV ni datos personales."
+        description="Registro de lo que se hace en la plataforma, de lo más reciente a lo más antiguo. No se puede modificar. Cada línea indica quién lo hizo, sobre qué vacante, portal, usuario o candidato, y qué cambió; no muestra el contenido de los CV."
       />
       <form method="get" className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-end" aria-label="Filtros de auditoría">
         <NativeSelect name="actor" defaultValue={params.actor} aria-label="Persona" className="md:w-56">
@@ -96,13 +96,23 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
             </TableHeader>
             <TableBody>
               {rows.map((row) => {
-                const { text, href } = describeAuditEntry(row);
+                const { text, href, details } = describeAuditEntry(row, context);
                 return (
                   <TableRow key={row.id} className="align-top">
                     <TableCell className="whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
-                    <TableCell className="whitespace-normal">{row.actor_name}</TableCell>
                     <TableCell className="whitespace-normal">
-                      {text}
+                      {row.actor_name}
+                      {row.actor_detail ? <div className="text-xs text-muted-foreground">{row.actor_detail}</div> : null}
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <div>{text}</div>
+                      {details.length > 0 ? (
+                        <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                          {details.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ul>
+                      ) : null}
                       {row.ordered_by_name ? (
                         <div className="text-xs text-muted-foreground">Por orden de {row.ordered_by_name}</div>
                       ) : null}

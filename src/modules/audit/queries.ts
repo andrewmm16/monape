@@ -1,6 +1,8 @@
 import "server-only";
+import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { toAppError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
+import { loadAuditContext } from "./context";
 import { AUDIT_GROUPS } from "./labels";
 import { orderRef, pickRequester, REQUEST_ACTIONS, type OrderRequest } from "./requesters";
 import type { AuditParams } from "./schemas";
@@ -57,6 +59,29 @@ export async function listAuditLog(supabase: AppSupabaseClient, params: AuditPar
   }
   const requesterOf = new Map(result.data.map((row) => [row.id, pickRequester(row, requests)]));
 
+  // Altas de cuenta: la crea el sistema al invitar, pero quien invitó queda en el cambio de rol que sigue.
+  const invitedIds = [
+    ...new Set(
+      result.data.flatMap((row) => (row.actor_id === null && row.entity_type === "profiles" && row.action === "insert" && row.entity_id ? [row.entity_id] : [])),
+    ),
+  ];
+  if (invitedIds.length > 0) {
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("entity_id, actor_id, created_at")
+      .eq("entity_type", "profiles")
+      .eq("action", "update")
+      .in("entity_id", invitedIds)
+      .not("actor_id", "is", null)
+      .order("created_at", { ascending: true });
+    if (error) throw toAppError(error);
+    for (const row of result.data) {
+      if (row.entity_type !== "profiles" || row.action !== "insert" || row.actor_id !== null) continue;
+      const inviter = data.find((u) => u.entity_id === row.entity_id && new Date(u.created_at) >= new Date(row.created_at));
+      if (inviter?.actor_id) requesterOf.set(row.id, inviter.actor_id);
+    }
+  }
+
   const actorIds = [
     ...new Set([
       ...result.data.flatMap((row) => (row.actor_id ? [row.actor_id] : [])),
@@ -64,16 +89,22 @@ export async function listAuditLog(supabase: AppSupabaseClient, params: AuditPar
     ]),
   ];
   const names = new Map<string, string>();
+  const details = new Map<string, string>();
   if (actorIds.length > 0) {
-    const { data, error } = await supabase.from("profiles").select("id, full_name").in("id", actorIds);
+    const { data, error } = await supabase.from("profiles").select("id, full_name, email, role").in("id", actorIds);
     if (error) throw toAppError(error);
-    for (const profile of data) names.set(profile.id, profile.full_name);
+    for (const profile of data) {
+      names.set(profile.id, profile.full_name);
+      details.set(profile.id, [profile.email, profile.role ? ROLE_LABELS[profile.role] : null].filter(Boolean).join(" · "));
+    }
   }
+  const context = await loadAuditContext(supabase, result.data);
 
   return {
     rows: result.data.map((row) => ({
       ...row,
-      actor_name: row.actor_id ? (names.get(row.actor_id) ?? "Usuario ya no activo") : "Robot / sistema",
+      actor_name: row.actor_id ? (names.get(row.actor_id) ?? "Usuario ya no activo") : systemActorName(row),
+      actor_detail: row.actor_id ? (details.get(row.actor_id) ?? null) : null,
       ordered_by_name: (() => {
         const requesterId = requesterOf.get(row.id);
         return requesterId ? (names.get(requesterId) ?? "Usuario ya no activo") : null;
@@ -81,5 +112,15 @@ export async function listAuditLog(supabase: AppSupabaseClient, params: AuditPar
     })),
     total: result.count ?? 0,
     page,
+    context,
   };
+}
+
+/** Quién figura cuando no hay persona: el robot de portales o el propio sistema, según la acción. */
+function systemActorName(row: { action: string; entity_type: string }): string {
+  if (row.entity_type === "portal_publications") return "Robot de portales";
+  if (row.entity_type === "profiles") return "Sistema (alta de cuenta)";
+  if (row.action === "integracion_postulacion") return "Sistema (integración)";
+  if (row.action === "formulario_postulacion") return "Sistema (formulario en línea)";
+  return "Robot / sistema";
 }
