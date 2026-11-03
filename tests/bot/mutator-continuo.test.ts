@@ -73,6 +73,41 @@ describe("modo continuo: restablecer solo", () => {
     expect(mutator.sweep().map((c) => c.motivo)).toEqual(["detectado"]);
   });
 
+  it("por absorción: si el robot usó un selector alternativo (sin incidente), se restablece tras el margen sin esperar el máximo de vida", () => {
+    const time = clock();
+    const tolerances: { portal: string; timestamp: string }[] = [];
+    const mutator = createMutator({ seed: 4, now: time.now, autoRestore: { graceMs: 3 * MIN, maxLifeMs: 60 * MIN }, incidents: () => [], tolerances: () => tolerances });
+    const { cambio } = mutator.tick();
+    expect(cambio).toMatchObject({ portal: "linkedin", tipo: "estructural" });
+
+    // No cuentan: tolerancia de otro portal ni anterior al cambio.
+    tolerances.push({ portal: "bumeran", timestamp: iso(time.now() + MIN) }, { portal: "linkedin", timestamp: iso(time.now() - 5 * MIN) });
+    time.advance(10 * MIN);
+    expect(mutator.sweep()).toEqual([]);
+
+    tolerances.push({ portal: "linkedin", timestamp: iso(time.now()) });
+    time.advance(2 * MIN);
+    expect(mutator.sweep()).toEqual([]); // aún dentro del margen
+
+    time.advance(1 * MIN);
+    const [restored] = mutator.sweep();
+    expect(restored).toMatchObject({ id: cambio!.id, estado: "restablecida", restablecida_auto: true, motivo: "absorbido" });
+    expect(mutator.siteOf("linkedin")).toBe(SITES.linkedin);
+  });
+
+  it("si además hay incidente, manda la detección (no se cuenta como absorbido)", () => {
+    const time = clock();
+    const incidents: ReturnType<typeof incidentOf>[] = [];
+    const tolerances: { portal: string; timestamp: string }[] = [{ portal: "linkedin", timestamp: iso(time.now() + 1 * MIN) }];
+    const mutator = createMutator({ seed: 4, now: time.now, autoRestore: { graceMs: 3 * MIN, maxLifeMs: 60 * MIN }, incidents: () => incidents, tolerances: () => tolerances });
+    mutator.tick();
+    time.advance(2 * MIN);
+    incidents.push(incidentOf("linkedin", iso(time.now())));
+    expect(mutator.sweep()).toEqual([]);
+    time.advance(3 * MIN);
+    expect(mutator.sweep().map((c) => c.motivo)).toEqual(["detectado"]);
+  });
+
   it("por tiempo: sin detección, al llegar al máximo de vida", () => {
     const { time, mutator } = setup();
     mutator.tick();

@@ -129,6 +129,64 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     expect(calls.publish).toBe(0);
   });
 
+  it("fallos_seguidos al publicar: se reanuda UNA vez a prueba y, si vuelve a fallar, pasa a una persona sin gastar más trabajos de la cola", async () => {
+    const time = clock();
+    const { slot, api, adapter, state } = stubSlot(time);
+    state.failWith = null; // la prueba de estructura pasa; lo que falla es publicar
+    adapter.publish = async () => {
+      throw new Error("el portal respondió algo raro");
+    };
+    for (let i = 0; i < 6; i++) api.queue.push(job());
+
+    const first = await runRound([slot], () => {});
+    expect(first.newlyHalted).toEqual([{ slug: "linkedin", reason: ERROR_CODES.consecutiveFailures }]);
+    expect(isResumable(slot)).toBe(true);
+    expect(first.allHalted).toBe(false);
+    expect(api.queue).toHaveLength(4); // 2 trabajos consumidos
+
+    time.advance(5 * MIN);
+    expect(await runResumeChecks([slot], () => {})).toEqual({ resumed: ["linkedin"], escalated: [] });
+    expect(slot.halted).toBe(false);
+
+    const second = await runRound([slot], () => {});
+    expect(second.newlyHalted).toEqual([{ slug: "linkedin", reason: ERROR_CODES.consecutiveFailures }]);
+    expect(isResumable(slot)).toBe(false); // ya tuvo su oportunidad
+    expect(second.allHalted).toBe(true);
+    expect(allStopped([slot])).toBe(true);
+    expect(api.queue).toHaveLength(2); // el resto de la cola queda intacto para cuando una persona lo revise
+
+    time.advance(60 * MIN);
+    expect(resumeDue([slot])).toBe(false);
+  });
+
+  it("tras reanudar por fallos_seguidos, un ciclo limpio devuelve la oportunidad", async () => {
+    const time = clock();
+    const { slot, api, adapter, state } = stubSlot(time);
+    state.failWith = null;
+    const publish = adapter.publish;
+    adapter.publish = async () => {
+      throw new Error("raro");
+    };
+    api.queue.push(job(), job());
+    await runRound([slot], () => {});
+    time.advance(5 * MIN);
+    await runResumeChecks([slot], () => {});
+    expect(slot.retriedAfterFailures).toBe(true);
+
+    adapter.publish = publish; // el portal se recuperó
+    api.queue.push(job());
+    const clean = await runRound([slot], () => {});
+    expect(clean.newlyHalted).toEqual([]);
+    expect(slot.retriedAfterFailures).toBe(false);
+
+    adapter.publish = async () => {
+      throw new Error("raro otra vez");
+    };
+    api.queue.push(job(), job());
+    await runRound([slot], () => {});
+    expect(isResumable(slot)).toBe(true); // vuelve a tener una reanudación a prueba
+  });
+
   it("si la prueba vuelve a pasar: reanuda, informa «activo», anota la recuperación del incidente y no repite la prueba al instante", async () => {
     const time = clock();
     const dir = mkdtempSync(path.join(tmpdir(), "reanudar-"));

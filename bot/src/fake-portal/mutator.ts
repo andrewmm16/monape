@@ -29,8 +29,8 @@ export interface Cambio {
   origen: "automatico" | "manual";
   /** Modo continuo: el mutador lo restableció solo (estado `restablecida`). */
   restablecida_auto?: boolean;
-  /** Por qué se restableció solo: el robot lo detectó (más el margen de gracia) o venció el máximo de vida. */
-  motivo?: "detectado" | "tiempo";
+  /** Por qué se restableció solo: el robot lo detectó o lo absorbió con un selector alternativo (más el margen de gracia), o venció el máximo de vida. */
+  motivo?: "detectado" | "absorbido" | "tiempo";
   restablecidaEn?: string;
 }
 
@@ -45,6 +45,12 @@ interface Diario {
   version: 1;
   cambios: Cambio[];
   omitidos: Omision[];
+}
+
+/** Un evento de tolerancia del robot, lo mínimo para saber si absorbió un cambio. */
+export interface ToleranciaVista {
+  portal: string;
+  timestamp: string;
 }
 
 /** Un incidente del robot, lo mínimo que el mutador necesita para saber si ya notó un cambio. */
@@ -79,6 +85,8 @@ export interface MutatorOptions {
   autoRestore?: AutoRestoreOptions;
   /** Incidentes del robot (se lee en cada revisión); sin él, solo vale el máximo de vida. */
   incidents?: () => IncidenteVisto[];
+  /** Eventos en que el robot usó un selector alternativo (`tolerancias.json`): un cambio así «absorbido» se restablece tras el margen de gracia, sin esperar el máximo de vida. */
+  tolerances?: () => ToleranciaVista[];
   now?: () => number;
   log?: (message: string) => void;
 }
@@ -147,6 +155,8 @@ export function createMutator(options: MutatorOptions = {}): Mutator {
   const bags = new Map<string, string[]>();
   const lastPicked = new Map<string, string>();
   const detectedAt = new Map<number, number>();
+  /** Primer evento de tolerancia de cada cambio sin incidente: el robot lo absorbió. */
+  const absorbedAt = new Map<number, number>();
   const auto = options.autoRestore
     ? {
         graceMs: options.autoRestore.graceMs ?? DEFAULT_GRACE_MS,
@@ -264,7 +274,7 @@ export function createMutator(options: MutatorOptions = {}): Mutator {
   const cosmeticFor = (portal: PortalSlug): Cambio => apply(portal, nextMutation(portal, "cosmetica").id, "automatico");
 
   /** Devuelve el portal a su original y vuelve a poner los demás cambios que siguen activos en él. */
-  function restoreAuto(cambio: Cambio, motivo: "detectado" | "tiempo"): void {
+  function restoreAuto(cambio: Cambio, motivo: NonNullable<Cambio["motivo"]>): void {
     const portal = cambio.portal;
     cambio.estado = "restablecida";
     cambio.resueltaEn = cambio.restablecidaEn = iso();
@@ -273,8 +283,10 @@ export function createMutator(options: MutatorOptions = {}): Mutator {
     current[portal] = cloneVariant(baseline[portal]);
     for (const other of active(portal)) current[portal] = mergeVariant(current[portal], getMutacion(other.mutacion)!.variante(portal));
     detectedAt.delete(cambio.id);
+    absorbedAt.delete(cambio.id);
     save();
-    log(`Mutador: ${portal} restablecido solo (${cambio.mutacion}, ${motivo === "detectado" ? "el robot lo detectó" : "venció el tiempo máximo sin detección"}).`);
+    const porque = motivo === "detectado" ? "el robot lo detectó" : motivo === "absorbido" ? "el robot lo absorbió con un selector alternativo" : "venció el tiempo máximo sin detección";
+    log(`Mutador: ${portal} restablecido solo (${cambio.mutacion}, ${porque}).`);
   }
 
   function sweep(): Cambio[] {
@@ -293,8 +305,25 @@ export function createMutator(options: MutatorOptions = {}): Mutator {
         const hit = atribuir(cambio, finDe(cambio, diary.cambios), incidents);
         if (hit) detectedAt.set(cambio.id, hit.at);
       }
+      // Sin incidente pero con tolerancia: el robot siguió trabajando con un selector alternativo (cambio absorbido).
+      if (!detectedAt.has(cambio.id) && !absorbedAt.has(cambio.id)) {
+        let events: ToleranciaVista[] = [];
+        try {
+          events = options.tolerances?.() ?? [];
+        } catch {
+          events = [];
+        }
+        const start = Date.parse(cambio.timestamp);
+        const first = events
+          .filter((e) => e.portal === cambio.portal && Date.parse(e.timestamp) >= start)
+          .map((e) => Date.parse(e.timestamp))
+          .sort((a, b) => a - b)[0];
+        if (first !== undefined) absorbedAt.set(cambio.id, first);
+      }
       const seenAt = detectedAt.get(cambio.id);
+      const absorbed = absorbedAt.get(cambio.id);
       if (seenAt !== undefined && nowMs - seenAt >= auto.graceMs) restoreAuto(cambio, "detectado");
+      else if (seenAt === undefined && absorbed !== undefined && nowMs - absorbed >= auto.graceMs) restoreAuto(cambio, "absorbido");
       else if (nowMs - Date.parse(cambio.timestamp) >= auto.maxLifeMs) restoreAuto(cambio, "tiempo");
       else continue;
       restored.push(cambio);

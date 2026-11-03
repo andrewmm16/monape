@@ -33,8 +33,16 @@ export interface BotConfig {
   tolerancesFile: string;
   /** Carpeta de las propuestas de reparación (un JSON por incidente). */
   proposalsDir: string;
-  /** Reparación asistida por IA: solo se activa si existe `ANTHROPIC_API_KEY` (la clave se lee del entorno, nunca se guarda aquí). */
+  /** Reparación asistida por IA: con `anthropic` solo se activa si existe `ANTHROPIC_API_KEY`; con `openai` si hay `BOT_REPAIR_BASE_URL` (las claves se leen del entorno, nunca se guardan aquí). */
   repairEnabled: boolean;
+  /** Quién responde: la API de Anthropic, o cualquier servidor compatible con OpenAI (`/v1/chat/completions`: vLLM, Ollama, LiteLLM, un Qwen propio…). */
+  repairProvider: "anthropic" | "openai";
+  /** Dirección base del servidor compatible con OpenAI (termina en `/v1`). Solo con `openai`. */
+  repairBaseUrl: string | null;
+  /** Cómo se pide el JSON a un servidor compatible con OpenAI: `prompt` (instrucciones en el texto; funciona en todos) o `schema` (`response_format` json_schema; solo si el servidor lo admite). */
+  repairJsonMode: "prompt" | "schema";
+  /** Segundos de espera por respuesta de un servidor compatible con OpenAI (un modelo propio puede tardar). */
+  repairTimeoutSeconds: number;
   /** Modelo que propone el selector nuevo (ID exacto, sin sufijo de fecha). */
   repairModel: string;
   /** Máximo de consultas al modelo por día. */
@@ -102,21 +110,73 @@ function resumeCheckMinutes(env: Record<string, string | undefined>): number {
 /** Modelo por defecto de la reparación asistida (ID exacto, sin sufijo de fecha). */
 export const DEFAULT_REPAIR_MODEL = "claude-sonnet-5-5";
 
-/** Reparación asistida: sin `ANTHROPIC_API_KEY` queda desactivada y el robot se comporta como siempre. */
-export function loadRepairConfig(
-  env: Record<string, string | undefined> = process.env,
-): Pick<BotConfig, "repairEnabled" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts"> {
-  const model = (env.BOT_REPAIR_MODEL ?? "").trim() || DEFAULT_REPAIR_MODEL;
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$/.test(model)) {
+export type RepairConfig = Pick<
+  BotConfig,
+  | "repairEnabled"
+  | "repairProvider"
+  | "repairBaseUrl"
+  | "repairJsonMode"
+  | "repairTimeoutSeconds"
+  | "repairModel"
+  | "repairMaxPerDay"
+  | "repairVerifyMinutes"
+  | "repairMaxAttempts"
+>;
+
+/** Dirección base de un servidor compatible con OpenAI: http(s), sin usuario ni clave dentro (la clave va en `BOT_REPAIR_API_KEY`). */
+function repairBaseUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("BOT_REPAIR_BASE_URL debe ser una dirección completa, por ejemplo http://servidor:8000/v1.");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("BOT_REPAIR_BASE_URL debe empezar con http:// o https://.");
+  if (url.username || url.password) throw new Error("BOT_REPAIR_BASE_URL no debe llevar usuario ni clave; use BOT_REPAIR_API_KEY.");
+  return url.toString().replace(/\/+$/, "");
+}
+
+/**
+ * Reparación asistida. Sin clave de Anthropic (o sin servidor propio configurado) queda desactivada y el robot
+ * se comporta como siempre. Con `BOT_REPAIR_PROVIDER=openai` se usa un servidor compatible con OpenAI (p. ej. un Qwen
+ * de la empresa) y `BOT_REPAIR_MODEL` es obligatorio: el nombre depende de cómo lo sirva el servidor.
+ */
+export function loadRepairConfig(env: Record<string, string | undefined> = process.env): RepairConfig {
+  const providerRaw = (env.BOT_REPAIR_PROVIDER ?? "").trim().toLowerCase() || "anthropic";
+  if (providerRaw !== "anthropic" && providerRaw !== "openai") {
+    throw new Error("BOT_REPAIR_PROVIDER debe ser «anthropic» u «openai» (servidor compatible con OpenAI).");
+  }
+  const provider = providerRaw;
+  const configuredModel = (env.BOT_REPAIR_MODEL ?? "").trim();
+  if (provider === "openai" && !configuredModel) {
+    throw new Error("BOT_REPAIR_MODEL es obligatorio con BOT_REPAIR_PROVIDER=openai (el nombre exacto del modelo en su servidor, por ejemplo Qwen/Qwen3-32B).");
+  }
+  const model = configuredModel || DEFAULT_REPAIR_MODEL;
+  // Un servidor propio puede nombrar el modelo «Qwen/Qwen3-32B» o «qwen3:32b».
+  const modelPattern = provider === "openai" ? /^[A-Za-z0-9][A-Za-z0-9._:/-]{1,119}$/ : /^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$/;
+  if (!modelPattern.test(model)) {
     throw new Error("BOT_REPAIR_MODEL debe ser un ID de modelo (letras, números, punto, guion), por ejemplo claude-sonnet-5-5.");
   }
+  const baseRaw = (env.BOT_REPAIR_BASE_URL ?? "").trim();
+  if (provider === "openai" && !baseRaw) {
+    throw new Error("BOT_REPAIR_BASE_URL es obligatorio con BOT_REPAIR_PROVIDER=openai (por ejemplo http://servidor:8000/v1).");
+  }
+  const baseUrl = provider === "openai" ? repairBaseUrl(baseRaw) : null;
+  const jsonModeRaw = (env.BOT_REPAIR_JSON_MODE ?? "").trim().toLowerCase() || "prompt";
+  if (jsonModeRaw !== "prompt" && jsonModeRaw !== "schema") throw new Error("BOT_REPAIR_JSON_MODE debe ser «prompt» o «schema».");
+  const timeoutSeconds = number(env, "BOT_REPAIR_TIMEOUT_SECONDS", 120, 5, 900);
   const maxPerDay = number(env, "BOT_REPAIR_MAX_PER_DAY", 10, 0, 1_000);
   if (!Number.isInteger(maxPerDay)) throw new Error("BOT_REPAIR_MAX_PER_DAY debe ser un número entero entre 0 y 1000.");
   const verify = number(env, "BOT_REPAIR_VERIFY_MINUTES", 30, 1, 1_440);
   const attempts = number(env, "BOT_REPAIR_MAX_ATTEMPTS", 3, 1, 5);
   if (!Number.isInteger(attempts)) throw new Error("BOT_REPAIR_MAX_ATTEMPTS debe ser un número entero entre 1 y 5.");
+  const hasCredentials = provider === "openai" ? baseUrl !== null : (env.ANTHROPIC_API_KEY ?? "").trim() !== "";
   return {
-    repairEnabled: (env.ANTHROPIC_API_KEY ?? "").trim() !== "" && maxPerDay > 0,
+    repairEnabled: hasCredentials && maxPerDay > 0,
+    repairProvider: provider,
+    repairBaseUrl: baseUrl,
+    repairJsonMode: jsonModeRaw,
+    repairTimeoutSeconds: timeoutSeconds,
     repairModel: model,
     repairMaxPerDay: maxPerDay,
     repairVerifyMinutes: verify,

@@ -30,6 +30,11 @@ function haltMessage(reason: string | undefined, portal?: string, resumeMinutes 
   if (reason === ERROR_CODES.appUnavailable) {
     return `${subject} (${reason}): no pude informar a la app el resultado de una publicación. No es un cambio del portal: revise que la app responda y reinicie el robot (npm run bot). El diario evita que se publique dos veces.`;
   }
+  if (reason === ERROR_CODES.consecutiveFailures) {
+    return resumeMinutes > 0
+      ? `${subject} (${reason}): varios trabajos seguidos fallaron al publicar o retirar. Cada ${resumeMinutes} min repito solo la prueba de estructura y, si pasa, lo reanudo UNA vez a prueba; si vuelve a fallar, necesitará a una persona.`
+      : `${subject} (${reason}): varios trabajos seguidos fallaron (si ya se había reanudado una vez, vuelve a fallar). Revise el portal y el adaptador antes de reiniciar (npm run bot).`;
+  }
   if (reason === ERROR_CODES.portalUnreachable && resumeMinutes > 0) {
     return `${subject} (${reason}): el portal no respondió (caído o sin conexión). No es un cambio de su página. Cada ${resumeMinutes} min repito solo la prueba de estructura y, cuando el portal vuelva, lo reanudo y se lo aviso.`;
   }
@@ -104,7 +109,11 @@ async function main() {
       if (slot?.deps.health) slot.deps.health.lastRunAt = null;
     },
   });
-  log(repair ? `Reparación asistida activa (modelo ${config.repairModel}, hasta ${config.repairMaxPerDay} consultas al día).` : "Reparación asistida desactivada (sin ANTHROPIC_API_KEY).");
+  log(
+    repair
+      ? `Reparación asistida activa (${config.repairProvider === "openai" ? `servidor propio ${config.repairBaseUrl}` : "Anthropic"}, modelo ${config.repairModel}, hasta ${config.repairMaxPerDay} consultas al día).`
+      : "Reparación asistida desactivada (sin ANTHROPIC_API_KEY ni BOT_REPAIR_PROVIDER=openai).",
+  );
 
   let stopping = false;
   const stop = () => {

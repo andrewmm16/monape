@@ -103,6 +103,7 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
     diaryFile: mutation.diaryFile,
     autoRestore: mutation.autoRestore,
     incidents: readIncidents,
+    tolerances: () => (mutation.tolerancesFile ? readTolerances(mutation.tolerancesFile) : []),
     now: mutation.now,
     log: mutation.log,
   });

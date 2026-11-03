@@ -21,6 +21,8 @@ export const ERROR_CODES = {
   offerNotFound: "oferta_no_encontrada",
   /** No se pudieron traer todos los postulantes antes de retirar la oferta: se reintenta para no perderlos. */
   finalSyncIncomplete: "sincronizacion_pendiente",
+  /** Varios trabajos seguidos fallaron en un portal: el robot lo detiene para no vaciar la cola. */
+  consecutiveFailures: "fallos_seguidos",
 } as const;
 
 /**

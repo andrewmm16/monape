@@ -181,7 +181,7 @@ export async function processQueue(deps: RunnerDeps): Promise<CycleResult> {
       if (body.outcome === "error") {
         failures++;
         if (HUMAN_REQUIRED.has(body.errorCode)) return { halted: true, reason: body.errorCode };
-        if (failures >= MAX_CONSECUTIVE_FAILURES) return { halted: true, reason: "fallos_seguidos" };
+        if (failures >= MAX_CONSECUTIVE_FAILURES) return { halted: true, reason: ERROR_CODES.consecutiveFailures };
       } else {
         failures = 0;
         deps.log(`${job.action === "retirar" ? "Retirada" : "Publicada"} ${job.publicationId}`);

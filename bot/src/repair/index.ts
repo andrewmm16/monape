@@ -1,7 +1,7 @@
 import type { BotConfig } from "../config";
 import { sanitizeText, type Incident } from "../incidents";
 import { getOverride, removeOverride, setOverride } from "../selectors";
-import { askModel, createAnthropicComplete, type Complete } from "./client";
+import { askModel, createCompleteFromConfig, type Complete } from "./client";
 import { buildPrompt, type RetryInput } from "./prompt";
 import { ProposalStore, isApplicable, validateProposal, type Propuesta } from "./proposals";
 import type { EnsayoResult, Rehearse } from "./trial";
@@ -254,16 +254,16 @@ export function createRepairService(options: RepairOptions): RepairService {
 }
 
 /**
- * Crea el servicio solo si la reparación está activa (hay `ANTHROPIC_API_KEY`); si no, `null` y el
- * robot se comporta exactamente como antes. `complete` se inyecta en las pruebas.
+ * Crea el servicio solo si la reparación está activa (`ANTHROPIC_API_KEY`, o `BOT_REPAIR_PROVIDER=openai` con su
+ * servidor); si no, `null` y el robot se comporta exactamente como antes. `complete` se inyecta en las pruebas.
  */
 export function createRepairFromConfig(
-  config: Pick<BotConfig, "repairEnabled" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts" | "proposalsDir">,
+  config: Pick<BotConfig, "repairEnabled" | "repairProvider" | "repairBaseUrl" | "repairJsonMode" | "repairTimeoutSeconds" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts" | "proposalsDir">,
   deps: Pick<RepairOptions, "notify" | "log" | "onApplied" | "now" | "rehearse"> & { complete?: Complete },
 ): RepairService | null {
   if (!config.repairEnabled) return null;
   return createRepairService({
-    complete: deps.complete ?? createAnthropicComplete(),
+    complete: deps.complete ?? createCompleteFromConfig(config),
     model: config.repairModel,
     maxPerDay: config.repairMaxPerDay,
     verifyMinutes: config.repairVerifyMinutes,

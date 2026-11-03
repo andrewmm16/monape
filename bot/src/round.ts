@@ -24,6 +24,11 @@ export interface AdapterSlot {
   haltReason?: string;
   /** Sin esto un portal detenido no se reanuda solo (comportamiento anterior). */
   resume?: ResumeSchedule;
+  /**
+   * El portal ya se reanudó tras `fallos_seguidos` y aún no completó un ciclo limpio. Si vuelve a detenerse por lo
+   * mismo ya no se reanuda solo: la prueba de estructura pasaba, pero publicar sigue fallando, y cada intento gasta trabajos de la cola.
+   */
+  retriedAfterFailures?: boolean;
 }
 
 export interface RoundResult {
@@ -40,9 +45,15 @@ export interface RoundResult {
 /** Motivos de parada que la prueba de estructura puede revertir sin una persona: la página cambió y se restableció, o el portal volvió. */
 const RESUMABLE_REASONS = new Set<string>([ERROR_CODES.pageChanged, ERROR_CODES.portalUnreachable]);
 
-/** Detenido por `pagina_cambio` o `portal_no_disponible` y con reanudación automática: la prueba de estructura puede devolverlo al trabajo. */
-export const isResumable = (slot: AdapterSlot): boolean =>
-  slot.halted && slot.haltReason !== undefined && RESUMABLE_REASONS.has(slot.haltReason) && slot.resume !== undefined;
+/**
+ * Detenido por `pagina_cambio`, `portal_no_disponible` o (una sola vez) `fallos_seguidos`, y con reanudación automática:
+ * la prueba de estructura puede devolverlo al trabajo.
+ */
+export const isResumable = (slot: AdapterSlot): boolean => {
+  if (!slot.halted || slot.haltReason === undefined || slot.resume === undefined) return false;
+  if (slot.haltReason === ERROR_CODES.consecutiveFailures) return !slot.retriedAfterFailures;
+  return RESUMABLE_REASONS.has(slot.haltReason);
+};
 
 /** Todos detenidos y ninguno reanudable: solo una persona puede seguir (el robot termina con código 2). */
 export const allStopped = (slots: AdapterSlot[]): boolean => slots.every((slot) => slot.halted && !isResumable(slot));
@@ -74,6 +85,7 @@ export async function runRound(slots: AdapterSlot[], log: Logger, shouldStop: ()
         newlyHalted.push({ slug: slot.slug, reason: result.reason });
         outcome = `detenido: ${result.reason}`;
       } else {
+        slot.retriedAfterFailures = false; // un ciclo limpio: la prueba de confianza tras `fallos_seguidos` se renueva
         outcome = "correcto";
       }
     } catch (error) {
@@ -150,6 +162,7 @@ export async function runResumeChecks(
       continue;
     }
     await notifyCheck(onCheck, log, slot.slug, true, startedAt);
+    if (slot.haltReason === ERROR_CODES.consecutiveFailures) slot.retriedAfterFailures = true;
     slot.halted = false;
     slot.haltReason = undefined;
     schedule.failedChecks = 0;
