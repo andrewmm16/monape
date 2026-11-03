@@ -105,3 +105,11 @@ export function canTransitionVacancy(
 ): boolean {
   return VACANCY_TRANSITIONS[from].includes(to);
 }
+
+/** Lo que falta para poder publicar una vacante; vacío si ya puede publicarse. */
+export function publishBlockers(input: { requirementCount: number; criteriaApproved: boolean }): string[] {
+  const blockers: string[] = [];
+  if (input.requirementCount === 0) blockers.push("Cargue al menos un requisito en «Requisitos y criterios».");
+  if (!input.criteriaApproved) blockers.push("Apruebe los criterios de evaluación.");
+  return blockers;
+}

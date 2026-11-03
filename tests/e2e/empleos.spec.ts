@@ -33,6 +33,18 @@ async function createAndPublish(page: Page, title: string, options: { confidenti
   if (options.confidential) await page.getByLabel(/^Confidencial/).click();
   await page.getByRole("button", { name: "Crear vacante" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  // Para publicar hacen falta al menos un requisito y los criterios aprobados.
+  const vacancyUrl = page.url().split("?")[0]!;
+  await page.goto(`${vacancyUrl}?tab=criterios`);
+  await page.getByRole("button", { name: "Agregar requisito" }).click();
+  const requirementDialog = page.getByRole("dialog", { name: "Nuevo requisito" });
+  await requirementDialog.getByRole("textbox", { name: "Requisito", exact: true }).fill("Consultas SQL");
+  await requirementDialog.getByLabel("Términos de búsqueda").fill("SQL, SQL Server");
+  await requirementDialog.getByRole("button", { name: "Guardar" }).click();
+  await expect(page.getByText("Consultas SQL")).toBeVisible();
+  await page.getByRole("button", { name: "Aprobar criterios" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Aprobar criterios" }).click();
+  await expect(page.getByText(/Versión 1 aprobada/)).toBeVisible();
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Publicar", exact: true }).click();
   await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();

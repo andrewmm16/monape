@@ -63,3 +63,4 @@ next-env.d.ts
 /.next-start.log
 # lector de correo: estado local (hashes de lo procesado)
 /correo/.state/
+/.build.log

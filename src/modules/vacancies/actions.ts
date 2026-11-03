@@ -7,8 +7,10 @@ import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
 import { AppError, toAppError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { applyPortalSelection } from "@/modules/portals/actions";
 import {
   canTransitionVacancy,
+  publishBlockers,
   requirementFormSchema,
   vacancyFormSchema,
   vacancyStatusSchema,
@@ -73,28 +75,58 @@ export async function updateVacancy(id: string, input: VacancyFormInput): Promis
   );
 }
 
+/** Cambia el estado de la vacante. Para publicarla exige requisitos cargados y criterios aprobados. */
+async function setVacancyStatus(vacancyId: string, status: string): Promise<void> {
+  await requirePermission("vacancies:manage");
+  const id = parseInput(z.uuid(), vacancyId);
+  const next = parseInput(vacancyStatusSchema, status);
+  const supabase = await createSupabaseServerClient();
+  const { data: current, error } = await supabase
+    .from("vacancies")
+    .select("status, criteria_approved_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw toAppError(error);
+  if (!current) throw new AppError("La vacante no existe o no tiene acceso.", "not_found");
+  if (!canTransitionVacancy(current.status, next)) {
+    throw new AppError("Ese cambio de estado no está permitido para la vacante.", "conflict");
+  }
+  if (next === "publicada") {
+    const { count, error: countError } = await supabase
+      .from("vacancy_requirements")
+      .select("id", { count: "exact", head: true })
+      .eq("vacancy_id", id);
+    if (countError) throw toAppError(countError);
+    const blockers = publishBlockers({ requirementCount: count ?? 0, criteriaApproved: Boolean(current.criteria_approved_at) });
+    if (blockers.length > 0) throw new AppError(`No se puede publicar todavía. ${blockers.join(" ")}`, "conflict");
+  }
+  const { error: updateError } = await supabase.from("vacancies").update({ status: next }).eq("id", id);
+  if (updateError) throw toAppError(updateError);
+  revalidatePath(`/vacantes/${id}`);
+  revalidatePath("/vacantes");
+}
+
 export async function changeVacancyStatus(id: string, status: string): Promise<ActionResult> {
-  return runAction(
-    "vacancies.status",
-    async () => {
-      await requirePermission("vacancies:manage");
-      const vacancyId = parseInput(z.uuid(), id);
-      const next = parseInput(vacancyStatusSchema, status);
-      const supabase = await createSupabaseServerClient();
-      const { data: current, error } = await supabase.from("vacancies").select("status").eq("id", vacancyId).maybeSingle();
-      if (error) throw toAppError(error);
-      if (!current) throw new AppError("La vacante no existe o no tiene acceso.", "not_found");
-      if (!canTransitionVacancy(current.status, next)) {
-        throw new AppError("Ese cambio de estado no está permitido para la vacante.", "conflict");
-      }
-      const { error: updateError } = await supabase.from("vacancies").update({ status: next }).eq("id", vacancyId);
-      if (updateError) throw toAppError(updateError);
-      revalidatePath(`/vacantes/${vacancyId}`);
-      revalidatePath("/vacantes");
-      return null;
-    },
-    "Estado de la vacante actualizado.",
-  );
+  return runAction("vacancies.status", async () => {
+    await setVacancyStatus(id, status);
+    return null;
+  }, "Estado de la vacante actualizado.");
+}
+
+/** Publica la vacante y, en el mismo paso, pide su publicación en los portales elegidos. */
+export async function publishVacancy(id: string, portalIds: string[]): Promise<ActionResult> {
+  const published = await runAction("vacancies.publish", async () => {
+    await setVacancyStatus(id, "publicada");
+    return null;
+  });
+  if (!published.ok || portalIds.length === 0) {
+    return published.ok ? { ...published, message: "Estado de la vacante actualizado." } : published;
+  }
+  const portals = await applyPortalSelection(id, portalIds, []);
+  if (!portals.ok) {
+    return { ok: true, data: null, message: `Vacante publicada, pero no se pudo pedir la publicación en portales: ${portals.error} Reintente desde la pestaña Portales.` };
+  }
+  return { ok: true, data: null, message: `Vacante publicada. ${portals.message ?? ""}`.trim() };
 }
 
 export async function deleteDraftVacancy(id: string): Promise<ActionResult> {

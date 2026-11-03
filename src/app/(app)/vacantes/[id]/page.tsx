@@ -14,6 +14,7 @@ import { EvaluatePendingButton } from "@/components/vacancies/evaluate-pending-b
 import { PortalsPanel } from "@/components/vacancies/portals-panel";
 import { RequirementsPanel } from "@/components/vacancies/requirements-panel";
 import { VacancyStatusActions } from "@/components/vacancies/vacancy-status-actions";
+import { VacancySteps } from "@/components/vacancies/vacancy-steps";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
@@ -27,6 +28,7 @@ import { countApplicationViews, countPendingEvaluations, listVacancyApplications
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
 import { listPortalPublications } from "@/modules/portals/queries";
 import { getVacancy, listRequirements } from "@/modules/vacancies/queries";
+import { publishBlockers } from "@/modules/vacancies/schemas";
 import { getPublicJobsConfig } from "@/modules/public-jobs/config";
 import { isClosingDatePassed, publicationGaps } from "@/modules/public-jobs/gaps";
 import { formatSalaryText } from "@/modules/public-jobs/feed";
@@ -112,6 +114,19 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     throw error;
   });
   const canManage = can(user.role, "vacancies:manage");
+
+  // Pasos para publicar: lo que falta y los portales que el robot atiende (se eligen al publicar).
+  const { count: requirementCount, error: requirementCountError } = await supabase
+    .from("vacancy_requirements")
+    .select("id", { count: "exact", head: true })
+    .eq("vacancy_id", vacancy.id);
+  if (requirementCountError) throw requirementCountError;
+  const criteriaApproved = Boolean(vacancy.criteria_approved_at);
+  const blockers = publishBlockers({ requirementCount: requirementCount ?? 0, criteriaApproved });
+  const botPortals =
+    canManage && (vacancy.status === "borrador" || vacancy.status === "cerrada")
+      ? (await listPortalPublications(supabase, vacancy.id)).filter((row) => row.portal.bot_enabled).map((row) => row.portal)
+      : [];
 
   let content: React.ReactNode;
   if (tab === "candidatos") {
@@ -225,7 +240,13 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
                   <PencilIcon /> Editar
                 </Link>
               </Button>
-              <VacancyStatusActions vacancyId={vacancy.id} status={vacancy.status} canDelete={can(user.role, "vacancies:delete")} />
+              <VacancyStatusActions
+                vacancyId={vacancy.id}
+                status={vacancy.status}
+                canDelete={can(user.role, "vacancies:delete")}
+                portals={botPortals}
+                blockers={blockers}
+              />
             </>
           ) : null
         }
@@ -247,6 +268,16 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
           </Link>
         ))}
       </nav>
+      {vacancy.status === "borrador" ? (
+        <VacancySteps
+          steps={[
+            { label: "Datos de la vacante", done: true },
+            { label: "Requisitos", done: (requirementCount ?? 0) > 0 },
+            { label: "Aprobar criterios", done: criteriaApproved },
+            { label: "Publicar y elegir portales", done: false },
+          ]}
+        />
+      ) : null}
       <PublicListingStatus vacancy={vacancy} />
       {content}
     </>

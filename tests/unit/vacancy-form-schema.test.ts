@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { vacancyFormSchema, type VacancyFormInput } from "@/modules/vacancies/schemas";
+import { publishBlockers, vacancyFormSchema, type VacancyFormInput } from "@/modules/vacancies/schemas";
 
 const base: VacancyFormInput = {
   title: "Analista de datos",
@@ -83,5 +83,14 @@ describe("datos de publicación del formulario", () => {
     expect(failedPaths(parse({ city: "x".repeat(101) }))).toContain("city");
     expect(parse({ employmentType: "practicas" }).success).toBe(true);
     expect(parse({ employmentType: "otro" as never }).success).toBe(false);
+  });
+});
+
+describe("publishBlockers", () => {
+  it("pide requisitos y criterios aprobados antes de publicar", () => {
+    expect(publishBlockers({ requirementCount: 0, criteriaApproved: false })).toHaveLength(2);
+    expect(publishBlockers({ requirementCount: 3, criteriaApproved: false })).toEqual(["Apruebe los criterios de evaluación."]);
+    expect(publishBlockers({ requirementCount: 0, criteriaApproved: true })).toHaveLength(1);
+    expect(publishBlockers({ requirementCount: 3, criteriaApproved: true })).toEqual([]);
   });
 });
