@@ -109,10 +109,16 @@ async function main() {
       if (slot?.deps.health) slot.deps.health.lastRunAt = null;
     },
   });
+  const repairFuente =
+    config.repairProvider === "openai"
+      ? `servidor propio ${config.repairBaseUrl}`
+      : config.repairProvider === "claude-cli"
+        ? `suscripción vía ${config.repairCliPath}`
+        : "Anthropic";
   log(
     repair
-      ? `Reparación asistida activa (${config.repairProvider === "openai" ? `servidor propio ${config.repairBaseUrl}` : "Anthropic"}, modelo ${config.repairModel}, hasta ${config.repairMaxPerDay} consultas al día).`
-      : "Reparación asistida desactivada (sin ANTHROPIC_API_KEY ni BOT_REPAIR_PROVIDER=openai).",
+      ? `Reparación asistida activa (${repairFuente}, modelo ${config.repairModel}, hasta ${config.repairMaxPerDay} consultas al día).`
+      : "Reparación asistida desactivada (sin ANTHROPIC_API_KEY, ni BOT_REPAIR_PROVIDER=openai/claude-cli, o con el tope diario en 0).",
   );
 
   let stopping = false;

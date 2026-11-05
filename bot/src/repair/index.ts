@@ -258,7 +258,7 @@ export function createRepairService(options: RepairOptions): RepairService {
  * servidor); si no, `null` y el robot se comporta exactamente como antes. `complete` se inyecta en las pruebas.
  */
 export function createRepairFromConfig(
-  config: Pick<BotConfig, "repairEnabled" | "repairProvider" | "repairBaseUrl" | "repairJsonMode" | "repairTimeoutSeconds" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts" | "proposalsDir">,
+  config: Pick<BotConfig, "repairEnabled" | "repairProvider" | "repairBaseUrl" | "repairCliPath" | "repairJsonMode" | "repairTimeoutSeconds" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts" | "proposalsDir">,
   deps: Pick<RepairOptions, "notify" | "log" | "onApplied" | "now" | "rehearse"> & { complete?: Complete },
 ): RepairService | null {
   if (!config.repairEnabled) return null;

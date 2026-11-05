@@ -55,11 +55,13 @@ Los adaptadores no llevan selectores sueltos en el código: cada uno declara un 
 - Cuando se usa algo distinto del selector por defecto el robot **sigue**, lo deja en el log y anota `{timestamp, portal, clave, indiceUsado}` en `bot/.state/tolerancias.json` (últimos 500, escritura atómica, ignorado por git; `BOT_TOLERANCES_FILE`) para corregir el adaptador sin prisa. Los selectores no llevan datos personales.
 - Efecto en el entrenamiento: `renombrar_campo` y `aviso_cookies` ya no detienen al robot (los absorbe la tolerancia); `texto_boton`, `boton_en_menu` y el resto siguen detectándose. El informe los marca «absorbido (tolerado)» (ver más abajo).
 
-## Reparación asistida por IA (opcional, desactivada sin clave)
+## Reparación asistida por IA (opcional, desactivada sin proveedor)
 
 Cuando un incidente nuevo es `reparable` y trae el esquema de la pantalla, el robot puede pedir a un modelo **una propuesta**: qué clave del libro de selectores falló y qué selector CSS nuevo usar. Es solo una propuesta: **una persona decide** por WhatsApp.
 
 **Activar.** Ponga `ANTHROPIC_API_KEY=<su clave>` en `.env.bot` (la lee el SDK oficial desde el entorno; el robot no la guarda ni la registra) y reinicie el robot. Sin la clave todo queda desactivado y el robot se comporta como antes; el arranque lo anota en el log.
+
+**Con la suscripción del desarrollador (recomendado en la PC del robot, sin API de pago).** Si en esa PC ya inició sesión con el CLI de Claude Code (`claude`), ponga en `.env.bot` `BOT_REPAIR_PROVIDER=claude-cli` y reinicie: el robot invoca `claude -p … --output-format json` con esa sesión (su suscripción vía OAuth) y **no** necesita `ANTHROPIC_API_KEY`. El consumo cuenta contra los límites de su plan; el coste que el CLI podría reportar es una estimación a precio de lista, no un cargo por token. La llamada se aísla al máximo (reemplaza el prompt de sistema del agente, desactiva todas las herramientas con `--tools ""`, e ignora los settings/MCP del proyecto con `--restricted --strict-mcp-config`), así que solo salen hacia el modelo el esquema saneado y el mensaje saneado del incidente, igual que con los otros proveedores. Si `claude` no está en el PATH del robot, indique la ruta con `BOT_REPAIR_CLI_PATH`. Si la sesión caduca o no hay login, la consulta falla con un mensaje claro en el log (sin secretos) y el robot sigue trabajando y avisando incidentes como siempre; basta volver a ejecutar `claude` para loguearse. Es una vía no documentada oficialmente por Anthropic para integraciones de terceros: úsela sabiendo que depende de la sesión local.
 
 **Con un modelo propio (Qwen u otro) en lugar de Anthropic.** Ponga en `.env.bot`: `BOT_REPAIR_PROVIDER=openai`, `BOT_REPAIR_BASE_URL=http://servidor:8000/v1` y `BOT_REPAIR_MODEL=<nombre exacto en su servidor>` (más `BOT_REPAIR_API_KEY` si pide token). Todo lo demás del flujo es igual (ensayo previo, aviso por WhatsApp, «sí N», reversión): solo cambia quién responde. El cliente quita solo el razonamiento `<think>…</think>` y las vallas ```` ```json ```` que algunos modelos añaden, y el tiempo de espera es mayor. Si el servidor es interno, el esquema saneado y el mensaje del incidente no salen de la red de la empresa. Si el servidor responde 400 mencionando `response_format`, deje `BOT_REPAIR_JSON_MODE=prompt`.
 
@@ -70,11 +72,12 @@ Cuando un incidente nuevo es `reparable` y trae el esquema de la pantalla, el ro
 | `BOT_REPAIR_MAX_PER_DAY` | Máximo de consultas al modelo por día (0–1000, por defecto 10; 0 = apagado). Se cuentan todas las consultas, también las que no dieron propuesta. |
 | `BOT_REPAIR_VERIFY_MINUTES` | Ventana tras aplicar una propuesta en la que un fallo de la comprobación del portal la revierte sola (1–1440, por defecto 30). |
 | `BOT_REPAIR_MAX_ATTEMPTS` | Intentos máximos por incidente (1–5, por defecto 3): cada propuesta se PRUEBA y, si falla, se pide una corrección al modelo. Cada intento cuenta para `BOT_REPAIR_MAX_PER_DAY`. |
-| `BOT_REPAIR_PROVIDER` | `anthropic` (por defecto) u `openai`: cualquier servidor compatible con OpenAI (`POST {base}/chat/completions`), por ejemplo un Qwen propio servido con vLLM u Ollama. |
+| `BOT_REPAIR_PROVIDER` | `anthropic` (por defecto), `openai` (cualquier servidor compatible con OpenAI `POST {base}/chat/completions`, p. ej. un Qwen propio con vLLM u Ollama) o `claude-cli` (la suscripción del desarrollador vía el CLI de Claude Code, sin API de pago). |
 | `BOT_REPAIR_BASE_URL` | Solo con `openai` (obligatoria): dirección base terminada en `/v1`, sin usuario ni clave. |
+| `BOT_REPAIR_CLI_PATH` | Solo con `claude-cli` (opcional): ruta o nombre del ejecutable `claude` (por defecto `claude`; indíquela si no está en el PATH del robot). Requiere sesión iniciada en esa PC. |
 | `BOT_REPAIR_API_KEY` | Solo con `openai` (opcional): token del servidor, si lo pide. Se envía como `Authorization: Bearer` y no se registra. |
 | `BOT_REPAIR_JSON_MODE` | `prompt` (por defecto: el formato JSON se pide en el texto, sirve en cualquier servidor) o `schema` (`response_format` json_schema, solo si el servidor lo admite; un 400 que mencione `response_format` indica que no). |
-| `BOT_REPAIR_TIMEOUT_SECONDS` | Espera por respuesta de un servidor propio (5–900, por defecto 120). |
+| `BOT_REPAIR_TIMEOUT_SECONDS` | Espera por respuesta de un servidor propio o del CLI `claude-cli` (5–900, por defecto 120). |
 | `BOT_PROPOSALS_DIR` / `BOT_SELECTORS_FILE` | Carpeta de propuestas (por defecto `bot/.state/propuestas`) y archivo de overrides (por defecto `bot/.state/selectores.json`). |
 
 **Flujo.**

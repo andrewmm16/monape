@@ -31,8 +31,11 @@ async function main(): Promise<number> {
     try {
       const config = loadRepairConfig(process.env);
       if (!config.repairEnabled) {
-        const faltante = config.repairProvider === "anthropic" ? "ANTHROPIC_API_KEY" : "BOT_REPAIR_BASE_URL";
-        console.error(`Sin configuración válida para --real: falta ${faltante} (o BOT_REPAIR_MAX_PER_DAY es 0). Configure BOT_REPAIR_PROVIDER, BOT_REPAIR_BASE_URL, BOT_REPAIR_MODEL y ANTHROPIC_API_KEY/BOT_REPAIR_API_KEY en .env.bot.`);
+        const hint =
+          config.repairProvider === "claude-cli"
+            ? "BOT_REPAIR_MAX_PER_DAY es 0 (con claude-cli basta una sesión iniciada de `claude` en esta PC; no necesita clave)"
+            : `falta ${config.repairProvider === "anthropic" ? "ANTHROPIC_API_KEY" : "BOT_REPAIR_BASE_URL"} (o BOT_REPAIR_MAX_PER_DAY es 0)`;
+        console.error(`Sin configuración válida para --real: ${hint}. Configure BOT_REPAIR_PROVIDER en .env.bot.`);
         return 1;
       }
       complete = createCompleteFromConfig(config, process.env);

@@ -33,12 +33,14 @@ export interface BotConfig {
   tolerancesFile: string;
   /** Carpeta de las propuestas de reparación (un JSON por incidente). */
   proposalsDir: string;
-  /** Reparación asistida por IA: con `anthropic` solo se activa si existe `ANTHROPIC_API_KEY`; con `openai` si hay `BOT_REPAIR_BASE_URL` (las claves se leen del entorno, nunca se guardan aquí). */
+  /** Reparación asistida por IA: con `anthropic` solo se activa si existe `ANTHROPIC_API_KEY`; con `openai` si hay `BOT_REPAIR_BASE_URL`; con `claude-cli` si el tope diario es mayor que 0 (usa la sesión iniciada de `claude`). Las claves se leen del entorno, nunca se guardan aquí. */
   repairEnabled: boolean;
-  /** Quién responde: la API de Anthropic, o cualquier servidor compatible con OpenAI (`/v1/chat/completions`: vLLM, Ollama, LiteLLM, un Qwen propio…). */
-  repairProvider: "anthropic" | "openai";
+  /** Quién responde: la API de Anthropic; cualquier servidor compatible con OpenAI (`/v1/chat/completions`: vLLM, Ollama, LiteLLM, un Qwen propio…); o el CLI de Claude Code con la suscripción del desarrollador (`claude-cli`). */
+  repairProvider: "anthropic" | "openai" | "claude-cli";
   /** Dirección base del servidor compatible con OpenAI (termina en `/v1`). Solo con `openai`. */
   repairBaseUrl: string | null;
+  /** Ruta o nombre del ejecutable `claude` para el proveedor `claude-cli` (por defecto «claude», debe estar en el PATH del robot). */
+  repairCliPath: string;
   /** Cómo se pide el JSON a un servidor compatible con OpenAI: `prompt` (instrucciones en el texto; funciona en todos) o `schema` (`response_format` json_schema; solo si el servidor lo admite). */
   repairJsonMode: "prompt" | "schema";
   /** Segundos de espera por respuesta de un servidor compatible con OpenAI (un modelo propio puede tardar). */
@@ -115,6 +117,7 @@ export type RepairConfig = Pick<
   | "repairEnabled"
   | "repairProvider"
   | "repairBaseUrl"
+  | "repairCliPath"
   | "repairJsonMode"
   | "repairTimeoutSeconds"
   | "repairModel"
@@ -137,14 +140,15 @@ function repairBaseUrl(raw: string): string {
 }
 
 /**
- * Reparación asistida. Sin clave de Anthropic (o sin servidor propio configurado) queda desactivada y el robot
- * se comporta como siempre. Con `BOT_REPAIR_PROVIDER=openai` se usa un servidor compatible con OpenAI (p. ej. un Qwen
- * de la empresa) y `BOT_REPAIR_MODEL` es obligatorio: el nombre depende de cómo lo sirva el servidor.
+ * Reparación asistida. Sin credenciales queda desactivada y el robot se comporta como siempre. Tres proveedores:
+ *   - `anthropic` (por defecto): necesita `ANTHROPIC_API_KEY` (API de pago).
+ *   - `openai`: un servidor compatible con OpenAI (p. ej. un Qwen de la empresa); `BOT_REPAIR_BASE_URL` y `BOT_REPAIR_MODEL` obligatorios.
+ *   - `claude-cli`: el CLI de Claude Code con la sesión (suscripción) iniciada en la PC del robot; sin API de pago. Se activa con el tope diario > 0.
  */
 export function loadRepairConfig(env: Record<string, string | undefined> = process.env): RepairConfig {
   const providerRaw = (env.BOT_REPAIR_PROVIDER ?? "").trim().toLowerCase() || "anthropic";
-  if (providerRaw !== "anthropic" && providerRaw !== "openai") {
-    throw new Error("BOT_REPAIR_PROVIDER debe ser «anthropic» u «openai» (servidor compatible con OpenAI).");
+  if (providerRaw !== "anthropic" && providerRaw !== "openai" && providerRaw !== "claude-cli") {
+    throw new Error("BOT_REPAIR_PROVIDER debe ser «anthropic», «openai» (servidor compatible con OpenAI) o «claude-cli» (suscripción vía el CLI de Claude Code).");
   }
   const provider = providerRaw;
   const configuredModel = (env.BOT_REPAIR_MODEL ?? "").trim();
@@ -152,7 +156,7 @@ export function loadRepairConfig(env: Record<string, string | undefined> = proce
     throw new Error("BOT_REPAIR_MODEL es obligatorio con BOT_REPAIR_PROVIDER=openai (el nombre exacto del modelo en su servidor, por ejemplo Qwen/Qwen3-32B).");
   }
   const model = configuredModel || DEFAULT_REPAIR_MODEL;
-  // Un servidor propio puede nombrar el modelo «Qwen/Qwen3-32B» o «qwen3:32b».
+  // Un servidor propio puede nombrar el modelo «Qwen/Qwen3-32B» o «qwen3:32b»; Anthropic y el CLI usan ids como «claude-sonnet-5-5».
   const modelPattern = provider === "openai" ? /^[A-Za-z0-9][A-Za-z0-9._:/-]{1,119}$/ : /^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$/;
   if (!modelPattern.test(model)) {
     throw new Error("BOT_REPAIR_MODEL debe ser un ID de modelo (letras, números, punto, guion), por ejemplo claude-sonnet-5-5.");
@@ -162,6 +166,7 @@ export function loadRepairConfig(env: Record<string, string | undefined> = proce
     throw new Error("BOT_REPAIR_BASE_URL es obligatorio con BOT_REPAIR_PROVIDER=openai (por ejemplo http://servidor:8000/v1).");
   }
   const baseUrl = provider === "openai" ? repairBaseUrl(baseRaw) : null;
+  const cliPath = (env.BOT_REPAIR_CLI_PATH ?? "").trim() || "claude";
   const jsonModeRaw = (env.BOT_REPAIR_JSON_MODE ?? "").trim().toLowerCase() || "prompt";
   if (jsonModeRaw !== "prompt" && jsonModeRaw !== "schema") throw new Error("BOT_REPAIR_JSON_MODE debe ser «prompt» o «schema».");
   const timeoutSeconds = number(env, "BOT_REPAIR_TIMEOUT_SECONDS", 120, 5, 900);
@@ -170,11 +175,14 @@ export function loadRepairConfig(env: Record<string, string | undefined> = proce
   const verify = number(env, "BOT_REPAIR_VERIFY_MINUTES", 30, 1, 1_440);
   const attempts = number(env, "BOT_REPAIR_MAX_ATTEMPTS", 3, 1, 5);
   if (!Number.isInteger(attempts)) throw new Error("BOT_REPAIR_MAX_ATTEMPTS debe ser un número entero entre 1 y 5.");
-  const hasCredentials = provider === "openai" ? baseUrl !== null : (env.ANTHROPIC_API_KEY ?? "").trim() !== "";
+  // `claude-cli` depende de que haya una sesión iniciada en la PC; no se puede comprobar aquí sin ejecutar el CLI, así que se asume.
+  const hasCredentials =
+    provider === "openai" ? baseUrl !== null : provider === "claude-cli" ? true : (env.ANTHROPIC_API_KEY ?? "").trim() !== "";
   return {
     repairEnabled: hasCredentials && maxPerDay > 0,
     repairProvider: provider,
     repairBaseUrl: baseUrl,
+    repairCliPath: cliPath,
     repairJsonMode: jsonModeRaw,
     repairTimeoutSeconds: timeoutSeconds,
     repairModel: model,

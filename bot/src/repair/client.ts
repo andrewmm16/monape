@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import os from "node:os";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { BotConfig } from "../config";
@@ -198,9 +200,155 @@ export function createOpenAICompatComplete(options: OpenAICompatOptions): Comple
   };
 }
 
-/** El cliente según la configuración. La clave se lee del entorno aquí y no se guarda en ningún otro sitio. */
+// ---------------------------------------------------------------------------------------------
+// CLI de Claude Code en modo headless (`claude -p … --output-format json`): usa la sesión iniciada
+// del desarrollador (su suscripción vía OAuth) en LA MISMA PC del robot, sin ANTHROPIC_API_KEY de pago.
+// El coste que informa el CLI es una ESTIMACIÓN a precio de lista (`costBasis: "list"`), no un cargo:
+// con la suscripción cuenta contra los límites del plan. No se envía nada que no vaya ya a Anthropic
+// (el esquema saneado y el mensaje saneado del incidente). La sesión y sus tokens no se leen ni se guardan.
+//
+// La llamada se aísla al máximo: `--system-prompt` REEMPLAZA el prompt de sistema del agente (sin el preámbulo
+// de programación: ~730 tokens de contexto en vez de ~38k), `--tools ""` desactiva todas las herramientas,
+// `--restricted` ignora los settings y el CLAUDE.md del proyecto, y `--strict-mcp-config` omite los servidores MCP.
+// ---------------------------------------------------------------------------------------------
+
+function oneLineClip(text: string, max: number): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+/** Argumentos del CLI para una consulta de reparación. Exportado para poder probarlo sin ejecutar nada. */
+export function buildClaudeCliArgs(model: string, system: string, prompt: string): string[] {
+  return [
+    "-p",
+    prompt,
+    "--output-format",
+    "json",
+    "--model",
+    model,
+    // El CLI reemplaza su prompt de sistema por el nuestro: menos tokens y nada de identidad de agente de código.
+    "--system-prompt",
+    `${system}\n\n${JSON_INSTRUCTION}`,
+    // Defensa en profundidad: sin herramientas, sin settings del proyecto, sin MCP. Solo una respuesta de texto.
+    "--tools",
+    "",
+    "--restricted",
+    "--strict-mcp-config",
+  ];
+}
+
+/** Envoltorio JSON que imprime `claude --output-format json`. Solo se leen los campos que usamos. */
+interface ClaudeCliEnvelope {
+  subtype?: string;
+  is_error?: boolean;
+  stop_reason?: string | null;
+  result?: unknown;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+}
+
+export interface ProcessOutput {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+  timedOut: boolean;
+}
+
+/** Ejecuta el proceso y recoge su salida. Inyectable para que las pruebas no llamen al CLI real. */
+export type RunProcess = (cliPath: string, args: string[], timeoutMs: number) => Promise<ProcessOutput>;
+
+/**
+ * Entorno del proceso hijo. Se QUITAN las claves de API (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`): este proveedor
+ * usa la sesión iniciada de `claude` (la suscripción), y así se evita facturar por la API de pago sin querer.
+ */
+export function buildClaudeCliEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env = { ...base };
+  delete env.ANTHROPIC_API_KEY;
+  delete env.ANTHROPIC_AUTH_TOKEN;
+  return env;
+}
+
+const spawnRun: RunProcess = (cliPath, args, timeoutMs) =>
+  new Promise<ProcessOutput>((resolve, reject) => {
+    // En un directorio neutro: aunque `--restricted` ya ignora los settings, así no se carga ningún CLAUDE.md del cwd.
+    const child = spawn(cliPath, args, { cwd: os.tmpdir(), windowsHide: true, env: buildClaudeCliEnv() });
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, timeoutMs);
+    child.stdout.on("data", (chunk) => (stdout += chunk));
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      clearTimeout(timer);
+      reject(
+        new Error(
+          error.code === "ENOENT"
+            ? `no se encontró el ejecutable «${cliPath}»: inicie sesión con «claude» en la PC del robot o configure BOT_REPAIR_CLI_PATH con su ruta completa`
+            : `no se pudo ejecutar claude: ${error.message}`,
+        ),
+      );
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code, stdout, stderr, timedOut });
+    });
+  });
+
+export interface ClaudeCliOptions {
+  /** Ruta o nombre del ejecutable (por defecto «claude», que debe estar en el PATH del robot). */
+  cliPath: string;
+  timeoutMs: number;
+  /** Solo para pruebas. */
+  runImpl?: RunProcess;
+}
+
+export function createClaudeCliComplete(options: ClaudeCliOptions): Complete {
+  const run = options.runImpl ?? spawnRun;
+  const seconds = Math.round(options.timeoutMs / 1_000);
+  return async ({ model, system, prompt }) => {
+    const out = await run(options.cliPath, buildClaudeCliArgs(model, system, prompt), options.timeoutMs);
+    if (out.timedOut) throw new Error(`claude no respondió en ${seconds} s`);
+    if (out.code !== 0 || !out.stdout.trim()) {
+      // Caso típico: la sesión de «claude» caducó o no hay login. El mensaje (sin secretos) llega al log del robot.
+      const detail = oneLineClip(out.stderr || out.stdout, 200);
+      throw new Error(`claude terminó con error${out.code !== null && out.code !== 0 ? ` (código ${out.code})` : ""}${detail ? `: ${detail}` : ""}`);
+    }
+    let envelope: ClaudeCliEnvelope;
+    try {
+      envelope = JSON.parse(out.stdout) as ClaudeCliEnvelope;
+    } catch {
+      throw new Error(`la salida de claude no es JSON: ${oneLineClip(out.stdout, 200)}`);
+    }
+    const u = envelope.usage ?? {};
+    const usage = {
+      // El consumo real incluye el contexto cacheado (cuenta contra el plan), no solo input_tokens.
+      tokensEntrada: (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0),
+      tokensSalida: u.output_tokens ?? 0,
+    };
+    if (envelope.subtype === "error_max_turns") return { text: null, stopReason: "max_tokens", ...usage };
+    if (envelope.is_error || (envelope.subtype && envelope.subtype !== "success")) {
+      const detail = typeof envelope.result === "string" ? oneLineClip(envelope.result, 200) : "";
+      throw new Error(`claude devolvió un error (${envelope.subtype ?? "desconocido"})${detail ? `: ${detail}` : ""}`);
+    }
+    const text = extractJsonText(typeof envelope.result === "string" ? envelope.result : "");
+    return {
+      text: text || null,
+      // Misma nomenclatura que Anthropic/OpenAI para que `askModel` no distinga proveedores.
+      stopReason: envelope.stop_reason ?? null,
+      ...usage,
+    };
+  };
+}
+
+/** El cliente según la configuración. La clave (si la hay) se lee del entorno aquí y no se guarda en ningún otro sitio. */
 export function createCompleteFromConfig(
-  config: Pick<BotConfig, "repairProvider" | "repairBaseUrl" | "repairJsonMode" | "repairTimeoutSeconds">,
+  config: Pick<BotConfig, "repairProvider" | "repairBaseUrl" | "repairJsonMode" | "repairTimeoutSeconds" | "repairCliPath">,
   env: Record<string, string | undefined> = process.env,
 ): Complete {
   if (config.repairProvider === "openai") {
@@ -211,6 +359,9 @@ export function createCompleteFromConfig(
       jsonMode: config.repairJsonMode,
       timeoutMs: config.repairTimeoutSeconds * 1_000,
     });
+  }
+  if (config.repairProvider === "claude-cli") {
+    return createClaudeCliComplete({ cliPath: config.repairCliPath, timeoutMs: config.repairTimeoutSeconds * 1_000 });
   }
   return createAnthropicComplete();
 }
