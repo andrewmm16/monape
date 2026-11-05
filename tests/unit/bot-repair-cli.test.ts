@@ -81,7 +81,7 @@ describe("buildClaudeCliArgs", () => {
 
 describe("buildClaudeCliEnv", () => {
   it("quita las claves de API para forzar el uso de la suscripción (no facturar por API)", () => {
-    const env = buildClaudeCliEnv({ ANTHROPIC_API_KEY: "sk-xxx", ANTHROPIC_AUTH_TOKEN: "tok", PATH: "/bin", OTRA: "1" });
+    const env = buildClaudeCliEnv({ NODE_ENV: "test", ANTHROPIC_API_KEY: "sk-xxx", ANTHROPIC_AUTH_TOKEN: "tok", PATH: "/bin", OTRA: "1" });
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
     expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
     expect(env).toMatchObject({ PATH: "/bin", OTRA: "1" }); // lo demás se conserva

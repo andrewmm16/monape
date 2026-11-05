@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
+import type { Incident } from "../../bot/src/incidents";
 import { buildPrompt } from "../../bot/src/repair/prompt";
 
-const incident = { id: 7, portal: "trabajos-diarios", step: "publicar", errorCode: "pagina_cambio", message: "no se halló el campo", structure: "{}" };
+const incident: Pick<Incident, "id" | "portal" | "step" | "errorCode" | "message" | "structure"> = {
+  id: 7,
+  portal: "trabajos-diarios",
+  step: "prueba_estructura",
+  errorCode: "pagina_cambio",
+  message: "no se halló el campo",
+  structure: "{}",
+};
 
 describe("buildPrompt con memoria de reparaciones", () => {
   it("sin memoria, no añade sección de historial", () => {
