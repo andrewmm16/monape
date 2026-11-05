@@ -117,9 +117,19 @@ verificación/reversión. No se diseña aquí: se evalúa cuando la memoria llev
 
 ## 8. Riesgos y decisiones abiertas
 
-- **Historial envenenado**: el historial sale de propuestas que **una persona aprobó**; un
-  selector «verificado» ya pasó la prueba de estructura. Riesgo bajo. Aun así, se marca como
-  orientación, y el ensayo vuelve a validar siempre.
+- **Historial envenenado** (que el robot "aprenda un error" y lo repita). Riesgo bajo por tres
+  barreras que lo impiden:
+  1. **Solo entra como "bueno" lo que una persona aprobó.** Un selector se marca como
+     `verificado` únicamente si la IA lo propuso, el responsable dio el «sí N», se aplicó y además
+     la prueba de estructura **volvió a pasar** después. Pasó por mano humana *y* por una
+     comprobación automática; el robot no guarda como buena una solución inventada por sí solo.
+  2. **Lo que salió mal se guarda como "a evitar", no como ejemplo a imitar.** Los selectores
+     revertidos o rechazados entran en una lista de *evitar*, así el historial malo ayuda (dice
+     qué NO reproponer) en vez de contaminar.
+  3. **La red de seguridad sigue puesta siempre.** Aunque el historial sugiera un selector, este
+     se **vuelve a ensayar** en el portal antes de proponerse, y el «sí N» humano sigue siendo
+     obligatorio. El historial es orientación para acertar más rápido, nunca una orden que se
+     aplique sola; si el portal cambió otra vez, el ensayo lo detecta.
 - **Tamaño del prompt**: topes estrictos (§4.1) para no encarecer cada consulta.
 - **Abierto**: ¿la memoria se limita al portal, o también se recorta a la clave del incidente para
   ahorrar aún más tokens? Propuesta: incluir todas las claves del portal con historial, pero
