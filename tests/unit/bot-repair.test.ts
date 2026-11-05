@@ -96,6 +96,35 @@ function setup(result: CompleteResult | (() => Promise<CompleteResult>) = answer
   return { complete, store, repair, onApplied };
 }
 
+describe("memoria de reparaciones en el flujo", () => {
+  it("incluye en el prompt el historial de reparaciones verificadas del portal", async () => {
+    const { complete, store, repair } = setup();
+    // Propuesta previa ya verificada para este portal/clave (lo que SÍ funcionó antes).
+    await store.save({
+      incidenteId: 99,
+      portal: PORTAL,
+      clave: "campo_titulo",
+      selector: "#titulo-v2",
+      confianza: "alta",
+      razon: "el id cambió",
+      modelo: DEFAULT_REPAIR_MODEL,
+      tokensEntrada: 10,
+      tokensSalida: 5,
+      creadaEn: "2026-02-01T00:00:00Z",
+      estado: "aplicada",
+      probada: true,
+      intentos: 1,
+      ensayo: { resultado: "paso", mensaje: "", en: "2026-02-01T00:00:00Z" },
+      aplicadaEn: "2026-02-01T00:00:00Z",
+      verificadaEn: "2026-02-01T01:00:00Z",
+    });
+    await repair.handleNewIncident(incident({ id: 1 }));
+    const req = complete.mock.calls[0]![0] as { prompt: string };
+    expect(req.prompt).toContain("Historial de reparaciones");
+    expect(req.prompt).toContain("#titulo-v2");
+  });
+});
+
 describe("cliente (SDK simulado, sin llamadas reales)", () => {
   it("envía solo lo permitido para claude-sonnet-5-5: sin temperature/top_p/top_k/thinking/tool_choice/prefill", async () => {
     sdk.create.mockResolvedValue({ content: [{ type: "text", text: '{"a":1}' }], stop_reason: "end_turn", usage: { input_tokens: 11, output_tokens: 5 } });

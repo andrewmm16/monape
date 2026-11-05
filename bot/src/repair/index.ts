@@ -2,6 +2,7 @@ import type { BotConfig } from "../config";
 import { sanitizeText, type Incident } from "../incidents";
 import { getOverride, removeOverride, setOverride } from "../selectors";
 import { askModel, createCompleteFromConfig, type Complete } from "./client";
+import { resumirMemoria } from "./memoria";
 import { buildPrompt, type RetryInput } from "./prompt";
 import { ProposalStore, isApplicable, validateProposal, type Propuesta } from "./proposals";
 import type { EnsayoResult, Rehearse } from "./trial";
@@ -86,6 +87,9 @@ export function createRepairService(options: RepairOptions): RepairService {
       if (!incident.reparable || !incident.structure) return; // sin esquema no hay con qué proponer
       if (await store.get(incident.id)) return;
 
+      // Memoria: lo que ya se verificó antes en este portal (para proponer mejor) y lo que se revirtió (para evitarlo).
+      const memoria = resumirMemoria(await store.list(), incident.portal);
+
       let attempts = 0;
       let tokensEntrada = 0;
       let tokensSalida = 0;
@@ -100,7 +104,7 @@ export function createRepairService(options: RepairOptions): RepairService {
           break;
         }
         attempts = attempt;
-        const { system, prompt } = buildPrompt({ incident, retry });
+        const { system, prompt } = buildPrompt({ incident, retry, memoria });
         const answer = await askModel(complete, { model, system, prompt });
         tokensEntrada += answer.tokensEntrada;
         tokensSalida += answer.tokensSalida;
