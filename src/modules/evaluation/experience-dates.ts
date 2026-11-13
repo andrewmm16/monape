@@ -1,4 +1,4 @@
-import { findTermOccurrences, normalizeForSearch, type NormalizedText } from "./text";
+import { findTermOccurrences, isLetterspacedLine, normalizeForSearch, type NormalizedText } from "./text";
 import type { Evidence } from "./types";
 
 /**
@@ -58,52 +58,6 @@ const EXPERIENCE_HEADINGS = new Set([
   "experience",
 ]);
 
-// Encabezados fuertes: por texto exacto (los de una sola palabra también por prefijo, ver STRONG_PREFIXES).
-const STRONG_HEADINGS = new Set([
-  "formacion",
-  "formacion academica",
-  "formacion profesional",
-  "educacion",
-  "educacion y formacion",
-  "estudios",
-  "estudios realizados",
-  "estudios superiores",
-  "otros estudios",
-  "cursos",
-  "capacitacion",
-  "capacitaciones",
-  "certificaciones",
-  "idiomas",
-  "habilidades",
-  "competencias",
-  "conocimientos",
-  "conocimientos tecnicos",
-  "referencias",
-  "datos personales",
-  "otros datos",
-  "informacion academica",
-  "informacion adicional",
-  "informacion personal",
-  "especializaciones",
-  "diplomados",
-  "posgrado",
-  "maestria",
-  "publicaciones",
-  "premios",
-  "intereses",
-  "voluntariado",
-  "perfil",
-  "resumen",
-  "education",
-  "skills",
-  "certifications",
-  "courses",
-  "languages",
-  "references",
-  "profile",
-  "summary",
-]);
-
 // Primera palabra (normalizada) de un encabezado fuerte («Estudios realizados», «Información académica»…).
 const STRONG_PREFIXES = new Set([
   "formacion", "estudios", "estudio", "educacion", "curso", "cursos", "capacitacion", "capacitaciones",
@@ -141,7 +95,7 @@ const MONTH_NAMES = Object.keys(MONTHS)
   .sort((a, b) => b.length - a.length)
   .join("|");
 const YEAR = String.raw`(?<!\d)((?:19|20)\d{2})(?!\d)`;
-const PRESENT = String.raw`(?:a la fecha|la fecha|la actualidad|actualidad|actual|presente|hoy|present|current|now)(?![\p{L}\p{N}])`;
+const PRESENT = String.raw`(?:a la fecha|a la actualidad|la fecha|la actualidad|actualidad|actual|presente|hoy|present|current|now)(?![\p{L}\p{N}])`;
 // Fecha con tres formas: mes con nombre + año, mes numérico (con día opcional:
 // dd/mm/aaaa, dd-mm-aaaa, dd.mm.aaaa) + año, o año solo. Los separadores
 // numéricos no admiten espacios para no confundir «12 - 2019» con un rango.
@@ -174,7 +128,7 @@ export type ExperienceEstimate = {
   quotes: Evidence[];
 };
 
-type Line = { text: string; start: number; end: number; normalized: string };
+type Line = { text: string; start: number; end: number; normalized: string; letterspaced: boolean };
 
 const monthIndex = (year: number, month: number) => year * 12 + (month - 1);
 
@@ -186,21 +140,56 @@ function toLines(original: string): Line[] {
     const text = raw.trim();
     if (!text) continue;
     const start = found.index + raw.indexOf(text);
-    lines.push({ text, start, end: start + text.length, normalized: normalizeForSearch(text).text });
+    lines.push({
+      text,
+      start,
+      end: start + text.length,
+      normalized: normalizeForSearch(text).text,
+      letterspaced: isLetterspacedLine(text),
+    });
   }
   return lines;
 }
 
-function headingKind(normalized: string): "experience" | "other" | null {
+/**
+ * Encabezados sin espacios, para las líneas que el PDF abrió letra por letra.
+ * En esa extracción el hueco entre palabras es del mismo ancho que el de entre
+ * letras, así que «E X P E R I E N C I A   L A B O R A L» llega con un solo
+ * espacio en todos los huecos y se reconstruye como «experiencialaboral»: la
+ * frontera de palabra no está en el fichero. Para un conjunto cerrado y
+ * pequeño como este sí se puede comparar sin espacios, y es donde está el daño
+ * de verdad: sin encabezado no hay sección de experiencia, y sin ella no se
+ * calculan los años de nadie.
+ */
+const sinEspacios = (texto: string) => texto.replace(/ /g, "");
+const EXPERIENCE_HEADINGS_JUNTOS = new Set([...EXPERIENCE_HEADINGS].map(sinEspacios));
+
+/** Prefijo de un encabezado pegado a su resto («formacionacademica» → «formacion»). */
+function prefijoPegado(clean: string, prefijos: Set<string>): string | null {
+  for (const prefijo of prefijos) if (clean.startsWith(prefijo)) return prefijo;
+  return null;
+}
+
+function headingKind(normalized: string, letterspaced: boolean): "experience" | "other" | null {
   const words = normalized.split(" ").filter(Boolean);
   if (words.length === 0 || words.length > MAX_HEADING_WORDS) return null;
   // Una línea con un rango de fechas es contenido (p. ej. un cargo), no un encabezado.
   if (normalized.matchAll(RANGE).next().done === false) return null;
   const clean = normalized.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   if (EXPERIENCE_HEADINGS.has(clean)) return "experience";
+  // La comparación sin espacios se limita a las líneas espaciadas por el PDF:
+  // en una línea normal, una sola palabra que empiece por «perfil» o «datos»
+  // no es un encabezado y cerraría la sección antes de tiempo.
+  if (letterspaced) {
+    if (EXPERIENCE_HEADINGS_JUNTOS.has(clean)) return "experience";
+    if (prefijoPegado(clean, NEVER_CLOSING) !== null) return null;
+    if (prefijoPegado(clean, STRONG_PREFIXES) !== null) return "other";
+    if (prefijoPegado(clean, AMBIGUOUS_PREFIXES) !== null && !normalized.includes(":")) return "other";
+    return null;
+  }
   const firstWord = clean.split(" ")[0] ?? "";
   if (NEVER_CLOSING.has(firstWord)) return null;
-  if (STRONG_HEADINGS.has(clean) || STRONG_PREFIXES.has(firstWord)) return "other";
+  if (STRONG_PREFIXES.has(firstWord)) return "other";
   if (AMBIGUOUS_PREFIXES.has(firstWord) && !normalized.includes(":")) return "other";
   return null;
 }
@@ -210,7 +199,7 @@ function headingKind(normalized: string): "experience" | "other" | null {
  * «Habilidades: Excel, …» (palabra de cierre FUERTE + «:») aunque sea larga.
  */
 function breaksEntry(line: Line): boolean {
-  if (headingKind(line.normalized) === "other") return true;
+  if (headingKind(line.normalized, line.letterspaced) === "other") return true;
   const first = line.normalized.match(/^(\p{L}+)\s*:/u)?.[1];
   return first !== undefined && STRONG_PREFIXES.has(first);
 }
@@ -220,7 +209,7 @@ function experienceSections(lines: Line[]): Array<[number, number]> {
   const sections: Array<[number, number]> = [];
   let start: number | null = null;
   lines.forEach((line, index) => {
-    const kind = headingKind(line.normalized);
+    const kind = headingKind(line.normalized, line.letterspaced);
     if (kind === null) return;
     if (start !== null && start <= index - 1) sections.push([start, index - 1]);
     start = kind === "experience" ? index + 1 : null;
@@ -289,7 +278,7 @@ function unionMonths(intervals: Array<[number, number]>): number {
   return total;
 }
 
-type Entry = { lineIndex: number; first: number; last: number; periods: Period[]; haystack: NormalizedText };
+type Entry = { lineIndex: number; periods: Period[]; haystack: NormalizedText };
 
 function sectionEntries(lines: Line[], [first, last]: [number, number], referenceDate: Date): Entry[] {
   const dated: Array<{ lineIndex: number; periods: Period[] }> = [];
@@ -316,19 +305,19 @@ function sectionEntries(lines: Line[], [first, last]: [number, number], referenc
         .map((line) => line.text)
         .join("\n"),
     );
-    entries.push({ lineIndex: item.lineIndex, first: firstLine, last: lastLine, periods: item.periods, haystack });
+    entries.push({ lineIndex: item.lineIndex, periods: item.periods, haystack });
     previousEnd = lastLine;
   });
   return entries;
 }
 
 /** Líneas, secciones y entradas del CV, calculadas una sola vez por evaluación. */
-export type ExperienceIndex = { referenceDate: Date; lines: Line[]; entries: Entry[] };
+export type ExperienceIndex = { lines: Line[]; entries: Entry[] };
 
 export function buildExperienceIndex(original: string, referenceDate: Date): ExperienceIndex {
   const lines = toLines(original);
   const entries = experienceSections(lines).flatMap((section) => sectionEntries(lines, section, referenceDate));
-  return { referenceDate, lines, entries };
+  return { lines, entries };
 }
 
 /**
