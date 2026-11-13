@@ -389,6 +389,47 @@ const CASOS: Caso[] = [
     espera: ["pendiente_verificacion"],
     porque: "Es una intención futura, no experiencia.",
   },
+  // --------------------------------------------------- J. Equivalencias
+  {
+    grupo: "J. Equivalencias",
+    nombre: "Libros contables llevados por su equipo",
+    texto: "Jefe de oficina. Mi equipo llevaba los libros contables de la empresa mientras yo coordinaba compras.",
+    requisito: { category: "habilidad_tecnica", description: "Contabilidad", keywords: ["contabilidad"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "El sinónimo lo hacía un tercero (su equipo), no el candidato.",
+  },
+  {
+    grupo: "J. Equivalencias",
+    nombre: "Atención al público negada",
+    texto: "Auxiliar de almacén. No tengo experiencia en atención al público; siempre trabajé en bodega.",
+    requisito: { category: "habilidad_tecnica", description: "Atención al cliente", keywords: ["atención al cliente"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Niega el sinónimo; la equivalencia no debe saltarse la negación.",
+  },
+  {
+    grupo: "J. Equivalencias",
+    nombre: "Empresa comercial no es ventas",
+    texto: "Analista de sistemas en una empresa comercial. Mantenimiento de servidores y soporte a usuarios.",
+    requisito: { category: "experiencia", description: "Ventas", keywords: ["ventas"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "«Comercial» describe a la empresa, no que el candidato venda; la equivalencia ventas/comercial infla.",
+  },
+  {
+    grupo: "J. Equivalencias",
+    nombre: "Área comercial como lugar de trabajo",
+    texto: "Asistente administrativo del área comercial: archivo de contratos y control de asistencia.",
+    requisito: { category: "experiencia", description: "Ventas", keywords: ["ventas"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Trabajar en el área comercial en tareas administrativas no es haber vendido.",
+  },
+  {
+    grupo: "J. Equivalencias",
+    nombre: "Curso de contabilidad por tomar con sinónimo",
+    texto: "Intereses personales: lectura y cursos de registros contables que planeo tomar.",
+    requisito: { category: "habilidad_tecnica", description: "Contabilidad", keywords: ["contabilidad"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Intención futura expresada con el sinónimo, no experiencia.",
+  },
 ];
 
 exit(

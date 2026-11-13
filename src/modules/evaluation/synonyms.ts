@@ -3,7 +3,8 @@ import { normalizeTerm } from "./text";
 /**
  * Equivalencias de evidencia: expresiones que, para demostrar un requisito,
  * significan lo mismo. No incluye hiperónimos de área ni términos meramente
- * relacionados, ni software con nombre propio.
+ * relacionados, ni software con nombre propio. «Comercial» NO es equivalente de «ventas»: describe
+ * a la empresa o al área, no que el candidato venda (lo demuestra el banco adversario).
  */
 export const EQUIVALENCE_GROUPS: ReadonlyArray<{
   concepto: string;
@@ -29,10 +30,6 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
   {
     concepto: "tecnologías de la información",
     equivalentes: ["tecnologías de la información", "TI"],
-  },
-  {
-    concepto: "ventas",
-    equivalentes: ["ventas", "comercial"],
   },
 ];
 

@@ -444,6 +444,39 @@ const CASOS: Caso[] = [
     espera: ["acreditado"],
     porque: "«SAP.» con el punto de cierre no es un dominio.",
   },
+  // --------------------------------------------------- I. Equivalencias
+  {
+    grupo: "I. Equivalencias",
+    nombre: "Libros contables por contabilidad",
+    texto: "Asistente contable con 4 años de experiencia. Responsable de los libros contables de la empresa y de su cierre mensual.",
+    requisito: { category: "habilidad_tecnica", description: "Contabilidad", keywords: ["contabilidad"] },
+    espera: ["acreditado"],
+    porque: "Llevar los libros contables es hacer contabilidad; el candidato no escribió la palabra literal.",
+  },
+  {
+    grupo: "I. Equivalencias",
+    nombre: "Atención al público por atención al cliente",
+    texto: "Cajera con 3 años de experiencia. Atención al público en ventanilla y resolución de reclamos presenciales.",
+    requisito: { category: "habilidad_tecnica", description: "Atención al cliente", keywords: ["atención al cliente"] },
+    espera: ["acreditado"],
+    porque: "Atender al público en ventanilla es atención al cliente dicha de otra forma.",
+  },
+  {
+    grupo: "I. Equivalencias",
+    nombre: "Servicio al cliente por atención al cliente",
+    texto: "Brindé servicio al cliente en tienda durante dos años, con manejo de quejas y devoluciones.",
+    requisito: { category: "habilidad_tecnica", description: "Atención al cliente", keywords: ["atención al cliente"] },
+    espera: ["acreditado"],
+    porque: "«Servicio al cliente» y «atención al cliente» son la misma función.",
+  },
+  {
+    grupo: "I. Equivalencias",
+    nombre: "Registros contables por contabilidad",
+    texto: "Elaboré los registros contables mensuales y las conciliaciones de la empresa.",
+    requisito: { category: "habilidad_tecnica", description: "Contabilidad", keywords: ["contabilidad"] },
+    espera: ["acreditado"],
+    porque: "Elaborar registros contables es una tarea de contabilidad.",
+  },
 ];
 
 exit(correrBanco("Banco legítimo del motor", "Si el motor NO acredita, está castigando a quien cumple.", CASOS, "npm run medir:motor:legitimo") > 0 ? 1 : 0);
