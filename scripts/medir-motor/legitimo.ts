@@ -448,7 +448,7 @@ const CASOS: Caso[] = [
   {
     grupo: "I. Equivalencias",
     nombre: "Libros contables por contabilidad",
-    texto: "Asistente contable con 4 años de experiencia. Responsable de los libros contables de la empresa y de su cierre mensual.",
+    texto: "Responsable de los libros contables de la empresa y de su cierre mensual, con 4 años de experiencia.",
     requisito: { category: "habilidad_tecnica", description: "Contabilidad", keywords: ["contabilidad"] },
     espera: ["acreditado"],
     porque: "Llevar los libros contables es hacer contabilidad; el candidato no escribió la palabra literal.",
@@ -476,6 +476,14 @@ const CASOS: Caso[] = [
     requisito: { category: "habilidad_tecnica", description: "Contabilidad", keywords: ["contabilidad"] },
     espera: ["acreditado"],
     porque: "Elaborar registros contables es una tarea de contabilidad.",
+  },
+  {
+    grupo: "I. Equivalencias",
+    nombre: "Tecnologías de la información por TI",
+    texto: "Soporte técnico en el área de tecnologías de la información de la empresa durante tres años.",
+    requisito: { category: "habilidad_tecnica", description: "Experiencia en TI", keywords: ["TI"] },
+    espera: ["acreditado"],
+    porque: "«Tecnologías de la información» es el nombre completo de TI.",
   },
 ];
 

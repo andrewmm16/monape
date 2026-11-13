@@ -801,15 +801,16 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     const r = evaluateRequirement(texto, normalizeForSearch(texto),
       { id: "1", category: "formacion", priority: "obligatorio", description: "Título en Contabilidad", keywords: ["contabilidad"], weight: 5, minYears: null, isEssential: false },
       new Date("2026-11-13"));
-    expect(r.assessment).not.toBe("acreditado");
+    expect(r.assessment).toBe("sin_evidencia");
   });
 
   it("la equivalencia dentro de una mención de tercero no acredita", () => {
-    const texto = "Mi equipo llevaba la contabilidad; yo solo apoyaba.";
+    const texto = "Mi equipo llevaba los libros contables; yo coordinaba compras.";
     const r = evaluateRequirement(texto, normalizeForSearch(texto),
       { id: "1", category: "habilidad_tecnica", priority: "obligatorio", description: "Contabilidad", keywords: ["contabilidad"], weight: 5, minYears: null, isEssential: false },
       new Date("2026-11-13"));
     expect(r.assessment).not.toBe("acreditado");
+    expect(["pendiente_verificacion", "sin_evidencia"]).toContain(r.assessment);
   });
 
   it("un esencial cubierto solo por equivalencia queda pendiente", () => {
@@ -818,6 +819,7 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
       { id: "1", category: "habilidad_tecnica", priority: "obligatorio", description: "Contabilidad", keywords: ["contabilidad"], weight: 5, minYears: null, isEssential: true },
       new Date("2026-11-13"));
     expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
   it("RULE_ENGINE_VERSION es reglas-v5", () => {
