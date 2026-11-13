@@ -27,6 +27,10 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
     ],
   },
   {
+    concepto: "tecnologías de la información",
+    equivalentes: ["tecnologías de la información", "TI"],
+  },
+  {
     concepto: "ventas",
     equivalentes: ["ventas", "comercial"],
   },
