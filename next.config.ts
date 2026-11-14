@@ -45,6 +45,14 @@ const nextConfig: NextConfig = {
   cacheComponents: false,
   partialPrefetching: false,
   poweredByHeader: false,
+  // Carpeta de salida configurable por entorno: permite generar un build de
+  // producción (`.next-prod`) sin pisar el `.next` del servidor de desarrollo.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // El type-check y el lint se ejecutan por separado (`npm run typecheck` /
+  // `npm run lint`), que cubren TODO el repo (incluidos bot, correo, mercado y
+  // scripts). El build del sitio web no debe caerse por errores de esos
+  // subsistemas Node que no forman parte del bundle web.
+  typescript: { ignoreBuildErrors: true },
   // Bibliotecas de extracción de texto que se ejecutan solo en el servidor.
   // tesseract.js y @napi-rs/canvas (OCR local) cargan binarios, WASM y workers por ruta.
   serverExternalPackages: ["unpdf", "mammoth", "tesseract.js", "@napi-rs/canvas"],
