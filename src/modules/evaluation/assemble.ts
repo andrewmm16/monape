@@ -14,6 +14,8 @@ export function assembleEvaluation(input: {
   items: ItemAssessment[];
   textWasCorrected: boolean;
   textTruncated: boolean;
+  /** Señales del CV ajenas a los requisitos (p. ej. solapamiento de fechas), para las limitaciones. */
+  signalNotes?: string[];
 }): EvaluationResult {
   const byId = new Map(input.items.map((item) => [item.requirementId, item]));
   const enriched = input.requirements.map((requirement) => {
@@ -47,6 +49,7 @@ export function assembleEvaluation(input: {
       items: enriched,
       textWasCorrected: input.textWasCorrected,
       textTruncated: input.textTruncated,
+      signalNotes: input.signalNotes,
     }),
   };
 }

@@ -90,6 +90,8 @@ export function buildLimitations(options: {
   items: (ItemAssessment & { isEssential: boolean })[];
   textWasCorrected: boolean;
   textTruncated: boolean;
+  /** Notas sobre el CV detectadas fuera de los requisitos (p. ej. solapamiento de fechas). */
+  signalNotes?: string[];
 }): string[] {
   const limitations = [
     "La puntuación es orientativa: no es una probabilidad de contratación ni una medida del valor de la persona. La decisión corresponde a RRHH.",
@@ -123,5 +125,7 @@ export function buildLimitations(options: {
   if (options.textTruncated) {
     limitations.push("El CV es extenso y solo se evaluó la parte inicial del texto.");
   }
+  // Señales del CV ajenas a los requisitos (verificables por RRHH, no descartan).
+  if (options.signalNotes) limitations.push(...options.signalNotes);
   return limitations;
 }

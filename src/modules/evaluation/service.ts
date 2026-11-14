@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/types/database";
 import { assembleEvaluation } from "./assemble";
+import { detectDateOverlapNotes } from "./date-consistency";
 import { requestAnthropicAssessment } from "./ai/anthropic";
 import { getAiAvailability } from "./ai/availability";
 import { buildUserMessage, PROMPT_VERSION, SYSTEM_PROMPT } from "./ai/prompt";
@@ -141,6 +142,11 @@ export async function evaluateApplication(
     );
   }
 
+  const referenceDate = new Date();
+  // Señal determinista sobre el CV, independiente del método: solapamiento de
+  // fechas en el historial (nota para verificar en entrevista, no descarta).
+  const signalNotes = detectDateOverlapNotes(fullText, referenceDate);
+
   let items: ItemAssessment[];
   let methodVersion: string;
   let model: string | null = null;
@@ -148,7 +154,7 @@ export async function evaluateApplication(
   let evaluatedText = fullText;
 
   if (method === "reglas") {
-    items = evaluateWithRules(fullText, requirements, { referenceDate: new Date() });
+    items = evaluateWithRules(fullText, requirements, { referenceDate });
     methodVersion = RULE_ENGINE_VERSION;
   } else {
     const env = getServerEnv();
@@ -194,6 +200,7 @@ export async function evaluateApplication(
     items,
     textWasCorrected,
     textTruncated,
+    signalNotes,
   });
 
   return recordAssembledEvaluation(supabase, {
