@@ -1,6 +1,7 @@
 import "server-only";
 import { Worker } from "node:worker_threads";
 import type { ResumeFileKind } from "./extraction-core.ts";
+import type { HiddenFragment } from "./hidden-text.ts";
 
 /**
  * Ejecuta la extracción de texto en un hilo aparte (`worker_threads`) con
@@ -8,7 +9,9 @@ import type { ResumeFileKind } from "./extraction-core.ts";
  * temporizador no detiene un trabajo de CPU; `worker.terminate()` sí.
  */
 export type WorkerFailure = "tiempo_agotado" | "recursos_agotados" | "lectura_fallida";
-export type WorkerResult = { ok: true; text: string } | { ok: false; reason: WorkerFailure };
+export type WorkerResult =
+  | { ok: true; text: string; hidden: HiddenFragment[] }
+  | { ok: false; reason: WorkerFailure };
 
 export const EXTRACTION_TIMEOUT_MS = 20_000;
 
@@ -124,9 +127,11 @@ function runInWorker(bytes: Uint8Array, kind: ResumeFileKind, options: RunOption
 
     const timer = setTimeout(() => finish({ ok: false, reason: "tiempo_agotado" }), timeoutMs);
 
-    worker.once("message", (message: { ok?: boolean; text?: unknown; exhausted?: boolean }) => {
-      if (message?.ok === true && typeof message.text === "string") finish({ ok: true, text: message.text });
-      else finish({ ok: false, reason: message?.exhausted ? "recursos_agotados" : "lectura_fallida" });
+    worker.once("message", (message: { ok?: boolean; text?: unknown; hidden?: unknown; exhausted?: boolean }) => {
+      if (message?.ok === true && typeof message.text === "string") {
+        const hidden = (Array.isArray(message.hidden) ? message.hidden : []) as HiddenFragment[];
+        finish({ ok: true, text: message.text, hidden });
+      } else finish({ ok: false, reason: message?.exhausted ? "recursos_agotados" : "lectura_fallida" });
     });
     worker.once("error", (error: NodeJS.ErrnoException) => {
       const exhausted = error.code === "ERR_WORKER_OUT_OF_MEMORY" || error instanceof RangeError;

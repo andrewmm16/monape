@@ -55,3 +55,19 @@ export function findHiddenFragments(
   }
   return hidden;
 }
+
+/**
+ * Redacta el aviso para RRHH cuando se detectó texto oculto. Devuelve null si
+ * no hay nada que avisar. No juzga al candidato: informa el hecho (texto no
+ * visible excluido de la evaluación) y muestra el contenido para que una
+ * persona lo revise en el archivo original.
+ */
+export function summarizeHidden(hidden: HiddenFragment[], maxChars = 300): string | null {
+  const contenido = hidden
+    .map((h) => h.fragment.str.trim())
+    .filter((s) => s !== "")
+    .join(" · ");
+  if (contenido === "") return null;
+  const recortado = contenido.length > maxChars ? `${contenido.slice(0, maxChars)}…` : contenido;
+  return `Se detectó texto no visible en el documento (fuente diminuta o fuera de la página), que no ve una persona al abrirlo; se excluyó de la evaluación para que no altere las coincidencias. Contenido oculto: «${recortado}». Revise el archivo original antes de decidir.`;
+}

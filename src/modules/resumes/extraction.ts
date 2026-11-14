@@ -1,11 +1,14 @@
 import "server-only";
 import { runExtractionInWorker, type RunOptions, type WorkerFailure } from "./extraction-runner";
 import type { ResumeKind } from "./file-validation";
+import { summarizeHidden } from "./hidden-text";
 import { runOcr } from "./ocr";
 import type { OcrRecognizeOptions, OcrRun } from "./ocr/types";
 import { suggestFields, SUGGESTIONS_VERSION, type SuggestedFields } from "./suggestions";
 
-export const EXTRACTOR_VERSION = "extractor-v1";
+// v2: el extractor de PDF excluye el texto oculto (fuente ~0 o fuera de la
+// hoja) y lo reporta como aviso; antes se leía todo el texto sin distinción.
+export const EXTRACTOR_VERSION = "extractor-v2";
 
 const MAX_TEXT_LENGTH = 200_000;
 const MIN_USEFUL_TEXT = 80;
@@ -144,6 +147,9 @@ export async function extractResume(
   try {
     let text = normalizeExtractedText(result.text);
     const warnings: string[] = [];
+    // Aviso de texto oculto detectado y excluido (señal anti-trampas para RRHH).
+    const hiddenWarning = summarizeHidden(result.hidden);
+    if (hiddenWarning) warnings.push(hiddenWarning);
     if (text.length > MAX_TEXT_LENGTH) {
       text = text.slice(0, MAX_TEXT_LENGTH);
       warnings.push("El texto superaba 200 000 caracteres y se truncó.");

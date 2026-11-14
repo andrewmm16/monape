@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findHiddenFragments, type TextFragment, type PageBox } from "@/modules/resumes/hidden-text";
+import { findHiddenFragments, summarizeHidden, type HiddenFragment, type TextFragment, type PageBox } from "@/modules/resumes/hidden-text";
 
 const page: PageBox = { width: 612, height: 792 }; // tamaño carta en puntos PDF
 
@@ -42,5 +42,32 @@ describe("findHiddenFragments", () => {
     const frags = [frag({ fontSize: 2.5 })];
     expect(findHiddenFragments(frags, page, { minFontSize: 2 })).toEqual([]);
     expect(findHiddenFragments(frags, page, { minFontSize: 3 })).toHaveLength(1);
+  });
+});
+
+describe("summarizeHidden", () => {
+  function hidden(str: string): HiddenFragment {
+    return { fragment: { str, fontSize: 0.5, x: 0, y: 0 }, reason: "tiny" };
+  }
+
+  it("devuelve null cuando no hay nada oculto", () => {
+    expect(summarizeHidden([])).toBeNull();
+  });
+
+  it("devuelve null si los fragmentos ocultos están en blanco", () => {
+    expect(summarizeHidden([hidden("   ")])).toBeNull();
+  });
+
+  it("incluye el contenido oculto y menciona que se excluyó de la evaluación", () => {
+    const aviso = summarizeHidden([hidden("SQL Python"), hidden("AWS Scrum")]);
+    expect(aviso).toContain("SQL Python");
+    expect(aviso).toContain("AWS Scrum");
+    expect(aviso).toContain("excluyó de la evaluación");
+    expect(aviso).toContain("texto no visible");
+  });
+
+  it("recorta el contenido muy largo", () => {
+    const aviso = summarizeHidden([hidden("palabra ".repeat(100))], 50);
+    expect(aviso).toContain("…");
   });
 });
