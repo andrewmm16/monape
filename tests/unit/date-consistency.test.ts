@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildExperienceIndex } from "@/modules/evaluation/experience-dates";
-import { findDateOverlaps, describeDateOverlaps } from "@/modules/evaluation/date-consistency";
+import { buildExperienceIndex, findImpossibleDateRanges } from "@/modules/evaluation/experience-dates";
+import { findDateOverlaps, describeDateOverlaps, describeImpossibleRanges } from "@/modules/evaluation/date-consistency";
 
 const REF = new Date(Date.UTC(2026, 10, 14)); // 2026-11-14, determinista
 
@@ -70,5 +70,57 @@ describe("describeDateOverlaps", () => {
 
   it("devuelve lista vacía cuando no hay solapamientos", () => {
     expect(describeDateOverlaps([])).toEqual([]);
+  });
+});
+
+function impossibleOf(cv: string) {
+  return findImpossibleDateRanges(cv, REF);
+}
+
+describe("findImpossibleDateRanges", () => {
+  it("marca un rango cuyo fin es anterior al inicio", () => {
+    const cv = ["Experiencia laboral", "Analista - Alfa", "2021 - 2018"].join("\n");
+    const found = impossibleOf(cv);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.reason).toBe("fin_antes_inicio");
+    expect(found[0]!.quote).toContain("2021 - 2018");
+  });
+
+  it("marca un rango que empieza en el futuro", () => {
+    const cv = ["Experiencia laboral", "Consultor - Beta", "enero 2030 - diciembre 2031"].join("\n");
+    const found = impossibleOf(cv);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.reason).toBe("inicio_futuro");
+  });
+
+  it("no marca un rango válido", () => {
+    const cv = ["Experiencia laboral", "Analista - Alfa", "enero 2019 - diciembre 2021"].join("\n");
+    expect(impossibleOf(cv)).toEqual([]);
+  });
+
+  it("solo mira la sección de experiencia (ignora fechas de otras secciones)", () => {
+    const cv = [
+      "Experiencia laboral",
+      "Analista - Alfa",
+      "enero 2019 - diciembre 2021",
+      "Cursos",
+      "Excel avanzado",
+      "2022 - 2020",
+    ].join("\n");
+    expect(impossibleOf(cv)).toEqual([]);
+  });
+});
+
+describe("describeImpossibleRanges", () => {
+  it("redacta una nota neutra que invita a verificar en la entrevista", () => {
+    const cv = ["Experiencia laboral", "Analista - Alfa", "2021 - 2018"].join("\n");
+    const notes = describeImpossibleRanges(findImpossibleDateRanges(cv, REF));
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("2021 - 2018");
+    expect(notes[0]!.toLowerCase()).toContain("entrevista");
+  });
+
+  it("devuelve lista vacía sin rangos imposibles", () => {
+    expect(describeImpossibleRanges([])).toEqual([]);
   });
 });

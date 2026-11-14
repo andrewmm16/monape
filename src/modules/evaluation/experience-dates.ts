@@ -355,3 +355,49 @@ export function estimateExperienceFromDates(
 ): ExperienceEstimate | null {
   return estimateFromIndex(buildExperienceIndex(original, referenceDate), terms);
 }
+
+export type ImpossibleReason = "fin_antes_inicio" | "inicio_futuro";
+export type ImpossibleRange = { quote: string; start: number; end: number; reason: ImpossibleReason };
+
+/**
+ * Rangos de fecha IMPOSIBLES dentro de la sección de experiencia: el fin es
+ * anterior al inicio, o el inicio es posterior a hoy. Señal para verificar en
+ * la entrevista (suele ser un error de tipeo), no un descarte.
+ *
+ * Es ADITIVA: reutiliza el mismo reconocedor (`RANGE`), el mismo análisis de
+ * fecha (`parseDate`) y las mismas reglas de descarte que `parsePeriods`, sin
+ * modificar el cálculo de años. Por eso no altera los bancos del motor. Solo se
+ * mira la sección de experiencia (no fechas de cursos o certificaciones) y como
+ * máximo una vez por línea.
+ */
+export function findImpossibleDateRanges(original: string, referenceDate: Date): ImpossibleRange[] {
+  const reference = monthIndex(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() + 1);
+  const lines = toLines(original);
+  const result: ImpossibleRange[] = [];
+  for (const [first, last] of experienceSections(lines)) {
+    for (let i = first; i <= last; i++) {
+      const line = lines[i]!;
+      let flagged = false;
+      for (const match of line.normalized.matchAll(RANGE)) {
+        if (flagged) break;
+        const from = parseDate(match, 1);
+        if (from.year < MIN_START_YEAR) continue;
+        const startEarliest = from.month !== null ? monthIndex(from.year, from.month) : monthIndex(from.year, 1);
+        let reason: ImpossibleReason | null = null;
+        if (startEarliest > reference) {
+          reason = "inicio_futuro";
+        } else if (match[11] === undefined) {
+          // No está "en curso": hay una fecha de fin que comparar.
+          const to = parseDate(match, 6);
+          const endLatest = to.month !== null ? monthIndex(to.year, to.month) : monthIndex(to.year, 12);
+          if (endLatest < startEarliest) reason = "fin_antes_inicio";
+        }
+        if (reason) {
+          result.push({ quote: line.text, start: line.start, end: line.end, reason });
+          flagged = true;
+        }
+      }
+    }
+  }
+  return result;
+}

@@ -1,4 +1,9 @@
-import { buildExperienceIndex, type ExperienceIndex } from "./experience-dates";
+import {
+  buildExperienceIndex,
+  findImpossibleDateRanges,
+  type ExperienceIndex,
+  type ImpossibleRange,
+} from "./experience-dates";
 import { maskReferences } from "./rule-engine";
 import type { Evidence } from "./types";
 
@@ -68,8 +73,30 @@ export function describeDateOverlaps(overlaps: DateOverlap[]): string[] {
     );
 }
 
-/** Notas de solapamiento para un CV, listas para añadir a las limitaciones de la evaluación. */
-export function detectDateOverlapNotes(original: string, referenceDate: Date): string[] {
-  const index = buildExperienceIndex(maskReferences(original), referenceDate);
-  return describeDateOverlaps(findDateOverlaps(index));
+const IMPOSSIBLE_LABEL: Record<ImpossibleRange["reason"], string> = {
+  fin_antes_inicio: "la fecha de fin es anterior a la de inicio",
+  inicio_futuro: "la fecha de inicio es posterior a la fecha actual",
+};
+
+/** Redacta cada fecha imposible como una nota neutra para verificar en la entrevista. */
+export function describeImpossibleRanges(ranges: ImpossibleRange[]): string[] {
+  return ranges
+    .slice(0, MAX_NOTES)
+    .map(
+      (r) =>
+        `Fecha incoherente en el historial laboral («${r.quote}»): ${IMPOSSIBLE_LABEL[r.reason]}. Puede ser un error de tipeo; conviene aclararlo en la entrevista.`,
+    );
+}
+
+/**
+ * Notas sobre las fechas del CV (solapamientos e incoherencias), listas para
+ * añadir a las limitaciones de la evaluación. No descartan a nadie.
+ */
+export function detectDateSignalNotes(original: string, referenceDate: Date): string[] {
+  const masked = maskReferences(original);
+  const index = buildExperienceIndex(masked, referenceDate);
+  return [
+    ...describeDateOverlaps(findDateOverlaps(index)),
+    ...describeImpossibleRanges(findImpossibleDateRanges(masked, referenceDate)),
+  ];
 }

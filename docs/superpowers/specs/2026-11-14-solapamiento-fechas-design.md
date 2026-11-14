@@ -22,8 +22,11 @@ entrevista estructurada, no un filtro automático.
 - **Huecos** entre empleos: NO se marcan. Un hueco es ausencia de información y correlaciona con
   características protegidas (maternidad, salud, cuidado familiar); marcarlo introduce sesgo
   indirecto, contra el principio rector. Decisión explícita de Omar.
-- **Fechas imposibles** (fin antes de inicio, etc.): quedan para v1.1 (viven en los descartes
-  internos de `parsePeriods`; reportarlas exige instrumentar código calibrado + revalidar bancos).
+- **Fechas imposibles** (fin antes de inicio, inicio futuro): **hecho en v1.1** con enfoque
+  aditivo (`findImpossibleDateRanges`), reutilizando el reconocedor `RANGE` y las reglas de
+  descarte de `parsePeriods` sin modificar el cálculo de años. Solo esos dos casos (no "duración
+  absurda" ni "año < 1950", que suelen ser errores de lectura del PDF). 0 falsos positivos en los
+  80 CV del banco.
 
 **Anti-objetivos (fracaso aunque "funcione")**
 - Inflar la señal con falsos positivos (p. ej. marcar como solapamiento el año de transición entre
