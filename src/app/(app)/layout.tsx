@@ -14,6 +14,7 @@ import { ACTIVITY_COOKIE, serverIdleMs } from "@/lib/auth/inactivity";
 import { can, ROLE_LABELS } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
+import { CALETA_EN_STANDBY } from "@/lib/flags";
 import { logServerError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getNotificationFeed } from "@/modules/notifications/queries";
@@ -34,16 +35,30 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       })
     : [];
   const idleMs =serverIdleMs(readActivityTime((await cookies()).get(ACTIVITY_COOKIE)?.value, user.id)) ?? 0;
+  // El rol reclutador_caleta solo trabaja el Reclutador Caleta: no ve el resto.
+  const isStaff = can(user.role, "candidates:manage");
   const items: NavItem[] = [
-    { href: "/panel", label: "Panel", icon: "panel" },
-    { href: "/postulaciones", label: "Postulaciones", icon: "postulaciones" },
+    ...(isStaff
+      ? [
+          { href: "/panel", label: "Panel", icon: "panel" } as const,
+          { href: "/postulaciones", label: "Postulaciones", icon: "postulaciones" } as const,
+        ]
+      : []),
     ...(can(user.role, "applications:manage") ? [{ href: "/entrevistas", label: "Entrevistas", icon: "entrevistas" } as const] : []),
-    { href: "/vacantes", label: "Vacantes", icon: "vacantes" },
-    { href: "/candidatos", label: "Candidatos", icon: "candidatos" },
+    ...(can(user.role, "applications:manage") ? [{ href: "/reportes", label: "Reportes", icon: "reportes" } as const] : []),
+    ...(isStaff
+      ? [
+          { href: "/vacantes", label: "Vacantes", icon: "vacantes" } as const,
+          { href: "/candidatos", label: "Candidatos", icon: "candidatos" } as const,
+        ]
+      : []),
+    ...(can(user.role, "caleta:use")
+      ? [{ href: "/caleta", label: "Reclutador Caleta", icon: "caleta", disabled: CALETA_EN_STANDBY } as const]
+      : []),
     ...(can(user.role, "users:manage") ? [{ href: "/usuarios", label: "Usuarios", icon: "usuarios" } as const] : []),
     ...(can(user.role, "audit:read") ? [{ href: "/auditoria", label: "Auditoría", icon: "auditoria" } as const] : []),
-    ...(can(user.role, "privacy:manage")
-      ? [{ href: "/configuracion/privacidad", label: "Configuración", icon: "configuracion" } as const]
+    ...(can(user.role, "privacy:manage") || can(user.role, "email_templates:manage")
+      ? [{ href: "/configuracion", label: "Configuración", icon: "configuracion" } as const]
       : []),
   ];
 

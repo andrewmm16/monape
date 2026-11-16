@@ -87,7 +87,7 @@ describe("ensayo antes de proponer", () => {
     expect(complete).toHaveBeenCalledTimes(1);
     expect(await store.get(1)).toMatchObject({ probada: true, intentos: 1, ensayo: { resultado: "paso" } });
     expect(sent).toEqual([
-      "Propuesta PROBADA para #1: usar «#titulo-v2» como campo_titulo; la prueba de estructura pasó con este cambio. Responda «sí 1» para aplicarla o «no 1» para rechazarla.",
+      "⚠️ El portal t-ensayo cambió (#1); pausé ese portal, los demás siguen. Probé un arreglo: usar «#titulo-v2» como campo_titulo. Responde «sí 1» para aplicarlo o «no 1» para descartar.",
     ]);
   });
 
@@ -100,14 +100,14 @@ describe("ensayo antes de proponer", () => {
     expect(complete.mock.calls[0]![0].prompt).not.toContain("Intento 2");
     expect(await store.get(1)).toMatchObject({ selector: "#titulo-v2", probada: true, intentos: 2, tokensEntrada: 200, tokensSalida: 20 });
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toContain("PROBADA");
+    expect(sent[0]).toContain("Probé un arreglo");
   });
 
   it("agota los intentos: avisa con honestidad, guarda la última solo como consulta y «sí N» no la aplica", async () => {
     const { repair, complete, store } = setup(["#a1", "#a2", "#a3"], async () => FAIL);
     await repair.handleNewIncident(incident());
     expect(complete).toHaveBeenCalledTimes(3);
-    expect(sent).toEqual(["No encontré una solución probada para #1 tras 3 intentos; hace falta revisar el adaptador."]);
+    expect(sent).toEqual(["⚠️ El portal t-ensayo cambió (#1); pausé ese portal, los demás siguen. No encontré un arreglo automático — hay que revisar el adaptador."]);
     expect(await store.get(1)).toMatchObject({ probada: false, intentos: 3, selector: "#a3", estado: "propuesta", ensayo: { resultado: "fallo" } });
     expect(await repair.pending(1)).toBeNull();
     expect(await repair.apply(1)).toMatchObject({ ok: false });
@@ -124,7 +124,7 @@ describe("ensayo antes de proponer", () => {
     await repair.handleNewIncident(incident());
     expect(complete).toHaveBeenCalledTimes(2);
     expect(logs.join("\n")).toContain("repitió el selector");
-    expect(sent[0]).toContain("tras 2 intentos;");
+    expect(sent[0]).toContain("No encontré un arreglo");
   });
 
   it("el límite diario cuenta los reintentos", async () => {
@@ -132,7 +132,7 @@ describe("ensayo antes de proponer", () => {
     await repair.handleNewIncident(incident());
     expect(complete).toHaveBeenCalledTimes(2);
     expect(logs.some((l) => l.includes("límite diario (2)"))).toBe(true);
-    expect(sent).toEqual(["No encontré una solución probada para #1 tras 2 intentos; hace falta revisar el adaptador."]);
+    expect(sent).toEqual(["⚠️ El portal t-ensayo cambió (#1); pausé ese portal, los demás siguen. No encontré un arreglo automático — hay que revisar el adaptador."]);
     await repair.handleNewIncident(incident({ id: 2 }));
     expect(complete).toHaveBeenCalledTimes(2);
   });
@@ -140,8 +140,8 @@ describe("ensayo antes de proponer", () => {
   it("paso que la prueba de estructura no cubre: «SIN PROBAR», y «sí N» sí la aplica (con verificación posterior)", async () => {
     const { repair, store } = setup(["#titulo-v2"], async () => ({ resultado: "no_cubierto", mensaje: "no cubre este paso" }));
     await repair.handleNewIncident(incident({ step: "descargar_cv" }));
-    expect(sent[0]).toContain("Propuesta SIN PROBAR (la prueba de estructura no cubre este paso) para #1");
-    expect(sent[0]).toContain("La verificación ocurrirá tras aprobarla");
+    expect(sent[0]).toContain("sin probar aún");
+    expect(sent[0]).toContain("se revierte solo");
     expect(await store.get(1)).toMatchObject({ probada: false, ensayo: { resultado: "no_cubierto" } });
     expect(await repair.apply(1)).toMatchObject({ ok: true });
     expect(getOverride(PORTAL, "campo_titulo")).toMatchObject({ selector: "#titulo-v2" });

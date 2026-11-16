@@ -43,7 +43,6 @@ export default async function EditVacancyPage({ params }: PageProps<"/vacantes/[
           responsibilities: vacancy.responsibilities,
           location: vacancy.location ?? "",
           modality: vacancy.modality ?? "",
-          contractType: vacancy.contract_type ?? "",
           openingDate: vacancy.opening_date ?? "",
           closingDate: vacancy.closing_date ?? "",
           ownerId: vacancy.owner_id ?? "",

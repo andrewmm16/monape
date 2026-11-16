@@ -66,6 +66,15 @@ const nextConfig: NextConfig = {
       // las funciones a 4,5 MB (ver docs/pendientes.md).
       bodySizeLimit: "4.3mb",
     },
+    // Desactivado a propósito. En desarrollo, Next 16 arranca un único proceso
+    // hijo ("dev validation worker") que carga el grafo de módulos de la ruta
+    // visitada para validarla. En las rutas con OCR (/candidatos/[id],
+    // /vacantes/[id], /vacantes/[id]/carga-masiva, /empleos/[slug]) ese grafo
+    // arrastra unpdf (pdf.js + WASM) y mammoth; cargarlos en ese worker lo hace
+    // caer y se muestra en pantalla "Jest worker encountered N child process
+    // exceptions, exceeding retry limit". Es solo un validador de desarrollo:
+    // apagarlo no cambia el comportamiento de la app, del build ni de producción.
+    devValidationWorker: false,
   },
   turbopack: {
     rules: {

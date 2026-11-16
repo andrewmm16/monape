@@ -1,13 +1,15 @@
+import { WAITABLE } from "../errors";
 import type { Command } from "./commands";
 
 /**
  * Estado que las órdenes de mensajería pueden cambiar. El bucle principal lo
- * consulta; las órdenes no saltan las detenciones por CAPTCHA o sesión vencida
+ * consulta; las órdenes no saltan las detenciones por una verificación o la sesión vencida
  * (si el robot se detuvo, el proceso termina y no queda a quién ordenar).
  */
 export class BotControl {
   paused = false;
   private wakeRequested = false;
+  private relevoRequested = false;
   lastCycleAt: Date | null = null;
   lastOutcome: string | null = null;
   consecutiveCycleFailures = 0;
@@ -33,6 +35,13 @@ export class BotControl {
     return requested;
   }
 
+  /** Devuelve `true` (una sola vez) si una persona avisó «listo» para reanudar las verificaciones en espera. */
+  consumeRelevo(): boolean {
+    const requested = this.relevoRequested;
+    this.relevoRequested = false;
+    return requested;
+  }
+
   recordCycle(outcome: string, now: Date = new Date()) {
     this.lastCycleAt = now;
     this.lastOutcome = outcome;
@@ -51,7 +60,10 @@ export class BotControl {
         ];
         if (this.consecutiveCycleFailures > 0) lines.push(`Ciclos fallidos seguidos: ${this.consecutiveCycleFailures}.`);
         if (this.halted.size > 0) {
-          const list = [...this.halted].map(([slug, h]) => `${slug} (${h.reason}${h.resumable ? ", se comprueba solo" : ""})`);
+          const list = [...this.halted].map(([slug, h]) => {
+            const extra = WAITABLE.has(h.reason) ? ", esperando «listo»" : h.resumable ? ", se comprueba solo" : "";
+            return `${slug} (${h.reason}${extra})`;
+          });
           lines.push(`Portales detenidos: ${list.join(", ")}.`);
         }
         if (this.autoResumes > 0) lines.push(`Reanudaciones automáticas: ${this.autoResumes}.`);
@@ -68,6 +80,15 @@ export class BotControl {
         if (this.paused) return "El robot está en pausa. Envíe «reanudar» primero.";
         this.wakeRequested = true;
         return "Listo: hará un ciclo en unos segundos.";
+      case "listo": {
+        const pending = [...this.halted].filter(([, h]) => WAITABLE.has(h.reason)).map(([slug]) => slug);
+        if (pending.length === 0) {
+          return "No hay ninguna verificación pendiente. Si resolviste algo en la ventana del robot, no hace falta avisar.";
+        }
+        this.relevoRequested = true;
+        this.wakeRequested = true;
+        return `Gracias. Reanudo ${pending.join(", ")} y hago un ciclo ahora.`;
+      }
       case "ayuda":
         return [
           "Órdenes disponibles:",
@@ -75,7 +96,7 @@ export class BotControl {
           "pausar: detiene los ciclos",
           "reanudar: continúa",
           "ahora: hace un ciclo sin esperar",
-          "Un CAPTCHA, código o sesión vencida se resuelve en la PC del robot, no por aquí.",
+          "listo: continúa tras resolver una verificación/sesión en la ventana del robot (puede ser por acceso remoto)",
         ].join("\n");
     }
   }

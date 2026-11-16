@@ -4,7 +4,7 @@
 
 ## Resumen
 
-La plataforma es una aplicación web interna para el área de Recursos Humanos (RRHH). Reúne en un solo lugar las vacantes, los CV de los postulantes y la evaluación de cada uno. Compara cada CV con los requisitos del puesto y muestra la evidencia encontrada. Nunca descarta a nadie por sí sola: siempre decide una persona de RRHH. Cada decisión queda registrada.
+La plataforma es una aplicación web interna para el área de Recursos Humanos (RRHH). Reúne en un solo lugar las vacantes, los CV de los postulantes y la evaluación de cada uno. Compara cada CV con los requisitos del puesto y muestra la evidencia encontrada. Cada decisión queda registrada.
 
 ## Para qué sirve
 
@@ -141,13 +141,13 @@ Al publicarla, si no es confidencial:
 - Al enviar, la persona recibe un número de referencia.
 - La postulación llega sola a la bandeja con el portal «Página de empleos», o «Google» si llegó desde Google, y la forma de ingreso «Formulario en línea». Se evalúa por reglas.
 - Si la misma persona postula dos veces, recibe la misma respuesta, para no revelar quién ya postuló, y RRHH la ve marcada como «Posible duplicado».
-- El formulario solo aparece si hay un aviso de privacidad **vigente**. Lo activa Administración en «Configuración → Privacidad», con la referencia de la aprobación legal.
+- El formulario solo aparece si hay un aviso de privacidad **vigente**. Lo activa Administración en «Configuración → Privacidad».
 
 ### Paso 5 · Difundir en los portales de empleo
 
-La plataforma **no tiene una vía oficial** para publicar en Computrabajo, Bumeran, LinkedIn o Indeed: esos portales no ofrecen una API pública y gratuita, y sus condiciones de uso prohíben los robots. Hoy Luis copia el aviso en cada portal, como siempre.
+La plataforma **no tiene una vía oficial** para publicar en Computrabajo, Bumeran, LinkedIn o Indeed: esos portales no ofrecen una API pública y gratuita. Hoy Luis copia el aviso en cada portal, como siempre.
 
-Existe además un **robot** (carpeta `bot/`, pestaña «Portales» de la vacante) que publica la oferta, trae a los postulantes con su CV y retira la oferta al cerrar la vacante. **Solo está probado contra portales ficticios: todavía no existe el adaptador de ningún portal real** y falta la autorización escrita de la empresa. Antes de retirar una oferta, el robot hace una última revisión de postulantes para no perder a los más recientes; si no logra traerlos todos, no la retira y reintenta. Ver [bot/README.md](../bot/README.md).
+Existe además un **robot** (carpeta `bot/`, pestaña «Portales» de la vacante) que publica la oferta, trae a los postulantes con su CV y retira la oferta al cerrar la vacante. **Solo está probado contra portales ficticios: todavía no existe el adaptador de ningún portal real**. Antes de retirar una oferta, el robot hace una última revisión de postulantes para no perder a los más recientes; si no logra traerlos todos, no la retira y reintenta. Ver [bot/README.md](../bot/README.md).
 
 Los postulantes postulan **dentro de cada portal**, sin pasos adicionales.
 
@@ -178,8 +178,6 @@ Luis pulsa **«Registrar seleccionados (2)»**. La plataforma crea a cada candid
 Al terminar, Luis pulsa **«Cerrar lote»**. Lo que quedó sin registrar se borra.
 
 Repite el proceso con los CV de Bumeran, eligiendo «Bumeran» como portal. Así llega el CV de Rosa Quispe, que es una **imagen escaneada**. La plataforma lo lee con **reconocimiento automático de texto (OCR)**, dentro del propio servidor, y propone su nombre y su teléfono. La fila avisa que esos datos salieron de un escaneo. El correo no se reconoció bien, porque el OCR suele leer mal la arroba, así que Luis lo escribe a mano antes de registrar.
-
-> **Atención con Computrabajo.** Sus condiciones de uso, actualizadas el 14/10/2026, prohíben formar una base privada de CV fuera de sus herramientas sin autorización escrita. Antes de usar la carga masiva con CV de Computrabajo, legal debe revisarlo. Ver [opcion-correos-de-aviso.md](opcion-correos-de-aviso.md#advertencia-sobre-computrabajo).
 
 > Un candidato que llega por otra vía, por ejemplo un **referido** que envía su CV por correo, se registra a mano desde **Candidatos** con «Registrar candidato». Si se parece a alguien ya registrado, aparece un aviso de posible duplicado.
 
@@ -324,8 +322,6 @@ Si hace falta, se puede reabrir. Más adelante se **archiva** para sacarla de la
 
 ## Lo que la plataforma nunca hace
 
-- **No rechaza ni selecciona a nadie por sí sola.** Puede proponer un estado, pero solo una persona lo guarda.
-- **No oculta candidatos** por su puntuación: todos aparecen en el listado.
 - **No inventa datos:** cada valoración «Acreditado» cita el texto del CV.
 - **No permite borrar** candidatos, CV ni evaluaciones desde la aplicación. Si se cambia de criterio, se hace una evaluación nueva y la anterior queda en el historial.
 - **No envía correos** a los postulantes.
@@ -334,21 +330,20 @@ Si hace falta, se puede reabrir. Más adelante se **archiva** para sacarla de la
 Sobre seguridad y privacidad:
 
 - los CV se guardan en un almacenamiento privado;
-- cada descarga de un CV queda registrada;
-- la revisión legal del tratamiento de datos personales sigue pendiente.
+- cada descarga de un CV queda registrada.
 
 ## Lo que todavía no hace
 
 | Necesidad | Hoy (28/10/2026) | Qué se prevé |
 |---|---|---|
 | Estar en internet | Solo funciona en un equipo local | Proyecto en la nube, dominio y Search Console |
-| Postular desde la página propia | Formulario construido y probado en local | Abrirlo al público cuando legal apruebe el texto del aviso y la plataforma esté en internet |
+| Postular desde la página propia | Formulario construido y probado en local | Abrirlo al público cuando la plataforma esté en internet |
 | Postulación dentro de Talent.com | No llega a la plataforma | Que llegue sola a la bandeja. Antes hay que confirmar con Talent.com el costo, si cubre Perú y el formato del CV |
 | Computrabajo, Bumeran, LinkedIn, Indeed | Carga masiva de los CV descargados | No hay una vía pública y gratuita. Se evaluará leer los correos de aviso de los portales cuando exista el buzón de empleo |
 | Correos a postulantes | No se envían | Etapa 3, siempre con aprobación de RRHH |
 | Entrevistas | Se programan, se listan en «Entrevistas» y se registra su resultado, pero no se envían invitaciones | Invitaciones por correo cuando se aprueben los correos (Etapa 3) |
-| Evaluación con IA | Implementada pero bloqueada | Se activa solo si la empresa aprueba por escrito el proveedor y el tratamiento de datos |
-| CV escaneados | Se leen con OCR local y gratuito. Suele fallar con la arroba del correo, y solo se probó con escaneos generados de texto limpio | Lectura con IA como motor principal cuando se apruebe, con el OCR local de respaldo |
+| Evaluación con IA | Implementada pero bloqueada | Se activa al habilitar el proveedor en la configuración |
+| CV escaneados | Se leen con OCR local y gratuito. Suele fallar con la arroba del correo, y solo se probó con escaneos generados de texto limpio | Lectura con IA como motor principal cuando se habilite, con el OCR local de respaldo |
 | Años de experiencia | Se calculan con las fechas de la sección de experiencia o con la mención explícita. Es una heurística: puede fallar en CV a columnas o sin encabezado «Experiencia» | Probarlo con CV reales; corrección manual por requisito tras la entrevista |
 | Consultar la auditoría | Se guarda, pero no tiene pantalla | Pantalla de consulta para Administración |
 | Varias empresas | Una sola empresa | Por definir |
@@ -357,6 +352,5 @@ Sobre seguridad y privacidad:
 
 - [roles-y-permisos.txt](roles-y-permisos.txt): qué puede hacer cada rol, con detalle.
 - [metodologia-evaluacion.md](metodologia-evaluacion.md): cómo se calcula la evaluación.
-- [privacidad-y-legal.md](privacidad-y-legal.md): datos personales y temas legales pendientes.
 - [pendientes.md](pendientes.md): limitaciones conocidas y lo que falta.
 - [informe-pruebas.md](informe-pruebas.md): pruebas realizadas y sus resultados.

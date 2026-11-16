@@ -8,7 +8,6 @@ const base: VacancyFormInput = {
   responsibilities: "",
   location: "",
   modality: "",
-  contractType: "",
   openingDate: "",
   closingDate: "",
   ownerId: "",

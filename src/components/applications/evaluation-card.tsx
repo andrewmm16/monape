@@ -44,7 +44,7 @@ function ScoreMeter({ score, potential }: { score: number; potential: number }) 
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">
         <span className="text-4xl font-semibold tabular-nums">{Math.round(score)} %</span>
-        <span className="text-sm text-muted-foreground">de afinidad con el puesto</span>
+        <span className="text-sm text-muted-foreground">de los requisitos del puesto, acreditado en el CV</span>
       </div>
       <div
         className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
@@ -118,7 +118,7 @@ export function EvaluationCard({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Afinidad con el puesto</CardTitle>
+          <CardTitle>Cumplimiento del puesto</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState
@@ -139,7 +139,7 @@ export function EvaluationCard({
     <Card>
       <CardHeader className="gap-2">
         <CardTitle className="flex flex-wrap items-center gap-2">
-          Afinidad con el puesto <CompatibilityBadge level={evaluation.level} />
+          Cumplimiento del puesto <CompatibilityBadge level={evaluation.level} />
         </CardTitle>
         <CardDescription>Referencia para RRHH: la decisión final es de una persona.</CardDescription>
         {outdated ? (

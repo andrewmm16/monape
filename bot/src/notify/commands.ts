@@ -1,5 +1,5 @@
 /** Lista cerrada de órdenes que el robot acepta por mensajería. Nunca se ejecuta texto libre. */
-const COMMANDS = ["estado", "pausar", "reanudar", "ahora", "ayuda"] as const;
+const COMMANDS = ["estado", "pausar", "reanudar", "ahora", "ayuda", "listo"] as const;
 export type Command = (typeof COMMANDS)[number];
 
 /** Minúsculas, sin tildes y sin signos ni espacios alrededor. */

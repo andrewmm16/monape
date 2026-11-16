@@ -3,7 +3,7 @@ import { cache } from "react";
 import { toAppError } from "@/lib/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/types/database";
-import type { PublicRequirement, PublicSalary, PublicVacancy } from "./types";
+import type { PublicKillerQuestion, PublicRequirement, PublicSalary, PublicVacancy } from "./types";
 
 type VacancyRow = Database["public"]["Functions"]["public_vacancies"]["Returns"][number];
 
@@ -60,4 +60,24 @@ export async function listPublicRequirements(code: string): Promise<PublicRequir
   const { data, error } = await createSupabaseAdminClient().rpc("public_vacancy_requirements", { p_code: code });
   if (error) throw toAppError(error);
   return data.flatMap((row) => (row.description && row.priority ? [{ description: row.description, priority: row.priority }] : []));
+}
+
+/** Preguntas eliminatorias de una vacante pública; nunca la condición que cumple. */
+export async function listPublicKillerQuestions(code: string): Promise<PublicKillerQuestion[]> {
+  const { data, error } = await createSupabaseAdminClient().rpc("public_killer_questions", { p_code: code });
+  if (error) throw toAppError(error);
+  return data.flatMap((row) =>
+    row.id && row.question && row.question_type
+      ? [
+          {
+            id: row.id,
+            question: row.question,
+            type: row.question_type,
+            helpText: row.help_text,
+            required: row.is_required !== false,
+            options: row.options ?? [],
+          },
+        ]
+      : [],
+  );
 }

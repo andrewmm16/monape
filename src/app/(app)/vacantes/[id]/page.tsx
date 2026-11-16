@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PencilIcon, UploadIcon } from "lucide-react";
@@ -9,9 +10,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicLink } from "@/components/vacancies/public-listing-notice";
+import { ApplicationsBoard } from "@/components/vacancies/applications-board";
 import { ApplicationsTable } from "@/components/vacancies/applications-table";
 import { EvaluatePendingButton } from "@/components/vacancies/evaluate-pending-button";
 import { PortalsPanel } from "@/components/vacancies/portals-panel";
+import { PublishPortalsSection } from "@/components/vacancies/publish-portals-section";
+import { KillerQuestionsPanel } from "@/components/vacancies/killer-questions-panel";
 import { RequirementsPanel } from "@/components/vacancies/requirements-panel";
 import { VacancyStatusActions } from "@/components/vacancies/vacancy-status-actions";
 import { VacancySteps } from "@/components/vacancies/vacancy-steps";
@@ -24,10 +28,18 @@ import { EMPLOYMENT_TYPE_LABELS, WORK_MODALITY_LABELS } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { countComparable } from "@/modules/applications/compare";
-import { countApplicationViews, countPendingEvaluations, listVacancyApplications } from "@/modules/applications/queries";
+import {
+  countApplicationViews,
+  countKillerFlags,
+  countPendingEvaluations,
+  listApplicationsForBoard,
+  listVacancyApplications,
+  rankVacancyApplications,
+} from "@/modules/applications/queries";
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
+import { portalLogo } from "@/modules/portals/logos";
 import { listPortalPublications } from "@/modules/portals/queries";
-import { getVacancy, listRequirements } from "@/modules/vacancies/queries";
+import { getVacancy, listKillerQuestions, listRequirements } from "@/modules/vacancies/queries";
 import { publishBlockers } from "@/modules/vacancies/schemas";
 import { getPublicJobsConfig } from "@/modules/public-jobs/config";
 import { isClosingDatePassed, publicationGaps } from "@/modules/public-jobs/gaps";
@@ -45,8 +57,23 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+/**
+ * Base pública para el enlace que RRHH ve y copia en la ficha. Se arma con el
+ * host real de la petición (el mismo navegador y puerto donde está abierta la
+ * app), así el enlace sigue al servidor sin tocar configuración al cambiar de
+ * puerto (3000, 3100, etc.). Si no hubiera cabecera de host, cae al siteUrl
+ * configurado. Las URLs canónicas/SEO/sitemap/feed siguen usando config.siteUrl.
+ */
+async function requestPublicBase(fallback: string): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!host) return fallback;
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 /** Estado de la vacante publicada en la página pública, Google y el feed. */
-function PublicListingStatus({ vacancy }: { vacancy: Awaited<ReturnType<typeof getVacancy>> }) {
+async function PublicListingStatus({ vacancy }: { vacancy: Awaited<ReturnType<typeof getVacancy>> }) {
   if (vacancy.status !== "publicada") return null;
   if (vacancy.is_confidential) {
     return (
@@ -82,11 +109,12 @@ function PublicListingStatus({ vacancy }: { vacancy: Awaited<ReturnType<typeof g
       </Alert>
     );
   }
+  const base = await requestPublicBase(config.siteUrl);
   return (
     <Alert>
       <AlertTitle>Página pública</AlertTitle>
       <AlertDescription>
-        <PublicLink url={`${config.siteUrl}${jobPath(vacancy.title, vacancy.public_code)}`} />
+        <PublicLink url={`${base}${jobPath(vacancy.title, vacancy.public_code)}`} />
       </AlertDescription>
     </Alert>
   );
@@ -125,22 +153,33 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
   const blockers = publishBlockers({ requirementCount: requirementCount ?? 0, criteriaApproved });
   const botPortals =
     canManage && (vacancy.status === "borrador" || vacancy.status === "cerrada")
-      ? (await listPortalPublications(supabase, vacancy.id)).filter((row) => row.portal.bot_enabled).map((row) => row.portal)
+      ? (await listPortalPublications(supabase, vacancy.id))
+          .filter((row) => row.portal.bot_enabled)
+          .map((row) => ({ id: row.portal.id, name: row.portal.name, logo: portalLogo(row.portal.name) }))
       : [];
 
   let content: React.ReactNode;
   if (tab === "candidatos") {
-    const listParams = applicationListParamsSchema.parse(search);
-    const [{ rows, total }, viewCounts] = await Promise.all([
-      listVacancyApplications(supabase, vacancy.id, listParams),
-      countApplicationViews(supabase, vacancy.id),
-    ]);
-    const pending = can(user.role, "evaluations:run") ? await countPendingEvaluations(supabase, vacancy.id) : 0;
+    const modo: "tabla" | "tablero" = search.modo === "tablero" ? "tablero" : "tabla";
+    const canRun = can(user.role, "evaluations:run");
+    const pending = canRun ? await countPendingEvaluations(supabase, vacancy.id) : 0;
     const comparable = await countComparable(supabase, vacancy.id);
-    content = (
-      <div className="space-y-4">
+    const toggleLink = (target: "tabla" | "tablero", label: string) => (
+      <Link
+        href={target === "tablero" ? `/vacantes/${vacancy.id}?tab=candidatos&modo=tablero` : `/vacantes/${vacancy.id}?tab=candidatos`}
+        aria-current={modo === target ? "page" : undefined}
+        className={cn(
+          "rounded-md border px-3 py-1.5 text-sm whitespace-nowrap",
+          modo === target ? "border-brand bg-brand/10 font-medium text-brand" : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        {label}
+      </Link>
+    );
+    const actions = (
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-start gap-2">
-          {can(user.role, "evaluations:run") ? (
+          {canRun ? (
             <EvaluatePendingButton vacancyId={vacancy.id} pending={pending} criteriaApproved={Boolean(vacancy.criteria_approved_at)} />
           ) : null}
           {comparable >= 2 ? (
@@ -149,21 +188,77 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
             </Link>
           ) : null}
         </div>
-        <ApplicationsTable vacancyId={vacancy.id} rows={rows} total={total} params={listParams} viewCounts={viewCounts} />
+        <nav className="flex gap-1" aria-label="Modo de vista de candidatos">
+          {toggleLink("tabla", "Tabla")}
+          {toggleLink("tablero", "Tablero")}
+        </nav>
       </div>
     );
+    if (modo === "tablero") {
+      const boardRows = await listApplicationsForBoard(supabase, vacancy.id);
+      content = (
+        <div className="space-y-4">
+          {actions}
+          <ApplicationsBoard rows={boardRows} canManage={canManage} />
+        </div>
+      );
+    } else {
+      const listParams = applicationListParamsSchema.parse(search);
+      const [{ rows, total }, viewCounts, ranking] = await Promise.all([
+        listVacancyApplications(supabase, vacancy.id, listParams),
+        countApplicationViews(supabase, vacancy.id),
+        // La posición se calcula sobre toda la vacante, no sobre la página: el
+        // 3.º de 40 tiene que seguir siendo el 3.º al cambiar de página o filtro.
+        rankVacancyApplications(supabase, vacancy.id),
+      ]);
+      const killerFlags = await countKillerFlags(
+        supabase,
+        rows.flatMap((r) => (r.id ? [r.id] : [])),
+      );
+      content = (
+        <div className="space-y-4">
+          {actions}
+          <ApplicationsTable
+            vacancyId={vacancy.id}
+            rows={rows}
+            total={total}
+            params={listParams}
+            viewCounts={viewCounts}
+            ranking={ranking}
+            killerFlags={killerFlags}
+          />
+        </div>
+      );
+    }
   } else if (tab === "criterios") {
-    const requirements = await listRequirements(supabase, vacancy.id);
-    content = <RequirementsPanel vacancy={vacancy} requirements={requirements} canManage={canManage} />;
-  } else if (tab === "portales") {
+    const [requirements, killerQuestions] = await Promise.all([
+      listRequirements(supabase, vacancy.id),
+      canManage ? listKillerQuestions(supabase, vacancy.id) : Promise.resolve([]),
+    ]);
     content = (
-      <PortalsPanel
-        vacancyId={vacancy.id}
-        vacancyStatus={vacancy.status}
-        rows={await listPortalPublications(supabase, vacancy.id)}
-        botEnabled={Boolean(getServerEnv().PORTAL_BOT_SECRET)}
-      />
+      <div className="space-y-6">
+        <RequirementsPanel vacancy={vacancy} requirements={requirements} canManage={canManage} />
+        <KillerQuestionsPanel vacancyId={vacancy.id} questions={killerQuestions} canManage={canManage} />
+      </div>
     );
+  } else if (tab === "portales") {
+    content =
+      canManage && (vacancy.status === "borrador" || vacancy.status === "cerrada") ? (
+        <PublishPortalsSection
+          vacancyId={vacancy.id}
+          portals={botPortals}
+          blockers={blockers}
+          reopen={vacancy.status === "cerrada"}
+          confidential={vacancy.is_confidential}
+        />
+      ) : (
+        <PortalsPanel
+          vacancyId={vacancy.id}
+          vacancyStatus={vacancy.status}
+          rows={await listPortalPublications(supabase, vacancy.id)}
+          botEnabled={Boolean(getServerEnv().PORTAL_BOT_SECRET)}
+        />
+      );
   } else {
     content = (
       <Card>
@@ -175,7 +270,6 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
             <Detail label="Área" value={vacancy.department} />
             <Detail label="Ubicación" value={vacancy.location} />
             <Detail label="Modalidad" value={vacancy.modality ? WORK_MODALITY_LABELS[vacancy.modality] : null} />
-            <Detail label="Tipo de contrato" value={vacancy.contract_type} />
             <Detail label="Apertura" value={formatDate(vacancy.opening_date)} />
             <Detail label="Cierre" value={formatDate(vacancy.closing_date)} />
             <Detail label="Responsable del proceso" value={vacancy.owner?.full_name} />
@@ -244,8 +338,6 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
                 vacancyId={vacancy.id}
                 status={vacancy.status}
                 canDelete={can(user.role, "vacancies:delete")}
-                portals={botPortals}
-                blockers={blockers}
               />
             </>
           ) : null

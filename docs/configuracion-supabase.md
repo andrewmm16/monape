@@ -1,10 +1,10 @@
 # Configuración de Supabase
 
-Use **proyectos separados** para desarrollo, pruebas y producción. Nunca cargue datos reales en desarrollo o pruebas.
+Use **proyectos separados** para desarrollo, pruebas y producción.
 
 ## 1. Crear el proyecto
 
-1. Cree un proyecto en [supabase.com](https://supabase.com). Elija la región considerando la ubicación de los datos (es una transferencia internacional: ver [privacidad-y-legal.md](privacidad-y-legal.md)).
+1. Cree un proyecto en [supabase.com](https://supabase.com). Elija la región considerando la ubicación de los datos.
 2. En **Project Settings → API Keys** obtenga:
    - la clave **publishable** (`sb_publishable_…`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`;
    - la clave **secret** (`sb_secret_…`) → `SUPABASE_SECRET_KEY` (solo servidor).

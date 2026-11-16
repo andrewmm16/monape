@@ -32,7 +32,7 @@ async function scheduleFromDialog(
   await dialog.getByLabel("Fecha").fill(values.date);
   await dialog.getByLabel("Hora").fill(values.time);
   await dialog.getByLabel("Modalidad").selectOption({ label: "Virtual" });
-  if (values.location) await dialog.getByLabel("Lugar o enlace").fill(values.location);
+  if (values.location) await dialog.getByLabel("Enlace de la reunión").fill(values.location);
   if (values.interviewers) await dialog.getByLabel("Entrevistadores").fill(values.interviewers);
   await dialog.getByRole("button", { name: "Programar", exact: true }).click();
   await expect(page.getByText(/Entrevista programada\. La postulación quedó/)).toBeVisible();
@@ -192,7 +192,7 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   await expect(warningDialog.getByText(/La fecha ya pasó/)).toBeVisible();
   await warningDialog.getByLabel("Hora").fill("16:30");
   await warningDialog.getByLabel("Modalidad").selectOption({ label: "Presencial" });
-  await warningDialog.getByLabel("Lugar o enlace").fill("Av. Larco 345, oficina 2");
+  await warningDialog.getByLabel("Dirección").fill("Av. Larco 345, oficina 2");
   await warningDialog.getByRole("button", { name: "Programar", exact: true }).click();
   await expect(page.getByText(/Entrevista programada\. La postulación quedó/)).toBeVisible();
   // Un lugar que no es enlace se muestra como texto plano.
@@ -272,7 +272,7 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   // Una segunda entrevista del mismo candidato: se reprograma y luego se cancela.
   await page.goto(`/postulaciones/${ids.absent}`);
   await page.getByRole("button", { name: "Programar entrevista" }).click();
-  await scheduleFromDialog(page, { date: limaDate(2), time: "11:00", location: "Sala 3", interviewers: "Rosa Díaz" });
+  await scheduleFromDialog(page, { date: limaDate(2), time: "11:00", location: "https://meet.ejemplo.test/sala-3", interviewers: "Rosa Díaz" });
   const second = page.locator("#entrevistas").getByTestId("interview-item").filter({ hasText: "Rosa Díaz" });
   await second.getByRole("button", { name: "Reprogramar" }).click();
   const rescheduleDialog = page.getByRole("dialog", { name: "Reprogramar entrevista" });

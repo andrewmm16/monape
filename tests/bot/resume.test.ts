@@ -9,7 +9,7 @@ import { ERROR_CODES, PortalError } from "../../bot/src/errors";
 import { startFakePortal, type FakePortal } from "../../bot/src/fake-portal/server";
 import { FileIncidentStore } from "../../bot/src/incidents";
 import { BotControl } from "../../bot/src/notify/control";
-import { allStopped, createResumeSchedule, isResumable, resumeDue, runResumeChecks, runRound, type AdapterSlot } from "../../bot/src/round";
+import { allStopped, createResumeSchedule, isResumable, isWaitingHuman, resumeDue, runResumeChecks, runRound, type AdapterSlot } from "../../bot/src/round";
 import { createHealthSchedule } from "../../bot/src/runner";
 import { MemorySeenStore } from "../../bot/src/seen";
 import type { PortalAdapter } from "../../bot/src/types";
@@ -229,18 +229,19 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     }
   });
 
-  for (const code of [ERROR_CODES.sessionExpired, ERROR_CODES.verificationRequired, ERROR_CODES.browserClosed]) {
-    it(`NO se reanuda si el motivo es ${code}: exige a una persona y el robot termina`, async () => {
+  for (const code of [ERROR_CODES.sessionExpired, ERROR_CODES.verificationRequired]) {
+    it(`espera a una persona (relevo) si el motivo es ${code}: no se reanuda solo, pero el robot no termina`, async () => {
       const time = clock();
       const { slot, calls, state } = stubSlot(time);
       state.failWith = code;
       const round = await runRound([slot], () => {});
       expect(round.newlyHalted).toEqual([{ slug: "linkedin", reason: code }]);
       expect(isResumable(slot)).toBe(false);
-      expect(round.allHalted).toBe(true);
+      expect(isWaitingHuman(slot)).toBe(true);
+      expect(round.allHalted).toBe(false); // sigue vivo, esperando «listo»
       expect(slot.resume!.lastCheckAt).toBeNull(); // ni siquiera se programó
 
-      state.failWith = null; // aunque el portal "arreglado" pase la prueba, no se comprueba
+      state.failWith = null; // aunque el portal "arreglado" pase la prueba, no se comprueba solo
       const checks = calls.healthCheck;
       time.advance(60 * MIN);
       expect(resumeDue([slot])).toBe(false);
@@ -249,6 +250,26 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
       expect(slot.halted).toBe(true);
     });
   }
+
+  it("NO se reanuda si el navegador se cerró (navegador_cerrado): exige reiniciar y el robot termina", async () => {
+    const time = clock();
+    const { slot, calls, state } = stubSlot(time);
+    state.failWith = ERROR_CODES.browserClosed;
+    const round = await runRound([slot], () => {});
+    expect(round.newlyHalted).toEqual([{ slug: "linkedin", reason: ERROR_CODES.browserClosed }]);
+    expect(isResumable(slot)).toBe(false);
+    expect(isWaitingHuman(slot)).toBe(false); // no hay ventana que mantener: no es relevo
+    expect(round.allHalted).toBe(true);
+    expect(slot.resume!.lastCheckAt).toBeNull();
+
+    state.failWith = null;
+    const checks = calls.healthCheck;
+    time.advance(60 * MIN);
+    expect(resumeDue([slot])).toBe(false);
+    expect(await runResumeChecks([slot], () => {})).toEqual({ resumed: [], escalated: [] });
+    expect(calls.healthCheck).toBe(checks);
+    expect(slot.halted).toBe(true);
+  });
 
   it("sin BOT_RESUME_CHECK_MINUTES (0) se conserva el comportamiento anterior: pagina_cambio termina el robot", async () => {
     const time = clock();
@@ -262,7 +283,7 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     expect(calls.healthCheck).toBe(checks);
   });
 
-  it("si al comprobar aparece un motivo que exige a una persona, deja de ser reanudable y el robot puede terminar", async () => {
+  it("si al comprobar aparece una verificación (sesión vencida), deja de ser reanudable y queda esperando «listo»", async () => {
     const time = clock();
     const { slot, state } = stubSlot(time);
     await runRound([slot], () => {});
@@ -271,10 +292,11 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     time.advance(5 * MIN);
     expect(await runResumeChecks([slot], () => {})).toEqual({ resumed: [], escalated: [{ slug: "linkedin", reason: ERROR_CODES.sessionExpired }] });
     expect(slot.haltReason).toBe(ERROR_CODES.sessionExpired);
-    expect(allStopped([slot])).toBe(true);
+    expect(isWaitingHuman(slot)).toBe(true);
+    expect(allStopped([slot])).toBe(false); // ahora espera a una persona; el robot no termina
   });
 
-  it("con varios portales el robot no termina mientras alguno pueda reanudarse, y solo cuando todos exijan a una persona", async () => {
+  it("con varios portales el robot no termina mientras alguno pueda reanudarse o esté esperando una verificación", async () => {
     const time = clock();
     const a = stubSlot(time, { slug: "linkedin" });
     const b = stubSlot(time, { slug: "bumeran" });
@@ -289,7 +311,9 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     a.state.failWith = ERROR_CODES.sessionExpired;
     time.advance(5 * MIN);
     await runResumeChecks(slots, () => {});
-    expect(allStopped(slots)).toBe(true);
+    // Ahora los tres esperan una verificación humana: el robot sigue vivo (no termina).
+    expect(slots.every(isWaitingHuman)).toBe(true);
+    expect(allStopped(slots)).toBe(false);
   });
 
   it("el estado del robot (orden «estado») muestra los portales detenidos y las reanudaciones", () => {
@@ -298,7 +322,7 @@ describe("reanudación automática (portal detenido por pagina_cambio)", () => {
     control.setHalted("indeed", ERROR_CODES.sessionExpired);
     control.autoResumes = 2;
     const text = control.handle("estado");
-    expect(text).toContain("Portales detenidos: linkedin (pagina_cambio, se comprueba solo), indeed (sesion_expirada).");
+    expect(text).toContain("Portales detenidos: linkedin (pagina_cambio, se comprueba solo), indeed (sesion_expirada, esperando «listo»).");
     expect(text).toContain("Reanudaciones automáticas: 2.");
     control.setHalted("linkedin", null);
     expect(control.handle("estado")).not.toContain("linkedin");

@@ -53,7 +53,6 @@ export interface Site {
     status: string;
     close: string;
     error: string;
-    captcha: string;
     home: string;
     view: string;
     next: string;
@@ -184,7 +183,6 @@ const linkedin: Site = {
     status: 'id="li-estado"',
     close: 'id="li-cerrar"',
     error: 'id="li-error" role="alert"',
-    captcha: 'id="challenge-dialog"',
     home: 'id="li-lista-empleos"',
     view: 'class="li-ver-candidatos"',
     next: 'id="li-siguiente" name="accion" value="siguiente"',
@@ -286,7 +284,6 @@ const bumeran: Site = {
     status: 'class="aviso-estado"',
     close: 'class="btn-baja"',
     error: 'class="alerta-error" role="alert"',
-    captcha: 'class="recaptcha-caja"',
     home: 'class="mis-avisos"',
     view: 'class="ver-postulaciones"',
     next: 'class="btn-continuar" name="accion" value="siguiente"',
@@ -347,7 +344,6 @@ const trabajosDiarios: Site = {
     status: 'id="estado"',
     close: 'id="retirar"',
     error: 'id="error"',
-    captcha: 'id="captcha"',
     home: 'id="mis-empleos"',
     view: 'class="ver-postulantes"',
     next: "",
@@ -414,7 +410,6 @@ const indeed: Site = {
     status: 'data-testid="job-status"',
     close: 'data-testid="cerrar-empleo"',
     error: 'data-testid="error-publicacion" role="alert"',
-    captcha: 'id="cf-challenge"',
     home: 'data-testid="employer-jobs"',
     view: 'data-testid="ver-candidatos"',
     next: 'data-testid="continuar" name="accion" value="siguiente"',
@@ -486,7 +481,6 @@ const computrabajo: Site = {
     status: 'class="estado-oferta"',
     close: 'id="desactivar"',
     error: 'class="msg-error" role="alert"',
-    captcha: 'data-testid="captcha"',
     home: 'class="ofertas-empresa"',
     view: 'class="lnk-candidatos"',
     next: "",

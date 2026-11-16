@@ -81,6 +81,40 @@ export function rankCandidates<T extends RankInput>(candidates: readonly T[]): T
   return [...candidates].sort(compare);
 }
 
+/**
+ * Posición por PUNTUACIÓN dentro de una vacante, para la lista de candidatos.
+ * Es la mitad comparativa de la lectura: el nivel de cumplimiento dice si la
+ * persona cumple el puesto —se calcula con su CV solo y queda guardado en el
+ * expediente— y esto dice cuánto destaca entre los demás, que depende del
+ * grupo y por eso se calcula al mostrar la lista y nunca se guarda.
+ *
+ * NO es el orden de `rankCandidates`, que además mira los «no cumple»
+ * verificados, la evaluación desactualizada, el peso de los obligatorios
+ * acreditados y la entrevista. Ese orden necesita los ítems de cada evaluación
+ * y se reserva para la comparación; aquí solo hay puntuación, así que la
+ * pantalla dice «por puntuación» y no promete el otro criterio.
+ *
+ * Los empates comparten posición y consumen hueco (1.º, 2.º, 2.º, 4.º). Se
+ * ordena dentro de la función, para no depender de que la consulta llegue
+ * ordenada. Las filas sin id o sin puntuación quedan fuera.
+ */
+export function positionsByScore(rows: readonly { id: string | null; score: number | null }[]): Map<string, number> {
+  const valid = rows
+    .filter((row): row is { id: string; score: number } => row.id !== null && row.score !== null)
+    .sort((a, b) => desc(a.score, b.score) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const positions = new Map<string, number>();
+  let position = 0;
+  let previous: number | null = null;
+  valid.forEach((row, index) => {
+    if (row.score !== previous) {
+      position = index + 1;
+      previous = row.score;
+    }
+    positions.set(row.id, position);
+  });
+  return positions;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type CompareIdsResult = { ok: true; ids: string[] } | { ok: false; error: string };

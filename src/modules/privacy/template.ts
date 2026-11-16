@@ -1,6 +1,6 @@
 /**
  * Borrador de aviso de privacidad para candidatos. Copia fiel de la sección
- * «Borrador de aviso de privacidad para candidatos» de docs/privacidad-y-legal.md
+ * «Borrador de aviso de privacidad para candidatos» de docs/legal/privacidad-y-legal.md
  * (sin las marcas de negrita, porque el texto se muestra siempre como texto
  * plano). Conserva los marcadores [PENDIENTES]: el área legal debe completarlos
  * y aprobar el texto antes de activarlo.

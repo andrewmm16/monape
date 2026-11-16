@@ -7,6 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/format";
 import { REQUIREMENT_CATEGORY_LABELS, REQUIREMENT_PRIORITY_LABELS } from "@/lib/labels";
+import {
+  auditRequirements,
+  GRAVEDAD_ETIQUETA,
+  type Gravedad,
+} from "@/modules/evaluation/requirement-audit";
 import { approveCriteria, deleteRequirement } from "@/modules/vacancies/actions";
 import type { Tables } from "@/types/database";
 import { RequirementDialog } from "./requirement-dialog";
@@ -18,6 +23,59 @@ type Props = {
   requirements: Tables<"vacancy_requirements">[];
   canManage: boolean;
 };
+
+/**
+ * Revisión de los criterios antes de evaluar a nadie. No bloquea nada: los
+ * criterios los decide RRHH y puede haber razones para dejarlos como están. Lo
+ * que aporta es decir qué hará el MOTOR con ellos, que es justo lo que no se ve
+ * mientras se escriben.
+ */
+function AuditoriaCriterios({ requirements }: { requirements: Tables<"vacancy_requirements">[] }) {
+  const { hallazgos } = auditRequirements(
+    requirements.map((r) => ({
+      id: r.id,
+      category: r.category,
+      priority: r.priority,
+      description: r.description,
+      keywords: r.keywords,
+      weight: r.weight,
+      minYears: r.min_years,
+      isEssential: r.is_essential,
+    })),
+  );
+  if (hallazgos.length === 0) return null;
+
+  const descripcionDe = new Map(requirements.map((r) => [r.id, r.description]));
+  const tono: Record<Gravedad, string> = {
+    bloquea: "text-warning-foreground",
+    riesgo: "text-warning-foreground",
+    aviso: "text-muted-foreground",
+  };
+
+  return (
+    <div className="mb-4 rounded-md border bg-muted/40 p-3">
+      <p className="flex items-center gap-1.5 text-sm font-medium">
+        <TriangleAlertIcon className="size-4 text-warning-foreground" aria-hidden />
+        Revisión de los criterios ({hallazgos.length})
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Cómo leerá el motor de reglas estos requisitos. Son recomendaciones: no impiden aprobar ni evaluar.
+      </p>
+      <ul className="mt-2 space-y-2">
+        {hallazgos.map((hallazgo, indice) => (
+          <li key={`${hallazgo.requirementId}-${indice}`} className="text-xs">
+            <span className={`font-medium ${tono[hallazgo.gravedad]}`}>{GRAVEDAD_ETIQUETA[hallazgo.gravedad]}</span>
+            {hallazgo.requirementId ? (
+              <span className="text-muted-foreground"> · {descripcionDe.get(hallazgo.requirementId)}</span>
+            ) : null}
+            <p className="mt-0.5 whitespace-normal">{hallazgo.problema}</p>
+            <p className="mt-0.5 whitespace-normal text-muted-foreground">→ {hallazgo.sugerencia}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
   const totalWeight = requirements.reduce((sum, r) => sum + r.weight, 0);
@@ -82,6 +140,8 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
             description="Agregue formación, experiencia, habilidades, herramientas, certificaciones y competencias relevantes para el puesto."
           />
         ) : (
+          <>
+          {canManage ? <AuditoriaCriterios requirements={requirements} /> : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -157,6 +217,7 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
               ))}
             </TableBody>
           </Table>
+          </>
         )}
       </CardContent>
     </Card>

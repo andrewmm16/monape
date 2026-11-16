@@ -53,6 +53,16 @@ describe("cliente de la API del robot", () => {
     });
   });
 
+  it("pide el resumen diario por GET y devuelve la frase redactada", async () => {
+    const linea = "Hoy: 2 vacantes publicadas y 5 postulantes recibidos. ✅ Todos los portales están bien.";
+    const { api, fetchImpl } = client(() => ok({ linea, publishedToday: 2, applicantsToday: 5, needingAttention: 0 }));
+    const resumen = await api.dailySummary();
+    expect(resumen.linea).toBe(linea);
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(url).toBe("https://app.test/api/bot/resumen-diario");
+    expect(init!.method).toBe("GET");
+  });
+
   it("lanza ApiError ante una respuesta que no es 2xx", async () => {
     const { api } = client(() => ok({ error: "no_encontrado" }, 404));
     await expect(api.claim("trabajos-diarios")).rejects.toBeInstanceOf(ApiError);

@@ -14,6 +14,9 @@ export const onlineApplicationSchema = z.object({
   acceptNotice: z.boolean().refine((value) => value, "Debe aceptar el aviso de privacidad para postular"),
   acceptTalentPool: z.boolean(),
   noticeId: z.uuid("Recargue la página e inténtelo nuevamente"),
+  // Respuestas crudas a las preguntas eliminatorias, por id de pregunta. Se
+  // interpretan contra las preguntas de la vacante en killer-answers.ts.
+  killerAnswers: z.record(z.uuid(), z.string().max(200, "Respuesta demasiado larga")).default({}),
 });
 
 export type OnlineApplicationValues = z.output<typeof onlineApplicationSchema>;

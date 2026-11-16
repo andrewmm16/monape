@@ -105,12 +105,9 @@ describe("robot contra el portal falso", () => {
       expect(api.statuses.at(-1)).toEqual({ state: "necesita_persona", reason: ERROR_CODES.pageChanged });
     });
 
-    it("ante un CAPTCHA o sin sesión se detiene sin publicar", async () => {
-      portal.setCaptcha(true);
-      api.queue.push(job());
-      expect(await runCycle(deps)).toEqual({ halted: true, reason: ERROR_CODES.verificationRequired });
-      portal.setCaptcha(false);
+    it("sin sesión se detiene sin publicar", async () => {
       portal.setLoggedIn(false);
+      api.queue.push(job());
       deps.health = createHealthSchedule(24);
       expect(await runCycle(deps)).toEqual({ halted: true, reason: ERROR_CODES.sessionExpired });
       expect(portal.jobs.size).toBe(0);
@@ -123,14 +120,6 @@ describe("robot contra el portal falso", () => {
     const result = await runCycle(deps);
     expect(result).toEqual({ halted: true, reason: ERROR_CODES.sessionExpired });
     expect(portal.jobs.size).toBe(0);
-  });
-
-  it("ante un CAPTCHA se detiene con verificacion_requerida y no intenta resolverlo", async () => {
-    portal.setCaptcha(true);
-    api.queue.push(job());
-    const result = await runCycle(deps);
-    expect(result).toEqual({ halted: true, reason: ERROR_CODES.verificationRequired });
-    expect(api.reports[0]!.body).toEqual({ outcome: "error", errorCode: ERROR_CODES.verificationRequired });
   });
 
   it("si el portal cambia su formulario reporta pagina_cambio", async () => {

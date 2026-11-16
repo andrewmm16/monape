@@ -20,6 +20,11 @@ describe("parseCommand", () => {
     expect(parseCommand("")).toBeNull();
     expect(parseCommand(undefined)).toBeNull();
   });
+
+  it("acepta «listo» (relevo de verificación)", () => {
+    expect(parseCommand("listo")).toBe("listo");
+    expect(parseCommand(" LISTO! ")).toBe("listo");
+  });
 });
 
 describe("BotControl", () => {
@@ -58,7 +63,36 @@ describe("BotControl", () => {
 
   it("«ayuda» lista las órdenes", () => {
     const reply = new BotControl("fake").handle("ayuda");
-    for (const word of ["estado", "pausar", "reanudar", "ahora"]) expect(reply).toContain(word);
+    for (const word of ["estado", "pausar", "reanudar", "ahora", "listo"]) expect(reply).toContain(word);
+  });
+
+  it("«listo» sin verificación pendiente no reanuda nada", () => {
+    const control = new BotControl("fake");
+    expect(control.handle("listo").toLowerCase()).toContain("no hay");
+    expect(control.consumeRelevo()).toBe(false);
+  });
+
+  it("«listo» con una verificación pendiente reanuda ese portal y pide un ciclo", () => {
+    const control = new BotControl("fake");
+    control.setHalted("computrabajo", "verificacion_requerida");
+    const reply = control.handle("listo");
+    expect(reply.toLowerCase()).toContain("reanud");
+    expect(control.consumeRelevo()).toBe(true);
+    expect(control.consumeRelevo()).toBe(false);
+    expect(control.consumeWake()).toBe(true);
+  });
+
+  it("una parada que necesita al técnico (pagina_cambio) no se reanuda con «listo»", () => {
+    const control = new BotControl("fake");
+    control.setHalted("bumeran", "pagina_cambio");
+    expect(control.handle("listo").toLowerCase()).toContain("no hay");
+    expect(control.consumeRelevo()).toBe(false);
+  });
+
+  it("«estado» marca los portales que esperan verificación", () => {
+    const control = new BotControl("fake");
+    control.setHalted("computrabajo", "verificacion_requerida");
+    expect(control.handle("estado").toLowerCase()).toContain("esperando");
   });
 });
 

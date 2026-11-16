@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { ERROR_CODES, PortalError } from "../errors";
-import { AVISO_COOKIES, estricto, registerBook, tolerante } from "../selectors";
+import { AVISO_COOKIES, DESAFIO_SELECTORES, estricto, registerBook, tolerante } from "../selectors";
 import type { ActivePublication, ApplicantSummary, PublishResult, VacancyData } from "../types";
 import { DEMO_COMPANY, DEMO_CONTACT_EMAIL, FakeSiteAdapter, HEALTH_VACANCY, descriptionOf, locationOf } from "./fake-base";
 
@@ -9,7 +9,7 @@ import { DEMO_COMPANY, DEMO_CONTACT_EMAIL, FakeSiteAdapter, HEALTH_VACANCY, desc
  * candidatos; estrictos: «Publicar empleo», «Cerrar empleo» y las marcas de resultado (ver `selectors.ts`).
  */
 export const INDEED_BOOK = registerBook("indeed", {
-  captcha: estricto("Aviso de verificación humana (CAPTCHA)", "#cf-challenge"),
+  ...DESAFIO_SELECTORES,
   aviso_cookies: AVISO_COOKIES,
   campo_titulo: tolerante("Campo del título del empleo", "#input-jobtitle", [{ etiqueta: ["Título del empleo", "Titulo del empleo", "Título", "Cargo", "Puesto"] }, { css: "[name^=jobtitle]" }]),
   campo_empresa: tolerante("Campo del nombre de la empresa", "#input-companyname", [{ etiqueta: ["Nombre de la empresa", "Empresa"] }, { css: "[name^=companyname]" }]),
@@ -48,7 +48,7 @@ export class FakeIndeedAdapter extends FakeSiteAdapter {
 
   private async next(page: Page): Promise<void> {
     await this.clickKey(page, "boton_siguiente");
-    await page.locator(`${this.sel("marca_paso", { n: 2 })}, ${this.sel("captcha")}`).first().waitFor();
+    await page.locator(this.sel("marca_paso", { n: 2 })).first().waitFor();
     await this.guard(page);
   }
 
@@ -88,7 +88,7 @@ export class FakeIndeedAdapter extends FakeSiteAdapter {
       await this.guard(page);
       await this.fillJob(page, vacancy, false);
       await this.clickKey(page, "boton_enviar");
-      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}, ${this.sel("captcha")}`).first().waitFor();
+      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}`).first().waitFor();
       await this.guard(page);
 
       if ((await page.locator(this.sel("resultado_error")).count()) > 0) throw new PortalError(ERROR_CODES.publicationRejected);

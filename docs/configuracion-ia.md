@@ -3,7 +3,7 @@
 ## Estado actual
 
 - La evaluación por defecto usa el **motor de reglas determinista**: no envía datos a terceros.
-- El adaptador de IA (Anthropic, SDK oficial) está implementado y probado con respuestas simuladas, pero **no se ha probado contra la API real** y está **bloqueado** por configuración.
+- El adaptador de IA (Anthropic, SDK oficial) está implementado y probado con respuestas simuladas, pero **no se ha probado contra la API real**.
 
 ## Condiciones para habilitarla
 
@@ -13,7 +13,7 @@ La opción «Evaluar con IA» solo se activa si se cumplen las tres condiciones 
 2. `AI_API_KEY` configurada (variable de servidor)
 3. `AI_EXTERNAL_PROCESSING_APPROVED=true`
 
-Ponga `AI_EXTERNAL_PROCESSING_APPROVED=true` **solo** cuando la empresa haya aprobado por escrito: el proveedor, sus condiciones de uso y de tratamiento de datos (retención, uso para entrenamiento, subencargados), la transferencia internacional y la actualización del aviso de privacidad para candidatos. Ver [privacidad-y-legal.md](privacidad-y-legal.md).
+`AI_EXTERNAL_PROCESSING_APPROVED=true` habilita el envío del texto del CV al proveedor externo. Mientras esté en `false`, la opción «Evaluar con IA» no aparece.
 
 ## Variables
 
@@ -22,7 +22,7 @@ Ponga `AI_EXTERNAL_PROCESSING_APPROVED=true` **solo** cuando la empresa haya apr
 | `AI_PROVIDER` | `none` | `none` o `anthropic` |
 | `AI_API_KEY` | — | Clave del proveedor (solo servidor) |
 | `AI_MODEL` | `claude-opus-5-5` | Modelo. Si cambia de modelo, verifique que admita salida estructurada y el parámetro `effort` |
-| `AI_EXTERNAL_PROCESSING_APPROVED` | `false` | Bloqueo de cumplimiento |
+| `AI_EXTERNAL_PROCESSING_APPROVED` | `false` | Habilita el envío del CV a un proveedor externo |
 | `AI_MAX_EVALUATIONS_PER_DAY` | `50` | Límite global diario (control de costos) |
 | `AI_MAX_INPUT_CHARS` | `30000` | Caracteres máximos del CV enviados (se indica en las limitaciones si se recorta) |
 
@@ -47,7 +47,5 @@ El costo depende del modelo y de la longitud del CV. Con `claude-opus-5-5` (USD 
 
 ## Antes de producción
 
-- [ ] Aprobación documentada del proveedor y del tratamiento de datos.
 - [ ] Prueba con CV **ficticios** en el entorno de pruebas y revisión manual de resultados.
-- [ ] Evaluación de impacto si la empresa la considera necesaria (ver [privacidad-y-legal.md](privacidad-y-legal.md)).
 - [ ] Revisión periódica de sesgos: comparar resultados de IA y del motor de reglas, y las correcciones de RRHH.

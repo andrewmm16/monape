@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   vacancy: { acceptingApplications: true } as { acceptingApplications: boolean } | null,
   noticeId: "2b1c1f8e-6a0b-4f53-9a1c-3c5f0f6f1a10" as string | null,
   rpcThrows: false,
+  killerQuestions: [] as unknown[],
 }));
 
 vi.mock("@/modules/online-apply/config", () => ({
@@ -51,6 +52,7 @@ vi.mock("@/modules/public-jobs/queries", () => ({
     mocks.calls.push("vacancy");
     return mocks.vacancy;
   },
+  listPublicKillerQuestions: async () => mocks.killerQuestions,
 }));
 vi.mock("@/modules/privacy/queries", () => ({
   getCurrentPrivacyNotice: async () => {
@@ -376,12 +378,52 @@ describe("Server Action submitOnlineApplication", () => {
     mocks.vacancy = { acceptingApplications: true };
     mocks.noticeId = NOTICE_ID;
     mocks.rpcThrows = false;
+    mocks.killerQuestions = [];
     mocks.headers = { "x-forwarded-for": "203.0.113.9, 10.0.0.1" };
     mocks.rpcResults = {
       consume_public_rate_limit: { data: true, error: null },
       consume_form_challenge: { data: true, error: null },
       submit_online_application: { data: [{ application_id: "app-1", public_reference: "ABCD2345" }], error: null },
     };
+  });
+
+  describe("preguntas eliminatorias", () => {
+    const Q_SI_NO = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
+    const Q_NUM = "7a2d3e4f-5b6c-4d7e-9f80-1b2c3d4e5f6a";
+    const Q_OPT = "8b3e4f50-6c7d-4e8f-a091-2c3d4e5f6a7b";
+    const questions = [
+      { id: Q_SI_NO, question: "¿Licencia A-II?", type: "si_no", helpText: null, required: true, options: [] },
+      { id: Q_NUM, question: "¿Años de experiencia?", type: "numero", helpText: null, required: false, options: [] },
+      { id: Q_OPT, question: "¿Dónde vive?", type: "opcion_unica", helpText: null, required: true, options: ["Lima", "Callao"] },
+    ];
+
+    it("envía las respuestas al RPC aunque no cumplan (no bloquea la postulación)", async () => {
+      mocks.killerQuestions = questions;
+      const result = await submitOnlineApplication(
+        form({ [`kq_${Q_SI_NO}`]: "no", [`kq_${Q_NUM}`]: "1,5", [`kq_${Q_OPT}`]: "Callao" }),
+      );
+      expect(result).toEqual({ ok: true, reference: "ABCD2345" });
+      expect(lastArgs("submit_online_application")!.p_killer_answers).toEqual([
+        { question_id: Q_SI_NO, answer_boolean: false },
+        { question_id: Q_NUM, answer_number: 1.5 },
+        { question_id: Q_OPT, answer_text: "Callao" },
+      ]);
+    });
+
+    it("exige responder las obligatorias y rechaza opciones inexistentes sin registrar nada", async () => {
+      mocks.killerQuestions = questions;
+      const result = await submitOnlineApplication(form({ [`kq_${Q_OPT}`]: "Marte" }));
+      expect(result).toMatchObject({
+        ok: false,
+        fieldErrors: { [`kq_${Q_SI_NO}`]: expect.any(Array), [`kq_${Q_OPT}`]: expect.any(Array) },
+      });
+      expect(mocks.calls).not.toContain("rpc:submit_online_application");
+    });
+
+    it("sin preguntas envía una lista vacía", async () => {
+      await submitOnlineApplication(form());
+      expect(lastArgs("submit_online_application")!.p_killer_answers).toEqual([]);
+    });
   });
 
   it("ejecuta los pasos en orden y evalúa por reglas después de responder", async () => {
@@ -395,6 +437,7 @@ describe("Server Action submitOnlineApplication", () => {
       "extract",
       "upload",
       "rpc:submit_online_application",
+      "after",
       "after",
     ]);
     expect(mocks.evaluate).not.toHaveBeenCalled();

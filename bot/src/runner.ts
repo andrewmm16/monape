@@ -3,6 +3,7 @@ import { ApiError, ERROR_CODES, HUMAN_REQUIRED, PortalError, errorCodeOf } from 
 import { sanitizeText, type IncidentRecorder, type IncidentStep } from "./incidents";
 import type { PublishJournal } from "./journal";
 import type { SeenStore } from "./seen";
+import { withJitter } from "./schedule";
 import type { ActivePublication, Job, PortalAdapter, ReportBody } from "./types";
 
 /** Solo ids y conteos: nunca nombres, correos ni teléfonos de postulantes. */
@@ -35,6 +36,8 @@ export interface RunnerDeps {
   onHealthCheck?: (ok: boolean, startedAt: number) => Promise<void> | void;
   /** Pausa entre acciones en el portal. */
   pauseMs: number;
+  /** Variación aleatoria de la pausa (fracción 0-1) para no tener un ritmo mecánico. */
+  pauseJitter?: number;
   maxJobs: number;
 }
 
@@ -174,7 +177,7 @@ export async function processQueue(deps: RunnerDeps): Promise<CycleResult> {
       const delivered = await reportOrThrow(deps, job, body);
       deps.journal?.remove(job.publicationId);
       if (delivered === "rechazado") {
-        await sleep(deps.pauseMs);
+        await sleep(withJitter(deps.pauseMs, deps.pauseJitter ?? 0));
         continue;
       }
 
@@ -186,7 +189,7 @@ export async function processQueue(deps: RunnerDeps): Promise<CycleResult> {
         failures = 0;
         deps.log(`${job.action === "retirar" ? "Retirada" : "Publicada"} ${job.publicationId}`);
       }
-      await sleep(deps.pauseMs);
+      await sleep(withJitter(deps.pauseMs, deps.pauseJitter ?? 0));
     }
     return { halted: false };
   } catch (error) {
@@ -273,7 +276,7 @@ async function syncPublication(deps: RunnerDeps, publication: ActivePublication)
         // Es solo una optimización: la app deduplica. No debe contarse como fallo del postulante.
         deps.log(`No se pudo guardar el registro de enviados: ${describe(error)}`);
       }
-      await sleep(deps.pauseMs);
+      await sleep(withJitter(deps.pauseMs, deps.pauseJitter ?? 0));
     }
 
     if (complete) await deps.api.markSynced(publication.publicationId);

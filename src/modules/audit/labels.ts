@@ -220,6 +220,7 @@ function describeNamed(entry: AuditEntry, metadata: Record<string, unknown>, r: 
   if (action === "publicacion_portal_publicada" && v) return `El robot publicó la vacante ${v} en ${portal ?? "un portal"}`;
   if (action === "publicacion_portal_retirada" && v) return `El robot retiró la vacante ${v} de ${portal ?? "un portal"}`;
   if (action === "publicacion_portal_error" && v) return `El robot falló al trabajar la vacante ${v}${portal ? ` en ${portal}` : ""}`;
+  if (action === "reporte_exportado" && v) return `Exportó a CSV el reporte de postulaciones de ${v}`;
   const to = v ? ` a ${v}` : "";
   if (r.candidate) {
     if (action === "cv_descargado") return `Descargó el CV de ${r.candidate}`;
@@ -338,6 +339,7 @@ function describeText(entry: AuditEntry, metadata: Record<string, unknown>): str
   const { action, entity_type: entity } = entry;
 
   if (action === "cv_descargado") return "Descargó un CV";
+  if (action === "reporte_exportado") return "Exportó un reporte de postulaciones a CSV";
   if (action === "delete_requested") return "Pidió eliminar definitivamente a un usuario";
   if (action === "carga_masiva") return "Cargó una postulación en lote";
   if (action === "integracion_postulacion") return "Recibió una postulación por una integración";

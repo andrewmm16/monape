@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { ERROR_CODES, PortalError } from "../errors";
-import { AVISO_COOKIES, estricto, registerBook, tolerante } from "../selectors";
+import { AVISO_COOKIES, DESAFIO_SELECTORES, estricto, registerBook, tolerante } from "../selectors";
 import type { ActivePublication, ApplicantSummary, PublishResult, VacancyData } from "../types";
 import { FakeSiteAdapter, HEALTH_VACANCY, descriptionOf, locationOf } from "./fake-base";
 
@@ -9,7 +9,7 @@ import { FakeSiteAdapter, HEALTH_VACANCY, descriptionOf, locationOf } from "./fa
  * estrictos: «Publicar oferta», «Desactivar oferta» y las marcas de resultado (ver `selectors.ts`).
  */
 export const COMPUTRABAJO_BOOK = registerBook("computrabajo", {
-  captcha: estricto("Aviso de verificación humana (CAPTCHA)", "[data-testid=captcha]"),
+  ...DESAFIO_SELECTORES,
   aviso_cookies: AVISO_COOKIES,
   campo_titulo: tolerante("Campo del nombre de la oferta", "#oferta_titulo", [{ etiqueta: ["Nombre de la oferta", "Título", "Titulo", "Cargo", "Puesto"] }, { css: "[name^=oferta_titulo]" }]),
   campo_categoria: tolerante("Lista de la categoría", "#oferta_categoria", [{ etiqueta: ["Categoría", "Categoria"] }, { css: "[name^=oferta_categoria]" }]),
@@ -70,7 +70,7 @@ export class FakeComputrabajoAdapter extends FakeSiteAdapter {
       await this.guard(page);
       await this.fillOffer(page, vacancy);
       await this.clickKey(page, "boton_enviar");
-      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}, ${this.sel("captcha")}`).first().waitFor();
+      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}`).first().waitFor();
       await this.guard(page);
 
       if ((await page.locator(this.sel("resultado_error")).count()) > 0) throw new PortalError(ERROR_CODES.publicationRejected);

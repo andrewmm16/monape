@@ -75,4 +75,8 @@ export class MemoryApi implements BotApiLike {
     this.sent.push({ publicationId, applicant, resume });
     return this.sendStatus;
   }
+
+  async dailySummary() {
+    return { linea: "sin datos", publishedToday: 0, applicantsToday: 0, needingAttention: 0 };
+  }
 }

@@ -58,7 +58,7 @@ Estado a la Etapa 1, incluidas las correcciones de la revisión independiente de
 | `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS (prod.), sin `X-Powered-By` | `next.config.ts` | E2E |
 | Páginas privadas `Cache-Control: private, no-store, no-transform`: sin caché de datos de candidatos y sin modificaciones de intermediarios (CDN, túneles, proxies) | `src/proxy.ts`, `next.config.ts` | — |
 | Validación de entradas con Zod en el servidor (además del cliente) | `src/modules/*/schemas.ts`, `parseInput` | Unitaria |
-| Errores sin detalles internos; logs sin datos personales | `src/lib/errors.ts`, `src/app/(app)/error.tsx` | Unitaria |
+| Errores sin detalles internos | `src/lib/errors.ts`, `src/app/(app)/error.tsx` | Unitaria |
 | Protección CSRF de Server Actions (comparación de origen de Next.js) | Next.js | — |
 | Búsquedas saneadas para filtros de PostgREST | `src/lib/search.ts` | — |
 
@@ -82,7 +82,7 @@ Estado a la Etapa 1, incluidas las correcciones de la revisión independiente de
 
 | Control | Ubicación | Prueba |
 |---|---|---|
-| Registro automático de altas, cambios y bajas (campos modificados, sin valores personales) | `private.audit_row_change` | PGlite |
+| Registro automático de altas, cambios y bajas (campos modificados) | `private.audit_row_change` | PGlite |
 | Descargas de CV registradas con una función específica que verifica el acceso (no existe una función genérica para escribir en la auditoría) | `log_resume_download`, ruta de descarga | PGlite + unitaria |
 | Auditoría inmutable y visible solo para administración | trigger `audit_logs_immutable`, RLS | PGlite |
 | Historial del proceso: estado anterior/nuevo, responsable, fecha, motivo | `change_application_status`, `application_events` | PGlite |

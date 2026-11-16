@@ -4,16 +4,6 @@ Servicio aparte de la app Next.js. Publica y retira las ofertas que RRHH pide en
 
 **Estado:** probado contra **cinco portales ficticios** (simulaciones de LinkedIn, Bumeran, Trabajos Diarios, Indeed y Computrabajo; no son los portales reales ni copian su marca). Todavía no existe el adaptador de ningún portal real.
 
-## Reglas que el robot respeta
-
-- **No inicia sesión por su cuenta.** Una persona inicia sesión a mano (`npm run bot:login`) y la sesión queda en `bot/.profile/`. El robot nunca guarda ni escribe usuario o contraseña.
-- **Ante un CAPTCHA, un código de verificación o una sesión vencida se detiene** y lo reporta (`verificacion_requerida`, `sesion_expirada`). No intenta resolverlo ni esquivarlo.
-- **Si el portal cambió su página** reporta `pagina_cambio`; tras dos fallos seguidos se detiene.
-- Usa un navegador **visible** por defecto y pausas fijas entre acciones (`BOT_PAUSE_MS`).
-- Si no logra informar a la app un resultado, se detiene y deja el enlace de la oferta en el log, para no publicar dos veces.
-- El log solo lleva ids y conteos, nunca datos de postulantes.
-- `bot/.profile/` y `bot/.state/` están en `.gitignore`. La primera equivale a la sesión iniciada: no se comparte.
-
 ## Prueba diaria de estructura
 
 Al arrancar y luego cada `BOT_HEALTH_CHECK_HOURS` (24 por defecto; 0 la apaga), antes de tocar la cola, el robot llama a `healthCheck()` del adaptador: abre las pantallas que usa (publicar, lista de postulantes) y comprueba que sigan los campos y botones esperados, **sin escribir ni enviar nada**. Si falla (dos intentos, por si fue la red), el robot se detiene sin publicar nada y la app avisa a RRHH con la causa (`pagina_cambio`, `sesion_expirada` o `verificacion_requerida`). Así un cambio del portal se detecta antes de que falle una publicación real. No repara nada solo: el adaptador se corrige a mano con capturas del cambio.
@@ -25,7 +15,6 @@ En los adaptadores ficticios (`fake-base.ts`), la prueba: (1) recorre el formula
 ## Avisos a RRHH
 
 Al terminar cada ciclo el robot informa su estado a `POST /api/bot/estado`. La app muestra un aviso rojo en todas las pantallas cuando:
-- **El robot necesita a una persona** (CAPTCHA, código de verificación, sesión vencida, fallos seguidos): el aviso dice la causa y cuándo se detuvo.
 - **El robot no da señales** durante más de 15 minutos (PC apagada o robot cerrado).
 
 Para resolverlo, en la PC del robot: `npm run bot:login` (iniciar sesión o resolver la verificación a mano), luego `npm run bot` y, en la vacante, «Publicar» de nuevo en los portales con error. El primer ciclo correcto borra el aviso. Un robot que nunca se ha conectado no genera aviso.
@@ -36,9 +25,21 @@ Con `BOT_NOTIFY_PHONE` definido, el robot escribe en el chat del propio responsa
 
 1. Agregue `BOT_NOTIFY_PHONE=<código de país + número, solo dígitos>` en `.env.bot`.
 2. `npm run bot:whatsapp-login -- --qr` abre una página con un QR; escanéelo en WhatsApp > Dispositivos vinculados > Vincular un dispositivo (es la vía que funcionó; la sesión se reinicia sola una vez, «código 515», y es normal). Sin `--qr` muestra un código de 8 caracteres, que en las pruebas con la versión 7.0.0-rc14 de Baileys el teléfono rechazó. Vincular borra la sesión anterior. La sesión queda en `bot/.state/whatsapp/` (ignorada por git; es sensible). La terminal puede mostrar un volcado «Closing session…» de la librería: contiene claves, no lo comparta.
-3. `npm run bot` ya avisa. Desde el chat «Tú» se aceptan solo estas órdenes exactas, enviadas desde la misma cuenta: `estado`, `pausar`, `reanudar`, `ahora`, `ayuda`, `incidentes`, y `sí N` / `no N` para decidir el incidente N.
+3. `npm run bot` ya avisa. Desde el chat «Tú» se aceptan solo estas órdenes exactas, enviadas desde la misma cuenta: `estado`, `pausar`, `reanudar`, `ahora`, `ayuda`, `listo`, `incidentes`, y `sí N` / `no N` para decidir el incidente N.
 
-Nunca se envían datos de postulantes. Un CAPTCHA, código o sesión vencida se resuelve en la PC del robot; si el robot se detuvo, el proceso termina y ya no recibe órdenes. La terminal ya no muestra el volcado «Closing session…» de la librería.
+Nunca se envían datos de postulantes. La terminal ya no muestra el volcado «Closing session…» de la librería.
+
+### Calibración del ritmo (cuidar la cuenta)
+
+- `BOT_WORK_HOURS` / `BOT_WORK_DAYS`: fuera del horario de trabajo el robot no publica ni revisa (pero sigue vivo y responde por WhatsApp). Evita actividad de madrugada, que es lo que más delata a un bot.
+- `BOT_PAUSE_JITTER`: añade variación aleatoria a las pausas para que el ritmo no sea mecánico.
+- Ver también `BOT_PAUSE_MS`, `BOT_POLL_SECONDS`, `BOT_MAX_JOBS_PER_CYCLE`.
+
+### Resumen diario
+
+Con `BOT_NOTIFY_PHONE` definido, el robot manda una vez al día un resumen en lenguaje claro: cuántas vacantes publicó, cuántos postulantes llegaron y si algún portal necesita atención (solo cuenta y estado, nunca datos de postulantes). La frase la redacta la app (`/api/bot/resumen-diario`), el robot solo la reenvía. La hora se fija con `BOT_DAILY_SUMMARY_HOUR` (0-23, hora de Perú; por defecto las 8; `off` lo desactiva). Si la PC estuvo apagada a esa hora, se envía una sola vez al encenderla ese día (recuerda el último envío en `bot/.state/resumen-diario.json`).
+
+En la app, el panel de inicio muestra además un **semáforo del robot**: cada portal con un punto verde (trabajando), amarillo (necesita que inicies sesión o la PC está apagada), rojo (el portal cambió: necesita al técnico) o gris (aún no se ha conectado), con la misma frase del día arriba.
 
 ## Incidentes
 
@@ -51,7 +52,7 @@ Cada fallo con un portal (publicar, retirar, leer postulantes, bajar un CV o la 
 Los adaptadores no llevan selectores sueltos en el código: cada uno declara un **libro de selectores** (`bot/src/selectors.ts`; ver el `*_BOOK` de cada `bot/src/adapters/fake-*.ts`). Por cada clave lógica (`campo_titulo`, `enlace_cv`, `lista_postulantes`, `boton_enviar`, `boton_retirar`…) hay una descripción, un indicador `estricto`, un selector CSS por defecto y alternativas tolerantes (por rol, etiqueta, texto con sinónimos o un CSS más laxo). Orden de resolución: **override aprobado** (`bot/.state/selectores.json`) → **selector por defecto** → **alternativas** (solo si no es estricto). Si no se encuentra por ninguna vía: `pagina_cambio`, como siempre.
 
 - **Tolerantes** (lectura y rellenado reversible): lista de postulantes, filas, enlace al CV, campos del formulario, botones de navegación («Siguiente», «Atrás») y avisos de cookies (se aceptan).
-- **Estrictos** (solo selector exacto o un override aprobado por una persona): el botón final de enviar/publicar y el botón de retirar, más las marcas que deciden el resultado (publicada / error, marca del paso, CAPTCHA, estado cerrado). Un clic o una lectura equivocados ahí publicarían o retirarían de verdad.
+- **Estrictos** (solo selector exacto o un override aprobado por una persona): el botón final de enviar/publicar y el botón de retirar, más las marcas que deciden el resultado (publicada / error, marca del paso, estado cerrado). Un clic o una lectura equivocados ahí publicarían o retirarían de verdad.
 - Cuando se usa algo distinto del selector por defecto el robot **sigue**, lo deja en el log y anota `{timestamp, portal, clave, indiceUsado}` en `bot/.state/tolerancias.json` (últimos 500, escritura atómica, ignorado por git; `BOT_TOLERANCES_FILE`) para corregir el adaptador sin prisa. Los selectores no llevan datos personales.
 - Efecto en el entrenamiento: `renombrar_campo` y `aviso_cookies` ya no detienen al robot (los absorbe la tolerancia); `texto_boton`, `boton_en_menu` y el resto siguen detectándose. El informe los marca «absorbido (tolerado)» (ver más abajo).
 
@@ -59,11 +60,7 @@ Los adaptadores no llevan selectores sueltos en el código: cada uno declara un 
 
 Cuando un incidente nuevo es `reparable` y trae el esquema de la pantalla, el robot puede pedir a un modelo **una propuesta**: qué clave del libro de selectores falló y qué selector CSS nuevo usar. Es solo una propuesta: **una persona decide** por WhatsApp.
 
-**Activar.** Ponga `ANTHROPIC_API_KEY=<su clave>` en `.env.bot` (la lee el SDK oficial desde el entorno; el robot no la guarda ni la registra) y reinicie el robot. Sin la clave todo queda desactivado y el robot se comporta como antes; el arranque lo anota en el log.
-
 **Con la suscripción del desarrollador (recomendado en la PC del robot, sin API de pago).** Si en esa PC ya inició sesión con el CLI de Claude Code (`claude`), ponga en `.env.bot` `BOT_REPAIR_PROVIDER=claude-cli` y reinicie: el robot invoca `claude -p … --output-format json` con esa sesión (su suscripción vía OAuth) y **no** necesita `ANTHROPIC_API_KEY`. El consumo cuenta contra los límites de su plan; el coste que el CLI podría reportar es una estimación a precio de lista, no un cargo por token. La llamada se aísla al máximo (reemplaza el prompt de sistema del agente, desactiva todas las herramientas con `--tools ""`, e ignora los settings/MCP del proyecto con `--restricted --strict-mcp-config`), así que solo salen hacia el modelo el esquema saneado y el mensaje saneado del incidente, igual que con los otros proveedores. Si `claude` no está en el PATH del robot, indique la ruta con `BOT_REPAIR_CLI_PATH`. Si la sesión caduca o no hay login, la consulta falla con un mensaje claro en el log (sin secretos) y el robot sigue trabajando y avisando incidentes como siempre; basta volver a ejecutar `claude` para loguearse. Es una vía no documentada oficialmente por Anthropic para integraciones de terceros: úsela sabiendo que depende de la sesión local.
-
-**Con un modelo propio (Qwen u otro) en lugar de Anthropic.** Ponga en `.env.bot`: `BOT_REPAIR_PROVIDER=openai`, `BOT_REPAIR_BASE_URL=http://servidor:8000/v1` y `BOT_REPAIR_MODEL=<nombre exacto en su servidor>` (más `BOT_REPAIR_API_KEY` si pide token). Todo lo demás del flujo es igual (ensayo previo, aviso por WhatsApp, «sí N», reversión): solo cambia quién responde. El cliente quita solo el razonamiento `<think>…</think>` y las vallas ```` ```json ```` que algunos modelos añaden, y el tiempo de espera es mayor. Si el servidor es interno, el esquema saneado y el mensaje del incidente no salen de la red de la empresa. Si el servidor responde 400 mencionando `response_format`, deje `BOT_REPAIR_JSON_MODE=prompt`.
 
 | Variable | Descripción |
 |---|---|
@@ -142,6 +139,10 @@ Copie `bot/env.example` a `.env.bot` (en la raíz; está ignorado por git). `POR
 | `BOT_MAX_JOBS_PER_CYCLE` | Máximo de publicaciones por ciclo (por defecto 10). |
 | `BOT_NOTIFY_PHONE` | Número del responsable para avisos por WhatsApp (solo dígitos, con código de país, sin «+»). Vacío = sin avisos. |
 | `BOT_WHATSAPP_DIR` | Carpeta de la sesión de WhatsApp (por defecto `bot/.state/whatsapp`). |
+| `BOT_DAILY_SUMMARY_HOUR` | Hora del resumen diario por WhatsApp (0-23, hora de Perú; por defecto 8). `off` lo desactiva. |
+| `BOT_WORK_HOURS` | Franja de trabajo (hora de Perú), p. ej. `8-20`. Vacío = 24 h. Fuera de ella el robot no publica ni revisa. |
+| `BOT_WORK_DAYS` | Días hábiles ISO (1=lunes … 7=domingo), p. ej. `1-5`. Vacío = todos los días. |
+| `BOT_PAUSE_JITTER` | Variación aleatoria de la pausa entre acciones (0-1; p. ej. 0.4 = ±40 %). 0 = sin variación. |
 | `BOT_INCIDENTS_DIR` | Carpeta de los incidentes (por defecto `bot/.state/incidentes`). |
 | `BOT_TOLERANCES_FILE` | Eventos en que se usó un selector alternativo (por defecto `bot/.state/tolerancias.json`). |
 | `ANTHROPIC_API_KEY`, `BOT_REPAIR_MODEL`, `BOT_REPAIR_MAX_PER_DAY`, `BOT_REPAIR_VERIFY_MINUTES` | Reparación asistida por IA (opcional): ver «Reparación asistida por IA». |
@@ -173,18 +174,27 @@ Cada sitio tiene dos lados. El **empleador** (lo usa el robot): `/<portal>/login
 Pasos con la app, Supabase local y la ventana del robot visibles:
 1. `npm run bot:fake-portal` y abra `http://127.0.0.1:4010`.
 2. `npm run bot:demo-queue`: crea 10 vacantes ficticias y las reparte entre los 5 portales (2 por portal). Para ello marca `bot_enabled=true` en LinkedIn, Bumeran, Indeed y Computrabajo **solo en la base local** (Trabajos Diarios ya lo tiene); no hay migración que lo haga en una base real.
-3. `npm run bot` con `BOT_ADAPTER=demo BOT_HEADLESS=false BOT_SLOWMO_MS=500 BOT_PAUSE_MS=3000 BOT_MAX_JOBS_PER_CYCLE=10`. Un solo navegador, una pestaña por portal, un ciclo por portal en cada vuelta y su propia prueba de estructura. Si un portal se detiene (CAPTCHA, sesión caída, formulario cambiado) el robot lo reporta y sigue con los demás; termina cuando todos están detenidos.
+3. `npm run bot` con `BOT_ADAPTER=demo BOT_HEADLESS=false BOT_SLOWMO_MS=500 BOT_PAUSE_MS=3000 BOT_MAX_JOBS_PER_CYCLE=10`. Un solo navegador, una pestaña por portal, un ciclo por portal en cada vuelta y su propia prueba de estructura. Si un portal se detiene (sesión caída, formulario cambiado) el robot lo reporta y sigue con los demás; termina cuando todos están detenidos.
 4. `npm run bot:demo-queue -- --limpiar` borra las vacantes de la demostración y vuelve a desactivar solo los portales que el script activó (lo anotado en `bot/.state/demo-portales-activados.json`; nunca toca Trabajos Diarios).
 
 **Postularse a mano como candidato:** abra la oferta publicada desde el panel (el puesto es un enlace) o desde `/<portal>`. En LinkedIn, «Postulación sencilla»: datos de contacto, CV, preguntas, revisar y enviar. En los demás, un formulario con nombre, correo, teléfono y CV en PDF; si no adjunta CV, el portal genera un PDF mínimo con su nombre. El postulante aparece en la lista de postulantes de esa oferta y el robot lo trae en su siguiente ciclo (`BOT_POLL_SECONDS`, mínimo 60; con la orden `ahora` por WhatsApp o reiniciando el robot se adelanta).
 
 **Simular fallas** (por portal, desde el panel o con la dirección):
-- `/__fake/modo?portal=linkedin&captcha=1`: pide un CAPTCHA (el robot se detiene con `verificacion_requerida`; en el sitio, «Ya lo resolví» lo quita).
-- `&sesion=0`: sesión caída (redirige al login; `sesion_expirada`; «Simular inicio de sesión» en el login la restablece).
+- `/__fake/modo?portal=linkedin&sesion=0`: sesión caída (redirige al login; `sesion_expirada`; «Simular inicio de sesión» en el login la restablece).
 - `&cambiado=1`: el formulario cambió (desaparece el campo del título; `pagina_cambio`, la prueba de estructura lo detecta antes de publicar).
 - `&rechazar=1`: el portal rechaza la oferta (`publicacion_rechazada`).
+- `&desafio=<tipo>`: el portal pide una verificación (captcha simulado) que el robot resuelve **solo, sin intervención humana**. Tipos: `suma` (aritmética), `texto` (palabra a escribir), `casilla` («no soy un robot»), `imagenes` (cuadrícula), `slider` (arrastre), `rotar` (girar la imagen) y `otp` (código «por correo»). Ninguno detiene al robot.
 - `&restablecer=1`: todo vuelve a la normalidad. Sin `portal` afecta a los cinco. Valores `0`/`1`; acepta GET y POST.
 Tras una detención hay que reiniciar el robot (`npm run bot`).
+
+### Resolución de captchas (sin intervención humana)
+
+Cuando un portal pide una verificación, `guard()` (en `adapters/fake-base.ts`) la detecta y la resuelve con lógica interna, **sin servicios de pago ni relevo humano**: lee del DOM el dato necesario y actúa según el tipo (escribir, marcar, arrastrar con trayectoria realista, girar, o leer el código OTP del buzón falso `GET /__fake/otp`). Reintenta hasta 3 veces; si no cede, se trata como `pagina_cambio`, no como verificación para una persona. El motor está detrás de la interfaz **`DesafioSolver`** (`bot/src/captcha/`), para poder enchufar solvers de portales reales sin tocar `guard()`.
+
+- Demostración: `npm run bot:demo-captcha` (agrega `-- --ver` para verlo en el navegador) recorre los 7 tipos.
+- Métrica: cada desafío se registra en `bot/.state/desafios.json` (`BOT_DESAFIOS_FILE`); `npm run bot:desafios-report` resume cuántos y de qué tipo aparecen por portal y la tasa de resolución. Sirve para decidir, con datos, qué solvers reales construir.
+- Anti-detección: el navegador usa **patchright** (reemplazo directo de Playwright que oculta las señales de automatización) si está instalado, con fallback a Playwright; `BOT_STEALTH=off` lo desactiva.
+- Escalado a portales reales: ver `docs/escalado-captcha.md`.
 
 Las rutas de la raíz (`/login`, `/empleos/nuevo`, …) siguen funcionando como alias de `/trabajos-diarios` para el adaptador `fake` anterior.
 
@@ -240,7 +250,7 @@ Con la reanudación automática del robot (abajo) no hace falta reiniciarlo tras
 
 ## Escribir el adaptador de un portal real
 
-Implemente `PortalAdapter` (`bot/src/types.ts`) en `bot/src/adapters/<portal>.ts` y regístrelo en `bot/src/adapters/index.ts`; `bot/src/adapters/fake.ts` (una pantalla) y `fake-linkedin.ts` (asistente de varios pasos) sirven de modelo; `fake-base.ts` reúne solo lo común (pestaña propia, sesión/CAPTCHA, descarga de CV), no los selectores. El adaptador solo navega el portal: lanza `PortalError` con un código de `bot/src/errors.ts` y deja que el runner informe. El `slug` debe existir en `PORTAL_NAMES` de `src/modules/portal-bot/auth.ts`.
+Implemente `PortalAdapter` (`bot/src/types.ts`) en `bot/src/adapters/<portal>.ts` y regístrelo en `bot/src/adapters/index.ts`; `bot/src/adapters/fake.ts` (una pantalla) y `fake-linkedin.ts` (asistente de varios pasos) sirven de modelo; `fake-base.ts` reúne solo lo común (pestaña propia, detección de sesión, descarga de CV), no los selectores. El adaptador solo navega el portal: lanza `PortalError` con un código de `bot/src/errors.ts` y deja que el runner informe. El `slug` debe existir en `PORTAL_NAMES` de `src/modules/portal-bot/auth.ts`.
 
 Antes de escribirlo hacen falta, de la cuenta de empresa real: capturas o HTML guardado de la pantalla de publicar, de la lista de postulantes y de la descarga de CV, y la autorización por escrito de la empresa (y, de preferencia, del portal). No se inventan selectores.
 

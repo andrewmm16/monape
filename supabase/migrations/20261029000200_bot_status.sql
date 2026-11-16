@@ -2,7 +2,7 @@
 -- Estado del robot de portales
 --
 -- El robot avisa en cada ciclo que sigue funcionando y, cuando se detiene
--- porque necesita a una persona (CAPTCHA, código de verificación, sesión
+-- porque necesita a una persona (un código de verificación o la sesión
 -- vencida), lo dice. La app lo muestra a RRHH.
 --
 -- * bot_status: una fila por portal con el último estado informado.

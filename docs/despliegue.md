@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Desarrollo | Local (CLI + Docker) o proyecto `dev` | `npm run dev` | Ficticios (`npm run db:seed`) |
 | Pruebas | Proyecto `staging` | *Preview* | Ficticios |
-| Producción | Proyecto `prod` | *Production* | Reales (tras completar la revisión legal) |
+| Producción | Proyecto `prod` | *Production* | Reales |
 
 Cada entorno tiene sus **propias claves**. Nunca reutilice la clave secreta de producción en otros entornos.
 
@@ -18,7 +18,7 @@ Cada entorno tiene sus **propias claves**. Nunca reutilice la clave secreta de p
    - `SUPABASE_SECRET_KEY` (marcar como *Sensitive*)
    - `APP_URL` (URL pública del entorno), `APP_ENV` (`staging` / `production`)
    - Variables de IA solo si corresponde (ver [configuracion-ia.md](configuracion-ia.md)).
-   - Parte pública y formulario: `PUBLIC_JOBS_ENABLED`, `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME`, `PUBLIC_APPLY_ENABLED` e `INTAKE_HASH_SECRET` (*Sensitive*, 32 caracteres o más). El formulario solo se enciende con el aviso de privacidad aprobado por legal y activado en «Configuración → Privacidad».
+   - Parte pública y formulario: `PUBLIC_JOBS_ENABLED`, `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME`, `PUBLIC_APPLY_ENABLED` e `INTAKE_HASH_SECRET` (*Sensitive*, 32 caracteres o más). El formulario solo se enciende con el aviso de privacidad activado en «Configuración → Privacidad».
    - Talent.com, solo si se activa: ver [configuracion-talent.md](configuracion-talent.md).
 3. Añada `https://<dominio>/auth/confirm` a las *Redirect URLs* de Supabase y ajuste la *Site URL*.
 4. Despliegue y ejecute las comprobaciones de la sección siguiente.
@@ -27,7 +27,6 @@ Cada entorno tiene sus **propias claves**. Nunca reutilice la clave secreta de p
 
 - **Tamaño de carga:** Vercel limita el cuerpo de las funciones a 4,5 MB; por eso el máximo de CV es 4 MB (`next.config.ts`, `file-validation.ts`). Para archivos mayores habría que subir directamente a Storage con URL firmadas de carga (pendiente).
 - **Renderizado dinámico:** todas las páginas se generan por solicitud (CSP con *nonce*). No se cachean datos de candidatos.
-- **Logs:** el código no registra contenido de CV ni datos personales; revise también la retención de logs de Vercel y Supabase.
 - **Región de funciones:** configure la región de Vercel cercana a la del proyecto Supabase.
 - **IP del postulante:** el límite de envíos del formulario público usa el primer valor de `x-forwarded-for`, que Vercel fija con la IP real del cliente.
   - Si se pone otro proxy delante, por ejemplo Cloudflare, todos los postulantes parecerán venir de la misma IP y compartirán el límite. Antes de hacerlo, hay que ajustar `src/modules/online-apply/subject.ts`.

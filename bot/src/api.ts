@@ -13,6 +13,16 @@ export interface BotApiLike {
   /** Avisa a la app que el robot sigue activo o que necesita a una persona. */
   reportStatus(portal: string, state: "activo" | "necesita_persona", reason?: string): Promise<void>;
   sendApplicant(publicationId: string, applicant: ApplicantSummary, resume: ResumeFile): Promise<SendApplicantStatus>;
+  /** Resumen del día (frase ya redactada por la app) para enviarlo por WhatsApp. */
+  dailySummary(): Promise<DailySummary>;
+}
+
+/** Lo que devuelve `/api/bot/resumen-diario`; la `linea` se envía tal cual. */
+export interface DailySummary {
+  linea: string;
+  publishedToday: number;
+  applicantsToday: number;
+  needingAttention: number;
 }
 
 export { ApiError };
@@ -64,6 +74,11 @@ export class BotApi implements BotApiLike {
   async reportStatus(portal: string, state: "activo" | "necesita_persona", reason?: string): Promise<void> {
     const path = "/api/bot/estado";
     await this.ok(path, await this.request(path, { method: "POST", json: { portal, state, reason } }));
+  }
+
+  async dailySummary(): Promise<DailySummary> {
+    const path = "/api/bot/resumen-diario";
+    return this.ok<DailySummary>(path, await this.request(path, { method: "GET" }));
   }
 
   async sendApplicant(publicationId: string, applicant: ApplicantSummary, resume: ResumeFile): Promise<SendApplicantStatus> {

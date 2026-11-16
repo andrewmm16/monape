@@ -2,7 +2,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import {
   EASY_APPLY_STEPS,
-  renderCaptcha,
+  PALABRA_DESAFIO,
+  renderDesafio,
   renderEasyApplyStep,
   renderLanding,
   renderLogin,
@@ -10,7 +11,7 @@ import {
   renderPublicJob,
   type ApplyDraft,
 } from "./candidate";
-import { PORTAL_SLUGS, type FakeApplicant, type FakeJob, type PortalFlags, type PortalSlug } from "./model";
+import { PORTAL_SLUGS, verificarDesafio, type Desafio, type FakeApplicant, type FakeJob, type PortalFlags, type PortalSlug } from "./model";
 import { listIncidentsSync } from "../incidents";
 import { readTolerances } from "../selectors";
 import { buildReport, renderHtml, renderMarkdown, writeFileAtomic, type Informe } from "../training-report";
@@ -34,8 +35,8 @@ export interface FakePortal {
   jobs: Map<string, FakeJob>;
   /** Simula una sesión no iniciada (el portal redirige a su /login). Sin `portal`, en los cinco. */
   setLoggedIn(value: boolean, portal?: PortalSlug): void;
-  /** Simula que el portal pide un CAPTCHA. */
-  setCaptcha(value: boolean, portal?: PortalSlug): void;
+  /** Simula que el portal pide un desafío de verificación (lo resuelve el robot con lógica interna). */
+  setDesafio(value: Desafio | null, portal?: PortalSlug): void;
   /** Simula que el portal cambió su formulario. */
   setChanged(value: boolean, portal?: PortalSlug): void;
   /** Simula que el portal rechaza la oferta. */
@@ -132,7 +133,34 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
   /** Con regeneración periódica se muestra la última; sin ella (sin archivo), cada consulta calcula la actual. */
   const currentReport = (forceNew = false) => (forceNew || !lastReport || !reportTimer ? regenerateReport() : lastReport);
   const jobs = new Map<string, FakeJob>();
-  const freshFlags = (): PortalFlags => ({ loggedIn: true, captcha: false, changed: false, rejecting: false });
+  const freshFlags = (): PortalFlags => ({ loggedIn: true, changed: false, rejecting: false, desafio: null });
+
+  /** Construye un desafío ficticio a partir del valor del parámetro `desafio` de `/__fake/modo`. */
+  const nuevoDesafio = (valor: string): Desafio | null => {
+    const entero = (min: number, span: number) => min + Math.floor(Math.random() * span);
+    switch (valor) {
+      case "slider":
+        return { tipo: "slider", a: 0, b: 0, objetivo: entero(140, 100), tolerancia: 6 };
+      case "texto":
+        return { tipo: "texto", a: 0, b: 0, palabra: PALABRA_DESAFIO };
+      case "casilla":
+        return { tipo: "casilla", a: 0, b: 0 };
+      case "imagenes": {
+        const celdas = Array.from({ length: 9 }, () => Math.random() < 0.35);
+        if (!celdas.includes(true)) celdas[entero(0, 9)] = true; // al menos una correcta
+        return { tipo: "imagenes", a: 0, b: 0, categoria: "★", celdas };
+      }
+      case "rotar":
+        return { tipo: "rotar", a: 0, b: 0, angulo: 0, anguloObjetivo: 90 * entero(1, 3) };
+      case "otp":
+        return { tipo: "otp", a: 0, b: 0, codigo: String(entero(100000, 900000)) };
+      case "1":
+      case "suma":
+        return { tipo: "suma", a: entero(2, 8), b: entero(2, 8) };
+      default:
+        return null;
+    }
+  };
   const flags = Object.fromEntries(PORTAL_SLUGS.map((slug) => [slug, freshFlags()])) as Record<PortalSlug, PortalFlags>;
   const drafts = new Map<string, ApplyDraft>();
   let jobCounter = 0;
@@ -189,10 +217,15 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
         )
         .join("");
       const modo = (query: string, label: string) => `<a href="/__fake/modo?portal=${slug}&${query}&volver=/">${label}</a>`;
-      const state = [f.captcha && "CAPTCHA", !f.loggedIn && "sesión caída", f.changed && "formulario cambiado", f.rejecting && "rechaza ofertas"].filter(Boolean);
+      const state = [
+        !f.loggedIn && "sesión caída",
+        f.desafio && `desafío (${f.desafio.tipo})`,
+        f.changed && "formulario cambiado",
+        f.rejecting && "rechaza ofertas",
+      ].filter(Boolean);
       return `<section class="card" style="--c:${site.accent}"><h2>${esc(site.wordmark)}</h2><p class="small">${esc(site.blurb)}</p>
 <p><a href="/${slug}">Ver el sitio</a><a href="/${slug}${site.path.home}">Panel de empleador</a></p>
-<p class="small sim">Simular: ${modo("captcha=1", "CAPTCHA")}${modo("sesion=0", "sesión caída")}${modo("cambiado=1", "formulario cambiado")}${modo("rechazar=1", "rechazar ofertas")}${modo("restablecer=1", "restablecer")}${state.length ? `<br><strong>Activo: ${state.join(", ")}</strong>` : ""}</p>
+<p class="small sim">Simular: ${modo("sesion=0", "sesión caída")}${modo("desafio=suma", "desafío (suma)")}${modo("desafio=texto", "desafío (texto)")}${modo("desafio=casilla", "desafío (casilla)")}${modo("desafio=imagenes", "desafío (imágenes)")}${modo("desafio=slider", "desafío (slider)")}${modo("desafio=rotar", "desafío (rotar)")}${modo("desafio=otp", "desafío (OTP)")}${modo("cambiado=1", "formulario cambiado")}${modo("rechazar=1", "rechazar ofertas")}${modo("restablecer=1", "restablecer")}${state.length ? `<br><strong>Activo: ${state.join(", ")}</strong>` : ""}</p>
 <table><thead><tr><th>Puesto</th><th>Estado</th><th>Hora</th><th>Postulantes</th></tr></thead><tbody>${rows || '<tr><td colspan="4">El robot aún no ha publicado ofertas aquí.</td></tr>'}</tbody></table></section>`;
     }).join("");
     return `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panel de la demo · portales ficticios</title><meta http-equiv="refresh" content="${REFRESH_SECONDS}"><style>${DASHBOARD_CSS}</style><body><div class="sim-banner">Portal ficticio · simulación para demostración</div><main><h1>Ofertas publicadas por el robot</h1>
@@ -285,7 +318,7 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
     const jsonHeaders = { "content-type": "application/json" };
 
     // ---- Solo para pruebas manuales y la demo: dañar o arreglar un portal.
-    // /__fake/modo?portal=linkedin&cambiado=1&captcha=0&sesion=1&rechazar=0&restablecer=1&volver=/
+    // /__fake/modo?portal=linkedin&cambiado=1&sesion=1&rechazar=0&restablecer=1&volver=/
     if (pathname === "/__fake/modo" && (method === "POST" || method === "GET")) {
       const portal = url.searchParams.get("portal");
       if (portal && !isSlug(portal)) return send(400, JSON.stringify({ error: "portal desconocido" }), jsonHeaders);
@@ -294,15 +327,40 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
         const f = flags[slug];
         if (param("restablecer") === "1") Object.assign(f, freshFlags());
         if (param("cambiado") !== null) f.changed = param("cambiado") === "1";
-        if (param("captcha") !== null) f.captcha = param("captcha") === "1";
         if (param("sesion") !== null) f.loggedIn = param("sesion") === "1";
         if (param("rechazar") !== null) f.rejecting = param("rechazar") === "1";
+        if (param("desafio") !== null) f.desafio = nuevoDesafio(param("desafio") ?? "");
       }
       // «Restablecer» también devuelve la estructura del portal al original y marca el cambio como restablecido.
       if (param("restablecer") === "1") mutator.restore(isSlug(portal) ? portal : undefined);
       const back = param("volver");
       if (back && back.startsWith("/") && !back.startsWith("//")) return redirect(303, back);
       return send(200, JSON.stringify(flags), jsonHeaders);
+    }
+
+    // ---- Verificar el desafío (lo envía el robot tras resolverlo con su lógica interna).
+    if (pathname === "/__fake/desafio" && method === "POST") {
+      const portal = url.searchParams.get("portal");
+      if (!isSlug(portal)) return send(400, JSON.stringify({ error: "portal desconocido" }), jsonHeaders);
+      const { fields } = await readBody(request);
+      const f = flags[portal];
+      const back = url.searchParams.get("volver");
+      const volver = back && back.startsWith("/") && !back.startsWith("//") ? back : `/${portal}`;
+      const desafio = f.desafio;
+      if (desafio) {
+        if (verificarDesafio(desafio, fields)) f.desafio = null;
+        else return send(200, renderDesafio(mutator.siteOf(portal), `/${portal}`, desafio, volver, "Respuesta incorrecta (simulación)."));
+      }
+      return redirect(303, volver);
+    }
+
+    // ---- Buzón falso del código OTP: el robot lo consulta para «leer su correo» y resolver el desafío de OTP.
+    if (pathname === "/__fake/otp" && method === "GET") {
+      const portal = url.searchParams.get("portal");
+      if (!isSlug(portal)) return send(400, JSON.stringify({ error: "portal desconocido" }), jsonHeaders);
+      const desafio = flags[portal].desafio;
+      const codigo = desafio && desafio.tipo === "otp" ? desafio.codigo ?? null : null;
+      return send(200, JSON.stringify({ codigo }), jsonHeaders);
     }
 
     // ---- Informe del entrenamiento (HTML). `?actualizar=1` lo regenera ahora; si no, muestra el último generado.
@@ -404,7 +462,7 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
       return void response.end(Buffer.from(applicant.resume));
     }
 
-    if (f.captcha) return send(200, renderCaptcha(site, base, `${base}${rel}`));
+    if (f.desafio) return send(200, renderDesafio(site, base, f.desafio, `${base}${rel}`));
 
     if (method === "GET" && rel === p.home) return send(200, renderEmployerHome(site, base, jobsOf(site.slug)));
     if (method === "GET" && rel === p.publishForm) return send(200, renderStep(site, base, 1, {}, { changed: f.changed }));
@@ -499,7 +557,8 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
   const { port: actual } = server.address() as AddressInfo;
 
-  const setFlag = (key: keyof PortalFlags) => (value: boolean, portal?: PortalSlug) => {
+  type FlagBooleana = { [K in keyof PortalFlags]: PortalFlags[K] extends boolean ? K : never }[keyof PortalFlags];
+  const setFlag = (key: FlagBooleana) => (value: boolean, portal?: PortalSlug) => {
     for (const slug of targets(portal)) flags[slug][key] = value;
   };
 
@@ -515,7 +574,9 @@ export async function startFakePortal(port = 0, options: FakePortalOptions = {})
     jobs,
     mutator,
     setLoggedIn: setFlag("loggedIn"),
-    setCaptcha: setFlag("captcha"),
+    setDesafio: (value, portal) => {
+      for (const slug of targets(portal)) flags[slug].desafio = value;
+    },
     setChanged: setFlag("changed"),
     setRejecting: setFlag("rejecting"),
     close: () =>

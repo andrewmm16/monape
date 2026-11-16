@@ -10,7 +10,7 @@ import { CompareBar, COMPARE_CHECKBOX_NAME } from "./compare-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatPercent } from "@/lib/format";
 import { APPLICATION_STATUS_LABELS, COMPATIBILITY_LEVEL_LABELS } from "@/lib/labels";
-import { APPLICATIONS_PAGE_SIZE } from "@/modules/applications/queries";
+import { APPLICATIONS_PAGE_SIZE, type ApplicationRanking } from "@/modules/applications/queries";
 import { isDiscardedStatus, statusesOfView, type ApplicationListParams } from "@/modules/applications/schemas";
 import { cn } from "@/lib/utils";
 import { Constants, type Views } from "@/types/database";
@@ -33,6 +33,21 @@ function ReasonLine({ label, items, empty }: { label: string; items: string[] | 
 }
 
 /**
+ * Posición dentro de la vacante. Es la lectura comparativa, separada a
+ * propósito del nivel de cumplimiento que está al lado: una dice si la persona
+ * cumple el puesto y la otra cuánto destaca frente a los demás. No se muestra
+ * en la vista de descartados, donde la posición no significa nada.
+ */
+function RankLine({ position, evaluated }: { position: number | undefined; evaluated: number }) {
+  if (position === undefined || evaluated < 2) return null;
+  return (
+    <div className="text-xs text-muted-foreground tabular-nums">
+      {position}.º por puntuación de {evaluated} en proceso
+    </div>
+  );
+}
+
+/**
  * Lista completa de candidatos de la vacante. No oculta ninguna postulación
  * por su puntuación: el orden por puntuación es solo una opción de vista.
  */
@@ -42,12 +57,17 @@ export function ApplicationsTable({
   total,
   params,
   viewCounts,
+  ranking,
+  killerFlags,
 }: {
   vacancyId: string;
   rows: Views<"application_overview">[];
   total: number;
   params: ApplicationListParams;
   viewCounts: { inProcess: number; discarded: number };
+  ranking: ApplicationRanking;
+  /** Postulaciones con respuestas eliminatorias que no cumplen (solo informativo). */
+  killerFlags?: Map<string, number>;
 }) {
   const anyComparable = rows.some(isComparable);
   const hrefForPage = (page: number) => {
@@ -103,8 +123,8 @@ export function ApplicationsTable({
             </NativeSelectOption>
           ))}
         </NativeSelect>
-        <NativeSelect name="level" defaultValue={params.level} aria-label="Afinidad" className="md:w-52">
-          <NativeSelectOption value="">Toda afinidad</NativeSelectOption>
+        <NativeSelect name="level" defaultValue={params.level} aria-label="Nivel de cumplimiento" className="md:w-52">
+          <NativeSelectOption value="">Todo nivel de cumplimiento</NativeSelectOption>
           {Constants.public.Enums.compatibility_level.map((level) => (
             <NativeSelectOption key={level} value={level}>
               {COMPATIBILITY_LEVEL_LABELS[level]}
@@ -113,7 +133,7 @@ export function ApplicationsTable({
           <NativeSelectOption value="sin_evaluar">Sin evaluar</NativeSelectOption>
         </NativeSelect>
         <NativeSelect name="sort" defaultValue={params.sort} aria-label="Ordenar por" className="md:w-48">
-          <NativeSelectOption value="puntuacion">Mayor afinidad primero</NativeSelectOption>
+          <NativeSelectOption value="puntuacion">Mayor puntuación primero</NativeSelectOption>
           <NativeSelectOption value="fecha">Más recientes</NativeSelectOption>
           <NativeSelectOption value="nombre">Nombre (A-Z)</NativeSelectOption>
         </NativeSelect>
@@ -148,7 +168,7 @@ export function ApplicationsTable({
                   <span className="sr-only">Comparar</span>
                 </TableHead>
                 <TableHead>Candidato</TableHead>
-                <TableHead>Afinidad</TableHead>
+                <TableHead>Cumplimiento y posición</TableHead>
                 <TableHead className="hidden md:table-cell">Por qué</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -176,12 +196,20 @@ export function ApplicationsTable({
                       {row.portal_name ? ` · ${row.portal_name}` : ""}
                     </div>
                     <PossibleDuplicate reasons={row.possible_duplicate_reasons} />
+                    {row.id && killerFlags?.get(row.id) ? (
+                      <div className="mt-0.5 text-xs text-warning-foreground">
+                        {killerFlags.get(row.id) === 1 ? "No cumple la condición indicada" : `No cumple ${killerFlags.get(row.id)} condiciones indicadas`}
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     {row.evaluation_id ? (
                       <>
                         <div className="text-lg font-semibold tabular-nums">{formatPercent(row.score)}</div>
                         <CompatibilityBadge level={row.level} />
+                        {params.vista === "proceso" && row.id ? (
+                          <RankLine position={ranking.positions.get(row.id)} evaluated={ranking.evaluated} />
+                        ) : null}
                         {row.evaluation_outdated ? <div className="mt-1 text-xs text-warning-foreground">Criterios cambiados: vuelva a evaluar</div> : null}
                       </>
                     ) : (

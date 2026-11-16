@@ -13,7 +13,7 @@ const RECENT_LIMIT = 100;
 
 /** Entrevista con la postulación, el candidato y la vacante (para listados). */
 const LIST_SELECT =
-  "id, application_id, scheduled_at, duration_minutes, modality, location, interviewers, instructions, status, result, result_notes, cancel_reason, applications!inner(id, status, vacancy_id, candidates(id, full_name), vacancies(id, title, status))";
+  "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, applications!inner(id, status, vacancy_id, candidates(id, full_name), vacancies(id, title, status))";
 
 export type InterviewRow = Awaited<ReturnType<typeof listAgenda>>["pending"][number];
 
@@ -47,7 +47,7 @@ export async function listApplicationInterviews(supabase: AppSupabaseClient, app
   const { data, error } = await supabase
     .from("interviews")
     .select(
-      "id, application_id, scheduled_at, duration_minutes, modality, location, interviewers, instructions, status, result, result_notes, cancel_reason, result_recorder:profiles!interviews_result_recorded_by_fkey(full_name)",
+      "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, result_recorder:profiles!interviews_result_recorded_by_fkey(full_name)",
     )
     .eq("application_id", applicationId)
     .order("scheduled_at", { ascending: false });

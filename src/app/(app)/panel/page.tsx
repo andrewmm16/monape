@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BellRingIcon } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
+import { BotStatusPanel } from "@/components/app-shell/bot-status-panel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePageUser } from "@/lib/auth/session";
@@ -11,8 +12,12 @@ import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, SYSTEM_ACTOR_LABEL
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InterviewOutcomeBadge, LocationText } from "@/components/interviews/interview-item";
 import { can } from "@/lib/auth/permissions";
+import { getServerEnv } from "@/lib/env";
+import { logServerError } from "@/lib/errors";
 import { dayLabel, formatInterviewDateTime } from "@/modules/interviews/datetime";
 import { listUpcomingInterviews } from "@/modules/interviews/queries";
+import { getBotDailySummary } from "@/modules/portals/daily-summary";
+import { listBotPortalStatuses } from "@/modules/portals/queries";
 import { getDashboardSummary } from "@/modules/dashboard/queries";
 import { listPendingOpinions } from "@/modules/notifications/queries";
 import { Constants } from "@/types/database";
@@ -38,10 +43,23 @@ export default async function DashboardPage() {
   const user = await requirePageUser();
   const supabase = await createSupabaseServerClient();
   const canSeeInterviews = can(user.role, "applications:manage");
-  const [summary, pendingOpinions, upcomingInterviews] = await Promise.all([
+  const botConfigured = Boolean(getServerEnv().PORTAL_BOT_SECRET);
+  const [summary, pendingOpinions, upcomingInterviews, botStatuses, botDaily] = await Promise.all([
     getDashboardSummary(supabase),
     listPendingOpinions(supabase, user.id),
     canSeeInterviews ? listUpcomingInterviews(supabase, { limit: 5, days: 7 }) : Promise.resolve([]),
+    botConfigured
+      ? listBotPortalStatuses(supabase).catch((error: unknown) => {
+          logServerError("panel.bot_status", error);
+          return [];
+        })
+      : Promise.resolve([]),
+    botConfigured
+      ? getBotDailySummary(supabase).catch((error: unknown) => {
+          logServerError("panel.bot_daily", error);
+          return { publishedToday: 0, applicantsToday: 0 };
+        })
+      : Promise.resolve({ publishedToday: 0, applicantsToday: 0 }),
   ]);
 
   const byStatus = Constants.public.Enums.application_status.map((status) => ({
@@ -57,6 +75,8 @@ export default async function DashboardPage() {
         title={`Hola, ${user.fullName.split(" ")[0]}`}
         description="Indicadores calculados con los datos registrados en la plataforma."
       />
+
+      {botConfigured ? <BotStatusPanel statuses={botStatuses} daily={botDaily} /> : null}
 
       {pendingOpinions.length > 0 ? (
         <section

@@ -32,6 +32,17 @@ export type PublicRequirement = {
   priority: Enums<"requirement_priority">;
 };
 
+/** Pregunta eliminatoria tal como la ve el candidato: sin la condición que "cumple". */
+export type PublicKillerQuestion = {
+  id: string;
+  question: string;
+  type: Enums<"killer_question_type">;
+  helpText: string | null;
+  required: boolean;
+  /** Solo en `opcion_unica`. */
+  options: string[];
+};
+
 /** Datos de la empresa y del sitio que usan el JSON-LD y el feed. */
 export type PublicSiteContext = {
   siteUrl: string;

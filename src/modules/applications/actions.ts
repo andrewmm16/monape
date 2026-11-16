@@ -14,16 +14,21 @@ import {
   ResumeTextUnavailableError,
 } from "@/modules/evaluation/service";
 import { reevaluateAfterVerification, type ReevaluationOutcome } from "@/modules/evaluation/reevaluate";
+import { sendEmail } from "@/modules/notifications/email/client";
+import { buildCandidateMessageEmail } from "@/modules/notifications/email/templates/candidate-message";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { applyOcrToResume } from "@/modules/resumes/ocr-apply";
 import { RESUMES_BUCKET } from "@/modules/resumes/storage";
 import { pendingEvaluationsQuery } from "./queries";
+import { scheduleApplicationStatusEmail } from "./status-email";
 import {
+  candidateMessageSchema,
   changeStatusSchema,
   noteSchema,
   removeVerificationSchema,
   reviewSchema,
   verifyRequirementsSchema,
+  type CandidateMessageInput,
   type ChangeStatusInput,
   type ReviewInput,
   type VerificationItemInput,
@@ -49,6 +54,8 @@ export async function changeApplicationStatus(input: ChangeStatusInput): Promise
         p_note: values.note || null,
       });
       if (error) throw toAppError(error);
+      // Aviso opcional (decide RRHH): informa, no cambia nada. Solo estados comunicables.
+      if (values.notifyCandidate) scheduleApplicationStatusEmail(supabase, values.applicationId, values.status);
       revalidateApplication(values.applicationId);
       return null;
     },
@@ -115,6 +122,52 @@ export async function linkCurrentResume(applicationId: string): Promise<ActionRe
       return null;
     },
     "La postulación usará la versión vigente del CV en las próximas evaluaciones.",
+  );
+}
+
+/**
+ * Envía un correo libre a la persona candidata (lo redacta RRHH) y deja
+ * constancia en el historial con SOLO el asunto (no el cuerpo). El contenido no
+ * se guarda en la base de datos: solo se envía. No cambia el estado del proceso.
+ */
+export async function sendCandidateMessage(input: CandidateMessageInput): Promise<ActionResult> {
+  return runAction(
+    "applications.message",
+    async () => {
+      await requirePermission("applications:manage");
+      const values = parseInput(candidateMessageSchema, input);
+      const supabase = await createSupabaseServerClient();
+      const { data, error } = await supabase
+        .from("applications")
+        .select("id, candidates(email)")
+        .eq("id", values.applicationId)
+        .maybeSingle();
+      if (error) throw toAppError(error);
+      const email = data?.candidates?.email?.trim();
+      if (!email) throw new AppError("La persona candidata no tiene un correo registrado.", "conflict");
+
+      const content = buildCandidateMessageEmail(values.subject, values.body);
+      const sent = await sendEmail({
+        to: email,
+        subject: content.subject,
+        html: content.html,
+        text: content.text,
+        tags: [{ name: "type", value: "candidate_message" }],
+      });
+      if (!sent.sent) {
+        throw new AppError("No se pudo enviar el correo. Revise la configuración de correo e inténtelo de nuevo.", "conflict");
+      }
+
+      // Deja constancia en el historial (solo el asunto).
+      const { error: logError } = await supabase.rpc("log_candidate_message", {
+        p_application_id: values.applicationId,
+        p_subject: values.subject,
+      });
+      if (logError) throw toAppError(logError);
+      revalidateApplication(values.applicationId);
+      return null;
+    },
+    "Correo enviado al candidato.",
   );
 }
 

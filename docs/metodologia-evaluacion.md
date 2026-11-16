@@ -102,7 +102,7 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
   6. resultado de la última entrevista;
   7. fecha de postulación.
 
-  Es un orden para revisar primero a los más compatibles, no una decisión: todos los candidatos siguen visibles.
+  Es un orden para revisar primero a los más compatibles.
 - El estado del proceso (nuevo, preseleccionado, no seleccionado…) es una decisión humana separada, con motivo obligatorio para «no seleccionado» y «retirado».
 - **Estado sugerido** (a pedido de RRHH, 23/10/2026). Solo para postulaciones en «Nuevo» o «En revisión», el formulario preselecciona el estado que corresponde al nivel. No guarda nada: la persona revisa el estado, el motivo y la observación, y pulsa «Actualizar estado».
 

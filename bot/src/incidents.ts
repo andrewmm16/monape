@@ -20,7 +20,7 @@ export interface Incident {
   errorCode: string;
   /** Mensaje del error sin correos, teléfonos ni parámetros de enlaces; recortado. */
   message: string;
-  /** Una persona (sesión, CAPTCHA) lo resuelve; no hay nada que reparar en el adaptador. */
+  /** Una persona (sesión, verificación) lo resuelve; no hay nada que reparar en el adaptador. */
   reparable: boolean;
   publicationId?: string;
   /** Esquema de la pantalla (campos y botones, sin valores ni textos de contenido); `null` si el adaptador no lo da. */

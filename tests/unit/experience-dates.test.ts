@@ -95,6 +95,7 @@ describe("formatos de fecha", () => {
     ["Ene 2020 — Mar 2020", 3],
     ["Jan 2020 - Present", 78],
     ["Marzo 2025 a la actualidad", 16],
+    ["03/2024 - a la actualidad", 28],
     ["01/2026 - actual", 6],
     ["Octubre 2025 - la fecha", 9],
     ["Enero 2026 al presente", 6],
@@ -182,6 +183,29 @@ describe("secciones", () => {
   it("sin encabezado de experiencia no hay periodos", () => {
     const cv = ["Juan Ficticio", "Analista con Excel", "01/2020 - 12/2020", "Formación académica", "Excel 2010 - 2015"].join("\n");
     expect(estimateExperienceFromDates(cv, ["Excel"], REF)).toBeNull();
+  });
+
+  it("reconoce un encabezado que el PDF abrió letra por letra", () => {
+    // Forma exacta que devuelve pdf.js con letter-spacing: deja UN espacio
+    // también entre palabras, así que la línea llega como «experiencialaboral».
+    // Sin esto no hay sección de experiencia y no se calculan los años de nadie.
+    const cv = [
+      "Juan Ficticio",
+      "E X P E R I E N C I A   L A B O R A L",
+      "Analista con Excel",
+      "01/2020 - 12/2020",
+      "F O R M A C I Ó N   A C A D É M I C A",
+      "Curso de Excel avanzado",
+      "01/2010 - 12/2015",
+    ].join("\n");
+    expect(months(cv, ["Excel"])).toEqual({ min: 12, max: 12 });
+  });
+
+  it("una palabra sola pegada no se confunde con un encabezado", () => {
+    // «perfilamiento» empieza por «perfil», pero la línea no está espaciada:
+    // la comparación sin espacios no debe alcanzarla y cerrar la sección.
+    const cv = ["Experiencia laboral", "perfilamiento", "Analista con Excel", "01/2020 - 12/2020"].join("\n");
+    expect(months(cv, ["Excel"])).toEqual({ min: 12, max: 12 });
   });
 
   it("solo estudios: sin periodos aunque haya fechas y el término aparezca", () => {

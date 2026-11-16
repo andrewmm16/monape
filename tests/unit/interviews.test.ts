@@ -100,7 +100,7 @@ describe("formato y enlaces", () => {
 });
 
 describe("esquemas", () => {
-  const valid = { date: "2026-10-30", time: "15:00", durationMinutes: "45", modality: "virtual", location: "", interviewers: "", instructions: "" };
+  const valid = { date: "2026-10-30", time: "15:00", durationMinutes: "45", modality: "virtual", location: "https://meet.ejemplo.test/sala", interviewers: "", instructions: "" };
 
   it("valida el formulario de la entrevista", () => {
     expect(interviewFormSchema.safeParse(valid).success).toBe(true);
@@ -109,6 +109,39 @@ describe("esquemas", () => {
     expect(interviewFormSchema.safeParse({ ...valid, date: "2026-02-30" }).success).toBe(false);
     expect(interviewFormSchema.safeParse({ ...valid, modality: "otra" }).success).toBe(false);
     expect(interviewFormSchema.safeParse({ ...valid, location: "x".repeat(501) }).success).toBe(false);
+  });
+
+  it("el lugar depende de la modalidad: presencial y virtual lo exigen, telefónica es opcional", () => {
+    const issue = (values: object) => {
+      const result = interviewFormSchema.safeParse({ ...valid, ...values });
+      return result.success ? null : result.error.issues.find((i) => i.path[0] === "location")?.message;
+    };
+    // Presencial: dirección obligatoria, texto libre.
+    expect(issue({ modality: "presencial", location: "" })).toBe("Indique la dirección de la entrevista");
+    expect(issue({ modality: "presencial", location: "   " })).toBe("Indique la dirección de la entrevista");
+    expect(issue({ modality: "presencial", location: "Av. Larco 345, Miraflores" })).toBeNull();
+    // Virtual: enlace obligatorio y http(s) válido.
+    expect(issue({ modality: "virtual", location: "" })).toBe("Indique el enlace de la reunión");
+    expect(issue({ modality: "virtual", location: "Sala 3" })).toBe("Escriba un enlace válido que empiece con http:// o https://");
+    expect(issue({ modality: "virtual", location: "ftp://ejemplo.test/sala" })).toMatch(/enlace válido/);
+    expect(issue({ modality: "virtual", location: "javascript:alert(1)" })).toMatch(/enlace válido/);
+    expect(issue({ modality: "virtual", location: "https://meet.ejemplo.test/a b" })).toMatch(/enlace válido/);
+    expect(issue({ modality: "virtual", location: "http://meet.ejemplo.test/sala" })).toBeNull();
+    expect(issue({ modality: "virtual", location: "  https://meet.ejemplo.test/sala  " })).toBeNull();
+    // Telefónica: opcional, texto libre.
+    expect(issue({ modality: "telefonica", location: "" })).toBeNull();
+    expect(issue({ modality: "telefonica", location: "Llamar al +51 999 999 999" })).toBeNull();
+    expect(issue({ modality: "telefonica", location: "x".repeat(501) })).toMatch(/Máximo 500/);
+  });
+
+  it("las coordenadas son opcionales, van en pareja y dentro de rango", () => {
+    const presencial = { ...valid, modality: "presencial", location: "Av. Larco 345" };
+    expect(interviewFormSchema.safeParse(presencial).success).toBe(true);
+    expect(interviewFormSchema.safeParse({ ...presencial, locationLat: null, locationLng: null }).success).toBe(true);
+    expect(interviewFormSchema.safeParse({ ...presencial, locationLat: -12.12, locationLng: -77.03 }).success).toBe(true);
+    expect(interviewFormSchema.safeParse({ ...presencial, locationLat: -12.12, locationLng: null }).success).toBe(false);
+    expect(interviewFormSchema.safeParse({ ...presencial, locationLat: 91, locationLng: -77 }).success).toBe(false);
+    expect(interviewFormSchema.safeParse({ ...presencial, locationLat: -12, locationLng: 181 }).success).toBe(false);
   });
 
   it("«No pasó» exige el motivo; «Pasó» y «No asistió», no", () => {

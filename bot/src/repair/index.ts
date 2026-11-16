@@ -34,6 +34,8 @@ export interface RepairOptions {
   now?: () => Date;
   /** Tras aplicar un override: permite adelantar la próxima comprobación del portal. */
   onApplied?: (portal: string) => void;
+  /** Minutos del reintento automático de un portal detenido; para el aviso «sin arreglo». 0 = no se reintenta solo. */
+  resumeMinutes?: number;
 }
 
 export type ApplyResult = { ok: true; propuesta: Propuesta } | { ok: false; motivo: string };
@@ -57,22 +59,30 @@ export const STALE_TRIAL_HOURS = 24;
 
 const oneLine = (text: string, max: number) => sanitizeText(text.replace(/[\r\n]+/g, " "), max);
 
-type Shown = Pick<Propuesta, "incidenteId" | "selector" | "clave" | "confianza" | "razon" | "probada" | "ensayo">;
+type Shown = Pick<Propuesta, "incidenteId" | "portal" | "selector" | "clave" | "confianza" | "razon" | "probada" | "ensayo">;
 
+/** Encabezado común: qué cambió y que SOLO ese portal queda en pausa (los demás siguen). */
+const cambioPrefijo = (portal: string, n: number) => `⚠️ El portal ${portal} cambió (#${n}); pausé ese portal, los demás siguen.`;
+
+/** Aviso ÚNICO cuando hay una propuesta: incluye el contexto del cambio, la pausa y la acción. */
 export function proposalMessage(p: Shown, verifyMinutes = 30): string {
   const n = p.incidenteId;
-  const reason = oneLine(p.razon, 300).replace(/[.\s]+$/, "");
   if (p.probada) {
-    return `Propuesta PROBADA para #${n}: usar «${p.selector}» como ${p.clave}; la prueba de estructura pasó con este cambio. Responda «sí ${n}» para aplicarla o «no ${n}» para rechazarla.`;
+    return `${cambioPrefijo(p.portal, n)} Probé un arreglo: usar «${p.selector}» como ${p.clave}. Responde «sí ${n}» para aplicarlo o «no ${n}» para descartar.`;
   }
-  return `Propuesta SIN PROBAR (la prueba de estructura no cubre este paso) para #${n}: usar «${p.selector}» como ${p.clave} (confianza ${p.confianza}). Motivo: ${reason}. La verificación ocurrirá tras aprobarla: si la comprobación del portal falla dentro de ${verifyMinutes} min, se revierte sola. Responda «sí ${n}» para aplicarla o «no ${n}» para rechazarla.`;
+  const reason = oneLine(p.razon, 200).replace(/[.\s]+$/, "");
+  return `${cambioPrefijo(p.portal, n)} Propongo (sin probar aún) usar «${p.selector}» como ${p.clave} — ${reason}. Con «sí ${n}» lo aplico y verifico (si falla en ${verifyMinutes} min, se revierte solo); «no ${n}» para descartar.`;
 }
 
-export const exhaustedMessage = (incidentId: number, attempts: number) =>
-  `No encontré una solución probada para #${incidentId} tras ${attempts} ${attempts === 1 ? "intento" : "intentos"}; hace falta revisar el adaptador.`;
+/** Aviso ÚNICO cuando el portal cambió pero no hubo arreglo automático (el modelo no pudo, tope diario o cambio estructural). */
+export function sinArregloMessage(incidentId: number, portal: string, resumeMinutes = 0): string {
+  const base = `${cambioPrefijo(portal, incidentId)} No encontré un arreglo automático — hay que revisar el adaptador.`;
+  return resumeMinutes > 0 ? `${base} Lo reintento solo cada ${resumeMinutes} min por si el portal vuelve.` : base;
+}
 
 export function createRepairService(options: RepairOptions): RepairService {
   const { complete, model, maxPerDay, verifyMinutes, maxAttempts, store, log, rehearse } = options;
+  const resumeMinutes = options.resumeMinutes ?? 0;
   const now = options.now ?? (() => new Date());
   const notify = async (text: string) => {
     try {
@@ -137,7 +147,11 @@ export function createRepairService(options: RepairOptions): RepairService {
         retry = { attempt: attempt + 1, maxAttempts, clave: valid.clave, selector: valid.selector, mensaje: trial.mensaje, estructura: trial.estructura };
       }
 
-      if (!last || !lastTrial) return; // el modelo no llegó a proponer nada utilizable: solo log
+      if (!last || !lastTrial) {
+        // El modelo no llegó a proponer nada utilizable (declinó, tope o inválida): un único aviso «sin arreglo».
+        await notify(sinArregloMessage(incident.id, incident.portal, resumeMinutes));
+        return;
+      }
       const passed = lastTrial.resultado !== "fallo";
       const propuesta: Propuesta = {
         ...last,
@@ -151,7 +165,7 @@ export function createRepairService(options: RepairOptions): RepairService {
       };
       await store.save(propuesta);
       log(`Reparación asistida: propuesta guardada para el incidente #${incident.id} (${propuesta.portal}/${propuesta.clave}, ${propuesta.probada ? "probada" : passed ? "sin probar" : "NO probada"}, ${attempts} intento(s)).`);
-      await notify(passed ? proposalMessage(propuesta, verifyMinutes) : exhaustedMessage(incident.id, attempts));
+      await notify(passed ? proposalMessage(propuesta, verifyMinutes) : sinArregloMessage(incident.id, incident.portal, resumeMinutes));
     } catch (error) {
       log(`Reparación asistida: falló la consulta del incidente #${incident.id}: ${oneLine(String(error instanceof Error ? error.message : error), 200)}`);
     }
@@ -231,7 +245,7 @@ export function createRepairService(options: RepairOptions): RepairService {
           const done = await store.update(candidate.incidenteId, (p) => (p.estado === "aplicada" && !p.verificadaEn ? { verificadaEn: now().toISOString() } : null));
           if (done?.verificadaEn) {
             log(`Reparación asistida: el incidente #${done.incidenteId} quedó verificado (${done.portal}/${done.clave}).`);
-            await notify(`Reparación aplicada y verificada: «${done.selector}» como ${done.clave} en ${done.portal} (incidente #${done.incidenteId}). La prueba de estructura pasó con el selector nuevo.`);
+            await notify(`✅ Aplicado y verificado en ${done.portal} (#${done.incidenteId}): «${done.selector}» como ${done.clave}. El portal volvió a la normalidad.`);
           }
         } else if (within) {
           const reverted = await store.update(candidate.incidenteId, (p) => {
@@ -262,7 +276,7 @@ export function createRepairService(options: RepairOptions): RepairService {
  * servidor); si no, `null` y el robot se comporta exactamente como antes. `complete` se inyecta en las pruebas.
  */
 export function createRepairFromConfig(
-  config: Pick<BotConfig, "repairEnabled" | "repairProvider" | "repairBaseUrl" | "repairCliPath" | "repairJsonMode" | "repairTimeoutSeconds" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts" | "proposalsDir">,
+  config: Pick<BotConfig, "repairEnabled" | "repairProvider" | "repairBaseUrl" | "repairCliPath" | "repairJsonMode" | "repairTimeoutSeconds" | "repairModel" | "repairMaxPerDay" | "repairVerifyMinutes" | "repairMaxAttempts" | "proposalsDir" | "resumeCheckMinutes">,
   deps: Pick<RepairOptions, "notify" | "log" | "onApplied" | "now" | "rehearse"> & { complete?: Complete },
 ): RepairService | null {
   if (!config.repairEnabled) return null;
@@ -278,5 +292,6 @@ export function createRepairFromConfig(
     log: deps.log,
     onApplied: deps.onApplied,
     now: deps.now,
+    resumeMinutes: config.resumeCheckMinutes,
   });
 }

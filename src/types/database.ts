@@ -60,6 +60,54 @@ export type Database = {
           },
         ]
       }
+      application_killer_answers: {
+        Row: {
+          answer_boolean: boolean | null
+          answer_number: number | null
+          answer_text: string | null
+          application_id: string
+          created_at: string
+          id: string
+          meets: boolean
+          question_id: string
+        }
+        Insert: {
+          answer_boolean?: boolean | null
+          answer_number?: number | null
+          answer_text?: string | null
+          application_id: string
+          created_at?: string
+          id?: string
+          meets: boolean
+          question_id: string
+        }
+        Update: {
+          answer_boolean?: boolean | null
+          answer_number?: number | null
+          answer_text?: string | null
+          application_id?: string
+          created_at?: string
+          id?: string
+          meets?: boolean
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_killer_answers_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_killer_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_killer_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           applied_at: string
@@ -238,6 +286,121 @@ export type Database = {
             columns: ["portal_id"]
             isOneToOne: true
             referencedRelation: "job_portals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caleta_prospects: {
+        Row: {
+          candidate_id: string | null
+          contact_channel: Database["public"]["Enums"]["caleta_contact_channel"] | null
+          contacted_at: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          email_normalized: string | null
+          field_origins: Json
+          full_name: string
+          headline: string | null
+          id: string
+          linkedin_url: string | null
+          location: string | null
+          name_normalized: string | null
+          notes: string | null
+          outreach_message: string | null
+          phone: string | null
+          phone_normalized: string | null
+          profile_text: string | null
+          score: number | null
+          score_detail: Json | null
+          scored_at: string | null
+          scoring_version: string | null
+          source: Database["public"]["Enums"]["caleta_source"]
+          source_detail: string | null
+          status: Database["public"]["Enums"]["caleta_status"]
+          updated_at: string
+          vacancy_id: string
+        }
+        Insert: {
+          candidate_id?: string | null
+          contact_channel?: Database["public"]["Enums"]["caleta_contact_channel"] | null
+          contacted_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          email_normalized?: never
+          field_origins?: Json
+          full_name: string
+          headline?: string | null
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          name_normalized?: never
+          notes?: string | null
+          outreach_message?: string | null
+          phone?: string | null
+          phone_normalized?: never
+          profile_text?: string | null
+          score?: number | null
+          score_detail?: Json | null
+          scored_at?: string | null
+          scoring_version?: string | null
+          source?: Database["public"]["Enums"]["caleta_source"]
+          source_detail?: string | null
+          status?: Database["public"]["Enums"]["caleta_status"]
+          updated_at?: string
+          vacancy_id: string
+        }
+        Update: {
+          candidate_id?: string | null
+          contact_channel?: Database["public"]["Enums"]["caleta_contact_channel"] | null
+          contacted_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          email_normalized?: never
+          field_origins?: Json
+          full_name?: string
+          headline?: string | null
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          name_normalized?: never
+          notes?: string | null
+          outreach_message?: string | null
+          phone?: string | null
+          phone_normalized?: never
+          profile_text?: string | null
+          score?: number | null
+          score_detail?: Json | null
+          scored_at?: string | null
+          scoring_version?: string | null
+          source?: Database["public"]["Enums"]["caleta_source"]
+          source_detail?: string | null
+          status?: Database["public"]["Enums"]["caleta_status"]
+          updated_at?: string
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caleta_prospects_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caleta_prospects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caleta_prospects_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
             referencedColumns: ["id"]
           },
         ]
@@ -654,6 +817,38 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body: string
+          key: string
+          subject: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body: string
+          key: string
+          subject: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          key?: string
+          subject?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intake_batch_items: {
         Row: {
           application_id: string | null
@@ -875,6 +1070,8 @@ export type Database = {
           instructions: string | null
           interviewers: string | null
           location: string | null
+          location_lat: number | null
+          location_lng: number | null
           modality: Database["public"]["Enums"]["interview_modality"]
           result: Database["public"]["Enums"]["interview_result"] | null
           result_notes: string | null
@@ -894,6 +1091,8 @@ export type Database = {
           instructions?: string | null
           interviewers?: string | null
           location?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
           modality: Database["public"]["Enums"]["interview_modality"]
           result?: Database["public"]["Enums"]["interview_result"] | null
           result_notes?: string | null
@@ -913,6 +1112,8 @@ export type Database = {
           instructions?: string | null
           interviewers?: string | null
           location?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
           modality?: Database["public"]["Enums"]["interview_modality"]
           result?: Database["public"]["Enums"]["interview_result"] | null
           result_notes?: string | null
@@ -1515,6 +1716,75 @@ export type Database = {
           },
         ]
       }
+      vacancy_killer_questions: {
+        Row: {
+          accepted_options: string[] | null
+          comparator: Database["public"]["Enums"]["killer_number_comparator"] | null
+          created_at: string
+          expected_boolean: boolean | null
+          help_text: string | null
+          id: string
+          is_required: boolean
+          options: string[] | null
+          position: number
+          question: string
+          question_type: Database["public"]["Enums"]["killer_question_type"]
+          requirement_id: string | null
+          threshold: number | null
+          updated_at: string
+          vacancy_id: string
+        }
+        Insert: {
+          accepted_options?: string[] | null
+          comparator?: Database["public"]["Enums"]["killer_number_comparator"] | null
+          created_at?: string
+          expected_boolean?: boolean | null
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          options?: string[] | null
+          position?: number
+          question: string
+          question_type: Database["public"]["Enums"]["killer_question_type"]
+          requirement_id?: string | null
+          threshold?: number | null
+          updated_at?: string
+          vacancy_id: string
+        }
+        Update: {
+          accepted_options?: string[] | null
+          comparator?: Database["public"]["Enums"]["killer_number_comparator"] | null
+          created_at?: string
+          expected_boolean?: boolean | null
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          options?: string[] | null
+          position?: number
+          question?: string
+          question_type?: Database["public"]["Enums"]["killer_question_type"]
+          requirement_id?: string | null
+          threshold?: number | null
+          updated_at?: string
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_killer_questions_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_requirements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacancy_killer_questions_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vacancy_requirements: {
         Row: {
           category: Database["public"]["Enums"]["requirement_category"]
@@ -1772,6 +2042,13 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      log_candidate_message: {
+        Args: {
+          p_application_id: string | null
+          p_subject: string | null
+        }
+        Returns: undefined
+      }
       log_resume_download: {
         Args: {
           p_resume_id: string | null
@@ -1798,6 +2075,19 @@ export type Database = {
           p_publication_id: string | null
         }
         Returns: undefined
+      }
+      public_killer_questions: {
+        Args: {
+          p_code: string | null
+        }
+        Returns: {
+          id: string | null
+          question: string | null
+          question_type: Database["public"]["Enums"]["killer_question_type"] | null
+          help_text: string | null
+          is_required: boolean | null
+          options: string[] | null
+        }[]
       }
       public_vacancies: {
         Args: never
@@ -2063,6 +2353,14 @@ export type Database = {
         }
         Returns: string
       }
+      set_interview_coordinates: {
+        Args: {
+          p_interview_id: string | null
+          p_lat: number | null
+          p_lng: number | null
+        }
+        Returns: undefined
+      }
       submit_online_application: {
         Args: {
           p_vacancy_code: string | null
@@ -2088,6 +2386,7 @@ export type Database = {
           p_suggested_fields: Json | null
           p_warnings: string[] | null
           p_error_code: string | null
+          p_killer_answers?: Json | null
         }
         Returns: {
           application_id: string | null
@@ -2103,10 +2402,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "rrhh"
-      application_event_type: "postulacion_creada" | "cambio_estado" | "evaluacion_generada" | "evaluacion_revisada" | "observacion" | "requisito_verificado" | "entrevista_programada" | "entrevista_reprogramada" | "entrevista_cancelada" | "entrevista_resultado"
+      app_role: "admin" | "rrhh" | "reclutador_caleta"
+      application_event_type: "postulacion_creada" | "cambio_estado" | "evaluacion_generada" | "evaluacion_revisada" | "observacion" | "requisito_verificado" | "entrevista_programada" | "entrevista_reprogramada" | "entrevista_cancelada" | "entrevista_resultado" | "correo_enviado"
       application_intake_method: "manual" | "carga_masiva" | "formulario_en_linea" | "integracion"
       application_status: "nuevo" | "en_revision" | "preseleccionado" | "entrevista_programada" | "en_evaluacion" | "seleccionado" | "no_seleccionado" | "en_reserva" | "retirado"
+      caleta_contact_channel: "linkedin" | "whatsapp" | "email" | "otro"
+      caleta_source: "linkedin" | "cip" | "grupo" | "google" | "referido" | "otro"
+      caleta_status: "encontrado" | "contactado" | "conectado" | "respondio" | "interesado" | "descartado" | "derivado"
       candidate_source: "manual" | "bolsa_empleo" | "linkedin" | "referido" | "web_empresa" | "otro"
       compatibility_level: "alta" | "parcial" | "baja" | "pendiente"
       consent_method: "formulario_en_linea" | "registro_manual" | "carga_masiva"
@@ -2123,6 +2425,8 @@ export type Database = {
       interview_result: "paso" | "no_paso"
       interview_status: "programada" | "realizada" | "no_asistio" | "cancelada"
       job_portal_kind: "automatico" | "manual"
+      killer_number_comparator: "mayor_igual" | "menor_igual" | "igual"
+      killer_question_type: "si_no" | "numero" | "opcion_unica"
       notification_kind: "opinion_solicitada" | "opinion_respondida"
       portal_publication_status: "pendiente" | "publicando" | "publicada" | "retirar" | "retirada" | "error"
       privacy_notice_status: "borrador" | "vigente" | "retirado"
@@ -2152,10 +2456,13 @@ export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"]
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "rrhh"],
-      application_event_type: ["postulacion_creada", "cambio_estado", "evaluacion_generada", "evaluacion_revisada", "observacion", "requisito_verificado", "entrevista_programada", "entrevista_reprogramada", "entrevista_cancelada", "entrevista_resultado"],
+      app_role: ["admin", "rrhh", "reclutador_caleta"],
+      application_event_type: ["postulacion_creada", "cambio_estado", "evaluacion_generada", "evaluacion_revisada", "observacion", "requisito_verificado", "entrevista_programada", "entrevista_reprogramada", "entrevista_cancelada", "entrevista_resultado", "correo_enviado"],
       application_intake_method: ["manual", "carga_masiva", "formulario_en_linea", "integracion"],
       application_status: ["nuevo", "en_revision", "preseleccionado", "entrevista_programada", "en_evaluacion", "seleccionado", "no_seleccionado", "en_reserva", "retirado"],
+      caleta_contact_channel: ["linkedin", "whatsapp", "email", "otro"],
+      caleta_source: ["linkedin", "cip", "grupo", "google", "referido", "otro"],
+      caleta_status: ["encontrado", "contactado", "conectado", "respondio", "interesado", "descartado", "derivado"],
       candidate_source: ["manual", "bolsa_empleo", "linkedin", "referido", "web_empresa", "otro"],
       compatibility_level: ["alta", "parcial", "baja", "pendiente"],
       consent_method: ["formulario_en_linea", "registro_manual", "carga_masiva"],
@@ -2172,6 +2479,8 @@ export const Constants = {
       interview_result: ["paso", "no_paso"],
       interview_status: ["programada", "realizada", "no_asistio", "cancelada"],
       job_portal_kind: ["automatico", "manual"],
+      killer_number_comparator: ["mayor_igual", "menor_igual", "igual"],
+      killer_question_type: ["si_no", "numero", "opcion_unica"],
       notification_kind: ["opinion_solicitada", "opinion_respondida"],
       portal_publication_status: ["pendiente", "publicando", "publicada", "retirar", "retirada", "error"],
       privacy_notice_status: ["borrador", "vigente", "retirado"],

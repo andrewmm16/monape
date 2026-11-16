@@ -86,7 +86,7 @@ Estado hoy:  DESACTIVADO PARA TODOS. Ningun rol puede activarlo desde la aplicac
              Para activarlo hacen falta tres cosas, en este orden:
                1. Que la empresa apruebe por escrito el proveedor de IA y el tratamiento
                   de datos, incluida la transferencia internacional de los CV
-                  (ver docs/privacidad-y-legal.md).
+                  (ver docs/legal/privacidad-y-legal.md).
                2. Contratar el proveedor y obtener su clave.
                3. Que la persona tecnica cambie la configuracion del servidor
                   (ver docs/configuracion-ia.md).
@@ -103,7 +103,6 @@ Mientras tanto: Admin y RRHH usan el "motor de reglas", que no envia nada fuera 
 
 En los dos casos:
   - El resultado es orientativo y queda "pendiente de revision" hasta que RRHH lo revisa.
-  - Puede SUGERIR un estado, pero NUNCA lo cambia: una persona lo revisa y lo guarda.
   - No se puede analizar a nadie si los criterios del puesto no estan aprobados.
 
 

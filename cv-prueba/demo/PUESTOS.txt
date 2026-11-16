@@ -1,0 +1,137 @@
+FICHAS DE PUESTOS — DEMOSTRACIÓN
+Copie y pegue estos datos al crear cada vacante manualmente en la app.
+Todos los datos (puestos y CV) son ficticios.
+
+================================================================
+PUESTO 1: Desarrollador Full Stack
+================================================================
+
+— DATOS GENERALES —
+Título del puesto: Desarrollador Full Stack
+Área / Departamento: Tecnología
+Ubicación: Lima
+Modalidad: Híbrido
+Tipo de contrato: Tiempo completo
+Fecha de apertura: 2026-11-01
+Fecha de cierre: 2027-01-31
+
+— DESCRIPCIÓN —
+Buscamos un(a) Desarrollador(a) Full Stack para construir y mantener las aplicaciones web internas de la empresa, de punta a punta (frontend y backend). Trabajará junto al equipo de Tecnología en el desarrollo de nuevas funcionalidades, la mejora de los sistemas existentes y la integración con bases de datos y servicios internos. Modalidad híbrida desde Lima.
+
+— RESPONSABILIDADES —
+• Desarrollar interfaces web con React y mantener componentes reutilizables.
+• Construir y consumir APIs (Node.js/Express o Laravel/PHP).
+• Diseñar y optimizar consultas a bases de datos SQL (PostgreSQL o MySQL).
+• Versionar el código con Git y participar en revisiones de código.
+• Colaborar con el equipo en estimaciones, pruebas y despliegues.
+
+— REQUISITOS Y CRITERIOS (con peso y prioridad) —
+1. React
+   Categoría: Herramienta o programa
+   Prioridad: Obligatorio
+   Peso: 9
+   Palabras clave: react, reactjs
+2. Node.js o Laravel/PHP
+   Categoría: Habilidad técnica
+   Prioridad: Obligatorio
+   Peso: 8
+   Palabras clave: node, nodejs, laravel, php, express
+3. Bases de datos SQL
+   Categoría: Habilidad técnica
+   Prioridad: Obligatorio
+   Peso: 7
+   Palabras clave: sql, postgresql, mysql, base de datos
+4. TypeScript
+   Categoría: Herramienta o programa
+   Prioridad: Deseable
+   Peso: 5
+   Palabras clave: typescript, ts
+5. Git
+   Categoría: Herramienta o programa
+   Prioridad: Deseable
+   Peso: 4
+   Palabras clave: git, github, gitlab
+6. Experiencia en desarrollo web
+   Categoría: Experiencia profesional
+   Prioridad: Obligatorio
+   Peso: 6
+   Palabras clave: desarrollo web, full stack, frontend, backend
+   Años mínimos de experiencia: 2
+
+— PREGUNTAS ELIMINATORIAS (marcan, no excluyen) —
+1. ¿Resides en Lima o puedes trasladarte?
+   Tipo: Sí / No
+   Respuesta que cumple: Sí
+2. ¿Cuántos años de experiencia en desarrollo web tienes?
+   Tipo: Número
+   Condición para cumplir: mayor o igual a 2
+3. ¿Tienes disponibilidad para modalidad híbrida?
+   Tipo: Sí / No
+   Respuesta que cumple: Sí
+
+CV de prueba para este puesto: cv-prueba/demo/01_Desarrollador_Full_Stack/ (20 archivos PDF)
+
+================================================================
+PUESTO 2: Asistente de Recursos Humanos
+================================================================
+
+— DATOS GENERALES —
+Título del puesto: Asistente de Recursos Humanos
+Área / Departamento: Recursos Humanos
+Ubicación: Lima
+Modalidad: Presencial
+Tipo de contrato: Tiempo completo
+Fecha de apertura: 2026-11-01
+Fecha de cierre: 2027-01-31
+
+— DESCRIPCIÓN —
+Buscamos un(a) Asistente de Recursos Humanos para apoyar la gestión de planillas, el reclutamiento y la administración del personal. Dará soporte en el cálculo de remuneraciones, el filtrado de CV, la coordinación de entrevistas y el mantenimiento de los legajos. Puesto presencial en Lima, con trato directo con todas las áreas de la empresa.
+
+— RESPONSABILIDADES —
+• Elaborar las planillas y remuneraciones mensuales del personal.
+• Apoyar el reclutamiento y la selección: avisos, filtrado de CV y coordinación de entrevistas.
+• Mantener actualizados los legajos y la documentación del personal.
+• Dar soporte en contratos y en el cumplimiento de la legislación laboral peruana.
+• Elaborar reportes del área en Excel.
+
+— REQUISITOS Y CRITERIOS (con peso y prioridad) —
+1. Gestión de planillas
+   Categoría: Habilidad técnica
+   Prioridad: Obligatorio
+   Peso: 8
+   Palabras clave: planillas, nómina, remuneraciones
+2. Excel avanzado
+   Categoría: Herramienta o programa
+   Prioridad: Obligatorio
+   Peso: 7
+   Palabras clave: excel, hojas de cálculo, tablas dinámicas
+3. Reclutamiento y selección
+   Categoría: Habilidad técnica
+   Prioridad: Deseable
+   Peso: 6
+   Palabras clave: reclutamiento, selección, entrevistas
+4. Legislación laboral peruana
+   Categoría: Habilidad técnica
+   Prioridad: Deseable
+   Peso: 5
+   Palabras clave: legislación laboral, sunafil, contratos
+5. Experiencia en RRHH
+   Categoría: Experiencia profesional
+   Prioridad: Obligatorio
+   Peso: 6
+   Palabras clave: recursos humanos, rrhh, personal
+   Años mínimos de experiencia: 1
+
+— PREGUNTAS ELIMINATORIAS (marcan, no excluyen) —
+1. ¿Tienes experiencia elaborando planillas?
+   Tipo: Sí / No
+   Respuesta que cumple: Sí
+2. ¿Cuál es tu nivel de Excel?
+   Tipo: Opción única
+   Opciones: Básico, Intermedio, Avanzado
+   Opciones que cumplen: Intermedio, Avanzado
+3. ¿Cuántos años de experiencia en RRHH tienes?
+   Tipo: Número
+   Condición para cumplir: mayor o igual a 1
+
+CV de prueba para este puesto: cv-prueba/demo/02_Asistente_RRHH/ (20 archivos PDF)

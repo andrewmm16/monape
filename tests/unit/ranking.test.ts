@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCompareIds, rankCandidates, rankingFacts, type RankInput } from "@/modules/applications/ranking";
+import { parseCompareIds, positionsByScore, rankCandidates, rankingFacts, type RankInput } from "@/modules/applications/ranking";
 
 const candidate = (id: string, overrides: Partial<RankInput> = {}): RankInput => ({
   id,
@@ -116,5 +116,45 @@ describe("parseCompareIds", () => {
     expect(parseCompareIds(`${A},${A}`)).toMatchObject({ ok: false, error: expect.stringContaining("al menos 2") });
     expect(parseCompareIds(`${A},${B},${C},${D},${E}`)).toMatchObject({ ok: false, error: expect.stringContaining("hasta 4") });
     expect(parseCompareIds(`${A},no-es-uuid`)).toMatchObject({ ok: false, error: expect.stringContaining("no es válido") });
+  });
+});
+
+describe("positionsByScore", () => {
+  const fila = (id: string | null, score: number | null) => ({ id, score });
+
+  it("numera de mayor a menor puntuacion", () => {
+    const posiciones = positionsByScore([fila("a", 50), fila("b", 90), fila("c", 70)]);
+    expect([...posiciones]).toEqual([
+      ["b", 1],
+      ["c", 2],
+      ["a", 3],
+    ]);
+  });
+
+  it("los empates comparten posicion y consumen hueco", () => {
+    // 1.o, 2.o, 2.o, 4.o: como una clasificacion deportiva, no 1-2-2-3.
+    const posiciones = positionsByScore([fila("a", 90), fila("b", 70), fila("c", 70), fila("d", 40)]);
+    expect(posiciones.get("a")).toBe(1);
+    expect(posiciones.get("b")).toBe(2);
+    expect(posiciones.get("c")).toBe(2);
+    expect(posiciones.get("d")).toBe(4);
+  });
+
+  it("no depende del orden en que lleguen las filas", () => {
+    const filas = [fila("a", 90), fila("b", 70), fila("c", 70), fila("d", 40)];
+    const alReves = positionsByScore([...filas].reverse());
+    expect([...alReves].sort()).toEqual([...positionsByScore(filas)].sort());
+  });
+
+  it("deja fuera las filas sin id o sin puntuacion", () => {
+    const posiciones = positionsByScore([fila("a", 90), fila(null, 95), fila("b", null), fila("c", 10)]);
+    expect([...posiciones.keys()].sort()).toEqual(["a", "c"]);
+    // La fila descartada no debe dejar un hueco en la numeracion.
+    expect(posiciones.get("a")).toBe(1);
+    expect(posiciones.get("c")).toBe(2);
+  });
+
+  it("una lista vacia no da ninguna posicion", () => {
+    expect(positionsByScore([]).size).toBe(0);
   });
 });

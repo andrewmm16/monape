@@ -10,10 +10,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { applyPortalSelection } from "@/modules/portals/actions";
 import {
   canTransitionVacancy,
+  killerQuestionFormSchema,
   publishBlockers,
   requirementFormSchema,
   vacancyFormSchema,
   vacancyStatusSchema,
+  type KillerQuestionFormInput,
   type RequirementFormInput,
   type VacancyFormInput,
 } from "./schemas";
@@ -26,7 +28,6 @@ function toRow(values: z.output<typeof vacancyFormSchema>) {
     responsibilities: values.responsibilities,
     location: values.location,
     modality: values.modality,
-    contract_type: values.contractType,
     opening_date: values.openingDate,
     closing_date: values.closingDate,
     owner_id: values.ownerId,
@@ -129,14 +130,14 @@ export async function publishVacancy(id: string, portalIds: string[]): Promise<A
   return { ok: true, data: null, message: `Vacante publicada. ${portals.message ?? ""}`.trim() };
 }
 
-export async function deleteDraftVacancy(id: string): Promise<ActionResult> {
+export async function deleteVacancy(id: string): Promise<ActionResult> {
   return runAction("vacancies.delete", async () => {
     await requirePermission("vacancies:delete");
     const vacancyId = parseInput(z.uuid(), id);
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.from("vacancies").delete().eq("id", vacancyId).select("id");
     if (error) throw toAppError(error);
-    if (!data.length) throw new AppError("Solo pueden eliminarse vacantes en borrador sin postulaciones.", "conflict");
+    if (!data.length) throw new AppError("Solo pueden eliminarse vacantes en borrador o archivadas sin postulaciones.", "conflict");
     revalidatePath("/vacantes");
     redirect("/vacantes");
   });
@@ -222,6 +223,97 @@ export async function deleteRequirement(vacancyId: string, requirementId: string
       return null;
     },
     "Requisito eliminado. Los criterios deberán aprobarse nuevamente.",
+  );
+}
+
+// --- Preguntas eliminatorias --------------------------------------------------
+// Marcan al candidato; no son criterios de evaluación (no reabren la aprobación).
+
+function killerQuestionRow(values: z.output<typeof killerQuestionFormSchema>) {
+  const base = {
+    question: values.question,
+    question_type: values.questionType,
+    help_text: values.helpText,
+    is_required: values.isRequired,
+    expected_boolean: null as boolean | null,
+    comparator: null as Exclude<typeof values.comparator, ""> | null,
+    threshold: null as number | null,
+    options: null as string[] | null,
+    accepted_options: null as string[] | null,
+  };
+  if (values.questionType === "si_no") return { ...base, expected_boolean: values.expectedBoolean === "si" };
+  if (values.questionType === "numero") {
+    return { ...base, comparator: values.comparator === "" ? null : values.comparator, threshold: values.threshold };
+  }
+  return { ...base, options: values.options, accepted_options: values.acceptedOptions };
+}
+
+export async function addKillerQuestion(vacancyId: string, input: KillerQuestionFormInput): Promise<ActionResult> {
+  return runAction(
+    "killer_questions.add",
+    async () => {
+      await requirePermission("vacancies:manage");
+      const id = parseInput(z.uuid(), vacancyId);
+      const values = parseInput(killerQuestionFormSchema, input);
+      const supabase = await createSupabaseServerClient();
+      const { count } = await supabase
+        .from("vacancy_killer_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("vacancy_id", id);
+      if ((count ?? 0) >= 10) throw new AppError("Una vacante admite hasta 10 preguntas eliminatorias.", "validation");
+      const { error } = await supabase
+        .from("vacancy_killer_questions")
+        .insert({ ...killerQuestionRow(values), vacancy_id: id, position: count ?? 0 });
+      if (error) throw toAppError(error);
+      revalidatePath(`/vacantes/${id}`);
+      return null;
+    },
+    "Pregunta agregada. Se mostrará a los candidatos en el formulario de postulación.",
+  );
+}
+
+export async function updateKillerQuestion(
+  vacancyId: string,
+  questionId: string,
+  input: KillerQuestionFormInput,
+): Promise<ActionResult> {
+  return runAction(
+    "killer_questions.update",
+    async () => {
+      await requirePermission("vacancies:manage");
+      const id = parseInput(z.uuid(), questionId);
+      const vId = parseInput(z.uuid(), vacancyId);
+      const values = parseInput(killerQuestionFormSchema, input);
+      const supabase = await createSupabaseServerClient();
+      const { data, error } = await supabase
+        .from("vacancy_killer_questions")
+        .update(killerQuestionRow(values))
+        .eq("id", id)
+        .eq("vacancy_id", vId)
+        .select("id");
+      if (error) throw toAppError(error);
+      if (!data.length) throw new AppError("La pregunta no existe.", "not_found");
+      revalidatePath(`/vacantes/${vId}`);
+      return null;
+    },
+    "Pregunta actualizada. Las respuestas ya recibidas se recalculan con la nueva condición.",
+  );
+}
+
+export async function deleteKillerQuestion(vacancyId: string, questionId: string): Promise<ActionResult> {
+  return runAction(
+    "killer_questions.delete",
+    async () => {
+      await requirePermission("vacancies:manage");
+      const id = parseInput(z.uuid(), questionId);
+      const vId = parseInput(z.uuid(), vacancyId);
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase.from("vacancy_killer_questions").delete().eq("id", id).eq("vacancy_id", vId);
+      if (error) throw toAppError(error);
+      revalidatePath(`/vacantes/${vId}`);
+      return null;
+    },
+    "Pregunta eliminada, junto con las respuestas recibidas.",
   );
 }
 

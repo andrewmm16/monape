@@ -25,7 +25,7 @@ crea un candidato nuevo con su postulación y lo evalúa por reglas
 2. **Requisitos previos:**
    - la plataforma en internet con su dominio;
    - la parte pública de vacantes encendida (`PUBLIC_JOBS_ENABLED`, `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME`);
-   - el aviso de privacidad aprobado por legal, que debe mencionar que los datos llegan desde Talent.com.
+   - el aviso de privacidad vigente, que debe mencionar que los datos llegan desde Talent.com.
 3. **Configurar el servidor:**
 
    | Variable | Valor |
@@ -45,7 +45,7 @@ crea un candidato nuevo con su postulación y lo evalúa por reglas
 | Se guarda | No se guarda |
 |---|---|
 | Nombre, correo, teléfono y CV, en un candidato **nuevo** (nunca se modifica una ficha existente) | La dirección IP, el navegador y el dispositivo que envía Talent.com |
-| Un registro de cada envío: identificador de Talent.com, vacante, resultado y motivo del rechazo (sin datos personales) | El mensaje completo recibido |
+| Un registro de cada envío: identificador de Talent.com, vacante, resultado y motivo del rechazo | El mensaje completo recibido |
 | Los motivos de posible duplicado: mismo correo, mismo teléfono o mismo CV | Las respuestas a preguntas adicionales (no se usan) |
 
 ## Respuestas de la plataforma a Talent.com
@@ -74,7 +74,7 @@ crea un candidato nuevo con su postulación y lo evalúa por reglas
 
 - **Formato sin confirmar.** La documentación pública de Talent.com no dice cómo codifica el CV, qué respuesta espera ni si reintenta. La plataforma acepta CV en base64, con o sin prefijo `data:`.
 - **Tamaño del CV.** El máximo es de 4 MB. En Vercel, el límite de 4,5 MB por solicitud y la codificación base64 (que aumenta el tamaño en un tercio) dejan el máximo real en unos 3,3 MB. Es un cálculo, no una prueba.
-- **CV o datos inválidos.** Si el CV no es un PDF o Word válido, o faltan datos obligatorios, la postulación no se registra. Queda anotada como rechazada, sin datos personales, siempre que traiga su identificador. Que Talent.com la reintente o avise al postulante depende de Talent.com.
+- **CV o datos inválidos.** Si el CV no es un PDF o Word válido, o faltan datos obligatorios, la postulación no se registra. Queda anotada como rechazada, siempre que traiga su identificador. Que Talent.com la reintente o avise al postulante depende de Talent.com.
 - **Respuesta perdida.** Si la postulación se registra pero la respuesta no llega a enviarse, un reintento de Talent.com recibe 200 y no la duplica. En ese caso puede quedar sin evaluar, y RRHH la evalúa con el botón de la postulación.
 - **Archivo huérfano.** Si el servidor se cae justo entre guardar el CV y registrar la postulación, el archivo queda sin borrar.
 - **«Sistema (integración)»** aparece como autor de lo que hizo la integración y también de lo que hizo un usuario ya eliminado: hoy no se distinguen.

@@ -4,7 +4,7 @@ import { loadConfig } from "./config";
 
 /**
  * Abre el navegador del robot en la página de ingreso del portal para que UNA
- * PERSONA inicie sesión a mano (usuario, contraseña, CAPTCHA, código). La sesión
+ * PERSONA inicie sesión a mano (usuario, contraseña, código de verificación). La sesión
  * queda guardada en el perfil. Al terminar, cerrar la ventana. Con varios
  * portales (`BOT_ADAPTER=demo`) abre una pestaña por portal.
  * Uso: `npm run bot:login`.

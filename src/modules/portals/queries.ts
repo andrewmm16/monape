@@ -43,6 +43,75 @@ export async function listPortalPublications(supabase: AppSupabaseClient, vacanc
 /** Sin señal del robot durante este tiempo se considera apagado o caído. */
 export const BOT_SILENCE_MINUTES = 15;
 
+/** Nivel del semáforo que ve RRHH por cada portal. */
+export type BotPortalNivel = "ok" | "atencion" | "error" | "sin_datos";
+
+export type BotPortalStatus = {
+  portalName: string;
+  nivel: BotPortalNivel;
+  /** Código corto de la causa (o `sin_senal` si dejó de dar señales); `null` cuando está bien o no hay datos. */
+  reason: string | null;
+  seenAt: string | null;
+};
+
+/**
+ * Causas por las que el robot se detiene que una persona de RRHH resuelve sola
+ * (iniciar sesión, reiniciar el robot, esperar a que el portal vuelva). Las
+ * demás (el portal cambió su página) necesitan al responsable técnico.
+ */
+const ATTENTION_REASONS = new Set([
+  "sesion_expirada",
+  "verificacion_requerida",
+  "navegador_cerrado",
+  "portal_no_disponible",
+  "demasiados_intentos",
+  "retiro_fallido",
+  "sincronizacion_pendiente",
+  "api_no_disponible",
+  "publicacion_rechazada",
+  "oferta_no_encontrada",
+]);
+
+type BotStatusEmbed = { state: string; reason: string | null; seen_at: string } | null;
+
+/** El embebido a-uno puede llegar como objeto o como arreglo según PostgREST. */
+function firstStatus(embed: BotStatusEmbed | BotStatusEmbed[]): BotStatusEmbed {
+  return Array.isArray(embed) ? (embed[0] ?? null) : embed;
+}
+
+function classifyPortal(status: BotStatusEmbed, now: Date): Pick<BotPortalStatus, "nivel" | "reason" | "seenAt"> {
+  if (!status) return { nivel: "sin_datos", reason: null, seenAt: null };
+  if (status.state === "necesita_persona") {
+    const nivel: BotPortalNivel = status.reason && ATTENTION_REASONS.has(status.reason) ? "atencion" : "error";
+    return { nivel, reason: status.reason, seenAt: status.seen_at };
+  }
+  // activo
+  if (now.getTime() - new Date(status.seen_at).getTime() >= BOT_SILENCE_MINUTES * 60_000) {
+    return { nivel: "atencion", reason: "sin_senal", seenAt: status.seen_at };
+  }
+  return { nivel: "ok", reason: null, seenAt: status.seen_at };
+}
+
+/**
+ * Estado de TODOS los portales que atiende el robot, para el semáforo del panel.
+ * A diferencia de `listBotAlerts`, incluye los que están bien (verde) y los que
+ * aún no se han conectado (gris).
+ */
+export async function listBotPortalStatuses(supabase: AppSupabaseClient, now: Date = new Date()): Promise<BotPortalStatus[]> {
+  const { data, error } = await supabase
+    .from("job_portals")
+    .select("name, bot_status(state, reason, seen_at)")
+    .eq("kind", "manual")
+    .eq("is_active", true)
+    .eq("bot_enabled", true)
+    .order("position");
+  if (error) throw toAppError(error);
+  return (data ?? []).map((row: { name: string; bot_status: BotStatusEmbed | BotStatusEmbed[] }) => ({
+    portalName: row.name,
+    ...classifyPortal(firstStatus(row.bot_status), now),
+  }));
+}
+
 export type BotAlert = {
   portalName: string;
   kind: "necesita_persona" | "sin_senal";
@@ -51,8 +120,8 @@ export type BotAlert = {
 };
 
 /**
- * Avisos del robot para RRHH: se detuvo esperando a una persona (CAPTCHA,
- * verificación, sesión vencida) o dejó de dar señales. Un robot que nunca se
+ * Avisos del robot para RRHH: se detuvo esperando a una persona (una verificación
+ * o la sesión vencida) o dejó de dar señales. Un robot que nunca se
  * conectó no genera aviso.
  */
 export async function listBotAlerts(supabase: AppSupabaseClient, now: Date = new Date()): Promise<BotAlert[]> {

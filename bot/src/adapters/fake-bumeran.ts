@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { ERROR_CODES, PortalError } from "../errors";
-import { AVISO_COOKIES, estricto, registerBook, tolerante } from "../selectors";
+import { AVISO_COOKIES, DESAFIO_SELECTORES, estricto, registerBook, tolerante } from "../selectors";
 import type { ActivePublication, ApplicantSummary, PublishResult, VacancyData } from "../types";
 import { FakeSiteAdapter, HEALTH_VACANCY, descriptionOf, locationOf } from "./fake-base";
 
@@ -9,7 +9,7 @@ import { FakeSiteAdapter, HEALTH_VACANCY, descriptionOf, locationOf } from "./fa
  * postulantes; estrictos: «Publicar aviso», «Dar de baja el aviso» y las marcas de resultado (ver `selectors.ts`).
  */
 export const BUMERAN_BOOK = registerBook("bumeran", {
-  captcha: estricto("Aviso de verificación humana (CAPTCHA)", ".recaptcha-caja"),
+  ...DESAFIO_SELECTORES,
   aviso_cookies: AVISO_COOKIES,
   campo_titulo: tolerante("Campo del puesto (título del aviso)", "[name=puesto]", [{ etiqueta: ["Puesto", "Título", "Titulo", "Cargo"] }, { css: "[name^=puesto]" }]),
   campo_area: tolerante("Lista del área", "[name=area]", [{ etiqueta: ["Área", "Area"] }, { css: "[name^=area]" }]),
@@ -46,7 +46,7 @@ export class FakeBumeranAdapter extends FakeSiteAdapter {
   /** Pulsa «Continuar» y espera a estar en el paso indicado. */
   private async next(page: Page, step: number): Promise<void> {
     await this.clickKey(page, "boton_siguiente");
-    await page.locator(`${this.sel("marca_paso", { n: step })}, ${this.sel("captcha")}`).first().waitFor();
+    await page.locator(this.sel("marca_paso", { n: step })).first().waitFor();
     await this.guard(page);
   }
 
@@ -96,7 +96,7 @@ export class FakeBumeranAdapter extends FakeSiteAdapter {
       await this.guard(page);
       await this.fillNotice(page, vacancy, false);
       await this.clickKey(page, "boton_enviar");
-      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}, ${this.sel("captcha")}`).first().waitFor();
+      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}`).first().waitFor();
       await this.guard(page);
 
       if ((await page.locator(this.sel("resultado_error")).count()) > 0) throw new PortalError(ERROR_CODES.publicationRejected);

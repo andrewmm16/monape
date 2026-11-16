@@ -56,7 +56,10 @@ function buildContentSecurityPolicy(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     // Los componentes accesibles (Radix) posicionan elementos con estilos en línea.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    // Mosaicos del mapa de entrevistas presenciales (Leaflet + OpenStreetMap): solo ese
+    // host. Leaflet posiciona capas con estilos en línea, ya cubiertos por style-src; sus
+    // iconos y su CSS salen del propio paquete (mismo origen) y no hace falta tocar connect-src.
+    "img-src 'self' blob: data: https://tile.openstreetmap.org",
     "font-src 'self'",
     "connect-src 'self'",
     "object-src 'none'",

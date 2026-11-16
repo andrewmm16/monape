@@ -3,13 +3,16 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { after } from "next/server";
+import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { evaluateApplication } from "@/modules/evaluation/service";
 import { resumeStoragePath } from "@/modules/intake/paths";
 import { sniffResumeKind } from "@/modules/integrations/talent-apply/resume";
+import { sendEmail } from "@/modules/notifications/email/client";
+import { buildApplicationReceivedEmail } from "@/modules/notifications/email/templates/application-received";
 import { getCurrentPrivacyNotice } from "@/modules/privacy/queries";
-import { getPublicVacancy } from "@/modules/public-jobs/queries";
+import { getPublicVacancy, listPublicKillerQuestions } from "@/modules/public-jobs/queries";
 import { extractResume, needsOcr } from "@/modules/resumes/extraction";
 import { applyOcrToResume } from "@/modules/resumes/ocr-apply";
 import { MAX_RESUME_BYTES, validateResumeFile } from "@/modules/resumes/file-validation";
@@ -17,6 +20,7 @@ import { RESUMES_BUCKET } from "@/modules/resumes/storage";
 import type { Json } from "@/types/database";
 import { verifyChallenge } from "./challenge";
 import { getOnlineApplyConfig } from "./config";
+import { buildKillerAnswers, collectKillerFields } from "./killer-answers";
 import { portalFromReferrer } from "./origin";
 import { checkboxValue, onlineApplicationSchema, textValue } from "./schema";
 import { rateLimitSubject } from "./subject";
@@ -71,6 +75,41 @@ function scheduleEvaluation(
     } catch (error) {
       // Sin datos personales: solo el tipo y el código del error.
       logServerError("online_apply.evaluate", error);
+    }
+  });
+}
+
+/**
+ * Acuse de recibo por correo, diferido y fuera del camino crítico. Nunca lanza.
+ * El registro solo lleva identificadores y el estado del envío, no la dirección.
+ */
+function scheduleReceiptEmail(
+  applicationId: string,
+  reference: string,
+  recipient: { email?: string; fullName: string },
+): void {
+  if (!recipient.email) return;
+  const to = recipient.email;
+  const fullName = recipient.fullName;
+  after(async () => {
+    try {
+      const content = buildApplicationReceivedEmail({
+        fullName,
+        reference,
+        companyName: getServerEnv().PUBLIC_COMPANY_NAME,
+      });
+      const result = await sendEmail({
+        to,
+        subject: content.subject,
+        html: content.html,
+        text: content.text,
+        tags: [{ name: "type", value: "application_received" }],
+      });
+      console.info(
+        `[online_apply.email] application_id=${applicationId} referencia=${reference} estado=${result.sent ? "enviado" : "no_enviado"}`,
+      );
+    } catch (error) {
+      logServerError("online_apply.email", error);
     }
   });
 }
@@ -145,6 +184,7 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
     acceptNotice: checkboxValue(formData.get("acceptNotice")),
     acceptTalentPool: checkboxValue(formData.get("acceptTalentPool")),
     noticeId: textValue(formData.get("noticeId")),
+    killerAnswers: collectKillerFields(formData),
   });
   const fieldErrors: Record<string, string[]> = {};
   if (!parsed.success) {
@@ -173,6 +213,13 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
   if (!vacancy || !vacancy.acceptingApplications) return fail(MESSAGES.closed);
   const notice = await getCurrentPrivacyNotice();
   if (!notice || notice.id !== values.noticeId) return fail(MESSAGES.noticeChanged, { reload: true });
+
+  // Preguntas eliminatorias: se valida la forma de las respuestas (obligatorias,
+  // tipo, opción existente). Que no cumplan NO bloquea: la base de datos las marca.
+  const killer = buildKillerAnswers(await listPublicKillerQuestions(vacancyCode), values.killerAnswers);
+  if (Object.keys(killer.errors).length > 0) {
+    return fail(MESSAGES.validation, { fieldErrors: killer.errors, refreshChallenge: true });
+  }
 
   // 6. Límite por IP (HMAC), por vacante y total.
   const subject = rateLimitSubject(config.secret, await headers());
@@ -236,6 +283,7 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
       p_suggested_fields: extraction.suggestions as unknown as Json,
       p_warnings: extraction.warnings,
       p_error_code: extraction.status === "fallida" ? extraction.errorCode : null,
+      p_killer_answers: killer.answers as unknown as Json,
     });
 
   // Una excepción (p. ej. de red) cuenta como fallo: misma compensación.
@@ -259,6 +307,7 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
         .maybeSingle();
       if (saved?.public_reference) {
         scheduleEvaluation(admin, saved.id, scanned ? { resumeId, bytes: resume.bytes } : undefined);
+        scheduleReceiptEmail(saved.id, saved.public_reference, values);
         return { ok: true, reference: saved.public_reference };
       }
       logServerError("online_apply.recover", { code: "referencia_no_recuperada" });
@@ -276,6 +325,8 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
 
   // 8. Evaluación por reglas después de responder; si falla, queda sin evaluar.
   scheduleEvaluation(admin, result.application_id, scanned ? { resumeId, bytes: resume.bytes } : undefined);
+
+  scheduleReceiptEmail(result.application_id, result.public_reference, values);
 
   // 9. Referencia para la persona.
   return { ok: true, reference: result.public_reference };

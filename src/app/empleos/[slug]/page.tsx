@@ -12,7 +12,7 @@ import { getPublicJobsConfig, requirePublicJobsConfig } from "@/modules/public-j
 import { formatSalaryText } from "@/modules/public-jobs/feed";
 import { textToHtml } from "@/modules/public-jobs/html";
 import { buildJobPosting, serializeJsonLd } from "@/modules/public-jobs/job-posting";
-import { getPublicVacancy, listPublicRequirements } from "@/modules/public-jobs/queries";
+import { getPublicVacancy, listPublicKillerQuestions, listPublicRequirements } from "@/modules/public-jobs/queries";
 import { buildJobSlug, parseJobSlug } from "@/modules/public-jobs/slug";
 
 async function loadVacancy(slug: string) {
@@ -59,7 +59,10 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
     );
   }
 
-  const requirements = await listPublicRequirements(vacancy.code);
+  const [requirements, killerQuestions] = await Promise.all([
+    listPublicRequirements(vacancy.code),
+    listPublicKillerQuestions(vacancy.code),
+  ]);
   // El formulario se ofrece solo con la función encendida y un aviso vigente.
   // Si la consulta del aviso falla, la página sigue: sin formulario y con el botón deshabilitado.
   let notice: Awaited<ReturnType<typeof getCurrentPrivacyNotice>> = null;
@@ -151,7 +154,13 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
           <h2 id="postular-titulo" className="text-xl font-semibold tracking-tight">
             Postular a esta vacante
           </h2>
-          <ApplyForm vacancyCode={vacancy.code} noticeId={notice.id} noticeVersion={notice.version} companyName={site.companyName} />
+          <ApplyForm
+            vacancyCode={vacancy.code}
+            noticeId={notice.id}
+            noticeVersion={notice.version}
+            companyName={site.companyName}
+            killerQuestions={killerQuestions}
+          />
         </section>
       ) : (
         <div className="space-y-2">

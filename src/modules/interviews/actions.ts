@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
-import { AppError, toAppError } from "@/lib/errors";
+import { AppError, logServerError, toAppError } from "@/lib/errors";
 import { APPLICATION_STATUS_LABELS } from "@/lib/labels";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, type AppSupabaseClient } from "@/lib/supabase/server";
 import { reevaluateAfterVerification } from "@/modules/evaluation/reevaluate";
 import { limaToIso } from "./datetime";
+import { scheduleInterviewEmail } from "./emails";
 import { listInterviewRequirements } from "./queries";
 import {
   cancelInterviewSchema,
@@ -36,6 +37,24 @@ function scheduledAtOf(values: { date: string; time: string }): string {
   return iso;
 }
 
+type Coordinates = { lat: number; lng: number } | null;
+
+/** Solo una entrevista presencial con punto elegido en el autocompletado lleva coordenadas. */
+function coordinatesOf(values: { modality: string; locationLat?: number | null; locationLng?: number | null }): Coordinates {
+  if (values.modality !== "presencial" || values.locationLat == null || values.locationLng == null) return null;
+  return { lat: values.locationLat, lng: values.locationLng };
+}
+
+/** Los campos de lugar de schedule/reschedule no incluyen el punto; se guarda aparte. */
+async function saveCoordinates(supabase: AppSupabaseClient, interviewId: string, point: Coordinates) {
+  const { error } = await supabase.rpc("set_interview_coordinates", {
+    p_interview_id: interviewId,
+    p_lat: point?.lat ?? null,
+    p_lng: point?.lng ?? null,
+  });
+  if (error) throw toAppError(error);
+}
+
 /** Agenda una entrevista; si la postulación no lo estaba, pasa a «Entrevista programada». */
 export async function scheduleInterview(input: ScheduleInterviewInput): Promise<ActionResult<{ id: string }>> {
   return runAction(
@@ -54,6 +73,16 @@ export async function scheduleInterview(input: ScheduleInterviewInput): Promise<
         p_instructions: values.instructions || null,
       });
       if (error) throw toAppError(error);
+      const point = coordinatesOf(values);
+      if (point) {
+        // La entrevista ya existe: si solo falla el punto del mapa no se repite el alta (quedaría duplicada).
+        try {
+          await saveCoordinates(supabase, data, point);
+        } catch (coordinatesError) {
+          logServerError("interviews.coordinates", coordinatesError);
+        }
+      }
+      scheduleInterviewEmail(supabase, "invitation", data);
       revalidateInterviews(values.applicationId);
       return { id: data };
     },
@@ -78,6 +107,14 @@ export async function rescheduleInterview(input: RescheduleInterviewInput): Prom
         p_instructions: values.instructions || null,
       });
       if (error) throw toAppError(error);
+      // Siempre: sin punto (dirección editada a mano o modalidad distinta) se borra el anterior.
+      // La entrevista ya está reprogramada: un fallo del punto no debe impedir el correo.
+      try {
+        await saveCoordinates(supabase, values.interviewId, coordinatesOf(values));
+      } catch (coordinatesError) {
+        logServerError("interviews.coordinates", coordinatesError);
+      }
+      scheduleInterviewEmail(supabase, "rescheduled", values.interviewId);
       revalidateInterviews();
       revalidatePath("/postulaciones/[id]", "page");
       return null;
@@ -99,6 +136,7 @@ export async function cancelInterview(input: CancelInterviewInput): Promise<Acti
         p_reason: values.reason,
       });
       if (error) throw toAppError(error);
+      scheduleInterviewEmail(supabase, "cancelled", values.interviewId);
       revalidateInterviews();
       revalidatePath("/postulaciones/[id]", "page");
       return null;

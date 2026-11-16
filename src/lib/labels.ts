@@ -31,6 +31,18 @@ export const REQUIREMENT_PRIORITY_LABELS: Record<Enums<"requirement_priority">, 
   deseable: "Deseable",
 };
 
+export const KILLER_QUESTION_TYPE_LABELS: Record<Enums<"killer_question_type">, string> = {
+  si_no: "Sí / No",
+  numero: "Número",
+  opcion_unica: "Opción única",
+};
+
+export const KILLER_COMPARATOR_LABELS: Record<Enums<"killer_number_comparator">, string> = {
+  mayor_igual: "Mayor o igual que",
+  menor_igual: "Menor o igual que",
+  igual: "Igual a",
+};
+
 export const CANDIDATE_SOURCE_LABELS: Record<Enums<"candidate_source">, string> = {
   manual: "Registro manual",
   bolsa_empleo: "Bolsa de empleo",
@@ -38,6 +50,32 @@ export const CANDIDATE_SOURCE_LABELS: Record<Enums<"candidate_source">, string> 
   referido: "Referido",
   web_empresa: "Web de la empresa",
   otro: "Otra fuente",
+};
+
+export const CALETA_SOURCE_LABELS: Record<Enums<"caleta_source">, string> = {
+  linkedin: "LinkedIn",
+  cip: "CIP (Colegio de Ingenieros)",
+  grupo: "Grupo de empleo",
+  google: "Búsqueda en Google",
+  referido: "Referido",
+  otro: "Otra fuente",
+};
+
+export const CALETA_STATUS_LABELS: Record<Enums<"caleta_status">, string> = {
+  encontrado: "Encontrado",
+  contactado: "Contactado",
+  conectado: "Conectado (aceptó en LinkedIn)",
+  respondio: "Respondió",
+  interesado: "Interesado",
+  descartado: "Descartado",
+  derivado: "Derivado a candidato",
+};
+
+export const CALETA_CONTACT_CHANNEL_LABELS: Record<Enums<"caleta_contact_channel">, string> = {
+  linkedin: "LinkedIn",
+  whatsapp: "WhatsApp",
+  email: "Correo",
+  otro: "Otro",
 };
 
 export const DATA_ORIGIN_LABELS: Record<Enums<"data_origin">, string> = {
@@ -83,6 +121,7 @@ export const APPLICATION_EVENT_LABELS: Record<Enums<"application_event_type">, s
   entrevista_reprogramada: "Entrevista reprogramada",
   entrevista_cancelada: "Entrevista cancelada",
   entrevista_resultado: "Resultado de la entrevista",
+  correo_enviado: "Correo enviado al candidato",
 };
 
 export const INTERVIEW_MODALITY_LABELS: Record<Enums<"interview_modality">, string> = {
@@ -134,11 +173,26 @@ export const ASSESSMENT_DESCRIPTIONS: Record<Enums<"requirement_assessment">, st
   pendiente_verificacion: "Requiere verificación humana (entrevista, documentos o referencias).",
 };
 
+/**
+ * El nivel mide cumplimiento frente al puesto, no posición frente a los demás
+ * candidatos: se calcula con el CV de una sola persona, la base de datos lo
+ * recalcula al registrar la evaluación y queda congelado en el expediente. Las
+ * etiquetas tienen que decir eso y nada más. «Afinidad alta/media/baja»
+ * prometía una comparación entre candidatos que el número no contiene, y con
+ * 40 postulantes que cumplieran, los 40 salían en «afinidad alta».
+ *
+ * La comparación entre candidatos vive aparte, en la posición dentro de la
+ * vacante (`rankVacancyApplications`), que sí mira a todo el grupo.
+ */
 export const COMPATIBILITY_LEVEL_LABELS: Record<Enums<"compatibility_level">, string> = {
-  alta: "Afinidad alta",
-  parcial: "Afinidad media",
-  baja: "Afinidad baja",
-  pendiente: "Faltan datos en el CV",
+  alta: "Cumple los requisitos",
+  parcial: "Cumple en parte",
+  baja: "Cumple pocos requisitos",
+  // «Faltan datos en el CV» decía algo falso en el caso más frecuente: este
+  // nivel cubre tanto el CV ilegible como el CV completo de alguien de otro
+  // rubro, donde no falta ningún dato y simplemente no hay coincidencias. En el
+  // banco de 32 CV, los 16 candidatos «medio» y «no cumple» caen aquí.
+  pendiente: "El CV no evidencia los requisitos",
 };
 
 export const EVALUATION_METHOD_LABELS: Record<Enums<"evaluation_method">, string> = {
@@ -214,7 +268,7 @@ export const PORTAL_PUBLICATION_STATUS_LABELS: Record<Enums<"portal_publication_
 /** Códigos de fallo que informa el robot; uno desconocido se muestra como genérico. */
 export const PORTAL_ERROR_LABELS: Record<string, string> = {
   sesion_expirada: "La sesión del robot en el portal venció; hay que iniciarla de nuevo.",
-  verificacion_requerida: "El portal pidió una verificación (CAPTCHA o código) que solo puede hacer una persona.",
+  verificacion_requerida: "El portal pidió una verificación (un código) que solo puede hacer una persona.",
   pagina_cambio: "El portal cambió su página y el robot no pudo continuar.",
   navegador_cerrado: "El navegador del robot se cerró. No es un cambio del portal: hay que reiniciar el robot.",
   publicacion_rechazada: "El portal no aceptó la oferta.",

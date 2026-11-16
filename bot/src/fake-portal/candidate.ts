@@ -1,8 +1,10 @@
-import type { FakeJob } from "./model";
+import { PALABRA_DESAFIO, SLIDER_OBJETIVO, SLIDER_TOLERANCIA, type Desafio, type FakeJob } from "./model";
 import { layout, type Site } from "./sites";
 import { esc, type UploadedFile } from "./util";
 
-/** Lado público (candidato) de los portales ficticios y pantallas sueltas (inicio, ingreso, CAPTCHA). */
+/** Lado público (candidato) de los portales ficticios y pantallas sueltas (inicio, ingreso, desafío). */
+
+export { PALABRA_DESAFIO };
 
 export function renderLanding(site: Site, base: string, jobs: FakeJob[]): string {
   const open = jobs.filter((job) => job.status === "activa");
@@ -30,14 +32,76 @@ export function renderLogin(site: Site, base: string): string {
   );
 }
 
-export function renderCaptcha(site: Site, base: string, returnTo: string): string {
-  const action = `/__fake/modo?portal=${site.slug}&captcha=0&volver=${encodeURIComponent(returnTo)}`;
+/** Campo oculto (honeypot): un humano no lo rellena; un bot ingenuo sí. Si llega con valor, la verificación falla. */
+const HONEYPOT = `<input data-desafio-trampa name="trampa" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">`;
+
+/**
+ * Pantalla de desafío de verificación (simulación). El robot la resuelve con lógica
+ * interna (`utils/captcha-solver.ts`), SIN intervención humana: lee el dato del DOM
+ * (que nosotros controlamos) y actúa según el tipo. Cada tipo imita la mecánica de un
+ * captcha real (casilla, cuadrícula de imágenes, slider, rotar, texto/aritmética, OTP).
+ */
+export function renderDesafio(site: Site, base: string, desafio: Desafio, returnTo: string, error?: string): string {
+  const action = `/__fake/desafio?portal=${site.slug}&volver=${encodeURIComponent(returnTo)}`;
+  let pregunta: string;
+  let campo: string;
+  let script = "";
+
+  if (desafio.tipo === "suma") {
+    pregunta = `¿Cuánto es ${desafio.a} + ${desafio.b}? (simulación)`;
+    campo = `<input data-desafio-respuesta name="respuesta" type="text" autocomplete="off" inputmode="numeric">${HONEYPOT}`;
+  } else if (desafio.tipo === "texto") {
+    pregunta = `Escribe la palabra «${desafio.palabra ?? PALABRA_DESAFIO}» para continuar (simulación).`;
+    campo = `<input data-desafio-respuesta name="respuesta" type="text" autocomplete="off">${HONEYPOT}`;
+  } else if (desafio.tipo === "casilla") {
+    pregunta = "Marca la casilla para confirmar que no eres un robot (simulación).";
+    campo = `<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none"><span data-desafio-casilla role="checkbox" aria-checked="false" tabindex="0" style="display:inline-block;width:24px;height:24px;border:2px solid #6b7280;border-radius:4px;background:#fff"></span> No soy un robot</label>
+<input data-desafio-respuesta name="respuesta" type="hidden" value="">
+<input data-desafio-tiempo name="tiempo" type="hidden" value="0">${HONEYPOT}`;
+    script = `<script>(function(){var t0=Date.now(),b=document.querySelector('[data-desafio-casilla]'),r=document.querySelector('[data-desafio-respuesta]'),ti=document.querySelector('[data-desafio-tiempo]');if(!b||!r)return;b.addEventListener('click',function(){r.value='ok';if(ti)ti.value=String(Date.now()-t0);b.setAttribute('aria-checked','true');b.style.background='#2563eb';b.style.borderColor='#2563eb';});})();</script>`;
+  } else if (desafio.tipo === "imagenes") {
+    pregunta = `Selecciona todas las casillas marcadas con «${desafio.categoria ?? "✓"}» (simulación).`;
+    const celdas = (desafio.celdas ?? [])
+      .map(
+        (correcta, i) =>
+          `<button type="button" data-desafio-celda data-indice="${i}" data-correcta="${correcta ? "true" : "false"}" aria-label="casilla ${i + 1}" style="width:48px;height:48px;font-size:1.3rem;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer">${correcta ? esc(desafio.categoria ?? "✓") : "·"}</button>`,
+      )
+      .join("");
+    campo = `<div data-desafio-grilla style="display:grid;grid-template-columns:repeat(3,48px);gap:6px;margin:.6rem 0">${celdas}</div>
+<input data-desafio-respuesta name="respuesta" type="hidden" value="">${HONEYPOT}`;
+    script = `<script>(function(){var sel=[],r=document.querySelector('[data-desafio-respuesta]');document.querySelectorAll('[data-desafio-celda]').forEach(function(c){c.addEventListener('click',function(){var i=Number(c.getAttribute('data-indice')),k=sel.indexOf(i);if(k<0){sel.push(i);c.style.outline='3px solid #2563eb';}else{sel.splice(k,1);c.style.outline='';}r.value=sel.slice().sort(function(a,b){return a-b;}).join(',');});});})();</script>`;
+  } else if (desafio.tipo === "rotar") {
+    const angulo = desafio.angulo ?? 0;
+    pregunta = "Gira la imagen con el botón hasta dejar la flecha apuntando hacia arriba (simulación).";
+    campo = `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;margin:.6rem 0"><div data-desafio-rotar data-angulo="${angulo}" data-objetivo="${desafio.anguloObjetivo ?? 0}" style="font-size:2.5rem;transform:rotate(${angulo}deg)">⬆</div></div>
+<button type="button" data-desafio-girar>Girar 90°</button>
+<input data-desafio-respuesta name="respuesta" type="hidden" value="${angulo}">${HONEYPOT}`;
+    script = `<script>(function(){var img=document.querySelector('[data-desafio-rotar]'),g=document.querySelector('[data-desafio-girar]'),r=document.querySelector('[data-desafio-respuesta]');if(!img||!g||!r)return;g.addEventListener('click',function(){var a=(Number(img.getAttribute('data-angulo'))+90)%360;img.setAttribute('data-angulo',String(a));img.style.transform='rotate('+a+'deg)';r.value=String(a);});})();</script>`;
+  } else if (desafio.tipo === "otp") {
+    pregunta = "Ingresa el código de 6 dígitos que enviamos a tu correo (simulación).";
+    campo = `<p data-desafio-otp class="small">Se envió un código al correo de la cuenta. El robot lo lee de su buzón.</p>
+<input data-desafio-respuesta name="respuesta" type="text" autocomplete="off" inputmode="numeric" maxlength="6">${HONEYPOT}`;
+  } else {
+    // slider
+    const objetivo = desafio.objetivo ?? SLIDER_OBJETIVO;
+    const tolerancia = desafio.tolerancia ?? SLIDER_TOLERANCIA;
+    pregunta = "Arrastra el control hasta el recuadro marcado (simulación).";
+    campo = `<div data-desafio-pista data-objetivo="${objetivo}" data-tolerancia="${tolerancia}" style="position:relative;width:300px;height:40px;background:#e5e7eb;border-radius:6px;margin:.6rem 0">
+<div style="position:absolute;top:0;left:${objetivo}px;width:40px;height:40px;border:2px dashed #9ca3af;border-radius:6px;box-sizing:border-box"></div>
+<div data-desafio-slider style="position:absolute;left:0;top:0;width:40px;height:40px;background:#6b7280;border-radius:6px;cursor:grab;touch-action:none"></div></div>
+<input data-desafio-respuesta name="respuesta" type="hidden" value="0">${HONEYPOT}`;
+    script = `<script>(function(){var t=document.querySelector('[data-desafio-pista]'),h=document.querySelector('[data-desafio-slider]'),o=document.querySelector('[data-desafio-respuesta]');if(!t||!h||!o)return;var d=false;function set(cx){var rb=t.getBoundingClientRect(),m=rb.width-h.offsetWidth,x=Math.max(0,Math.min(m,cx-rb.left-h.offsetWidth/2));h.style.left=x+'px';o.value=String(Math.round(x));}h.addEventListener('pointerdown',function(){d=true;});window.addEventListener('pointermove',function(e){if(d)set(e.clientX);});window.addEventListener('pointerup',function(){d=false;});})();</script>`;
+  }
+
   return layout(
     site,
     base,
     "Verificación",
-    `<section class="card"><div ${site.attrs.captcha}><h1>Verificación de seguridad</h1><p>Demuestra que eres humano (simulación). El robot no intenta resolver esto: se detiene y avisa.</p></div>
-<form method="post" action="${action}"><button type="submit">Ya lo resolví (simulación)</button></form></section>`,
+    `<section class="card"><div data-desafio><h1>Verificación de seguridad</h1>
+<p>Desafío automático (simulación). El robot lo resuelve con lógica interna, sin servicios externos ni intervención humana.</p>
+${error ? `<p class="err">${esc(error)}</p>` : ""}
+<form method="post" action="${action}"><p data-desafio-pregunta>${esc(pregunta)}</p>${campo}
+<button data-desafio-enviar type="submit">Verificar</button></form></div></section>${script}`,
   );
 }
 

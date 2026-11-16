@@ -53,6 +53,8 @@ export const changeStatusSchema = z
     status: applicationStatusSchema,
     reason: z.string().trim().max(500, "Máximo 500 caracteres"),
     note: z.string().trim().max(4000, "Máximo 4000 caracteres"),
+    /** Avisar a la persona candidata por correo. Opcional; por defecto no se avisa. */
+    notifyCandidate: z.boolean().default(false),
   })
   .refine(
     (v) => !(STATUSES_REQUIRING_REASON as readonly string[]).includes(v.status) || v.reason.length > 0,
@@ -69,6 +71,14 @@ export const noteSchema = z.object({
   applicationId: z.uuid(),
   note: z.string().trim().min(1, "Escriba la observación").max(4000, "Máximo 4000 caracteres"),
 });
+
+/** Mensaje libre que RRHH envía a la persona candidata. */
+export const candidateMessageSchema = z.object({
+  applicationId: z.uuid(),
+  subject: z.string().trim().min(1, "Indique el asunto").max(200, "Máximo 200 caracteres"),
+  body: z.string().trim().min(1, "Escriba el mensaje").max(5000, "Máximo 5000 caracteres"),
+});
+export type CandidateMessageInput = z.input<typeof candidateMessageSchema>;
 
 export const reviewSchema = z
   .object({
@@ -131,6 +141,43 @@ export function statusesOfView(view: ApplicationView): Enums<"application_status
     (status) => isDiscardedStatus(status) === (view === "descartados") && !LEGACY_STATUSES.includes(status),
   );
 }
+
+/** Tarjeta mínima que muestra el tablero (vista embudo) de la pestaña Candidatos. */
+export type BoardApplication = {
+  id: string;
+  candidate_name: string | null;
+  status: Enums<"application_status"> | null;
+  score: number | null;
+  level: Enums<"compatibility_level"> | null;
+  evaluation_id: string | null;
+};
+
+export type BoardColumn = {
+  key: string;
+  label: string;
+  /** Situaciones cuyas postulaciones se muestran en esta columna. */
+  statuses: readonly Enums<"application_status">[];
+  /**
+   * Estado que se propone al soltar una tarjeta aquí (siempre un estado de
+   * SELECTABLE_STATUSES); `null` si la columna no admite soltar. Soltar no
+   * cambia nada por sí solo: abre la confirmación con motivo, igual que la
+   * ficha. La situación «en_evaluacion» (la pone la entrevista, no es
+   * seleccionable) se muestra dentro de la columna Entrevista.
+   */
+  dropStatus: Enums<"application_status"> | null;
+};
+
+/**
+ * Columnas del tablero en orden de embudo. Agrupan todas las situaciones
+ * (incluidas las antiguas) para que ninguna postulación quede fuera del tablero.
+ */
+export const BOARD_COLUMNS: readonly BoardColumn[] = [
+  { key: "nuevo", label: "Nuevos", statuses: ["nuevo"], dropStatus: "nuevo" },
+  { key: "en_revision", label: "En revisión", statuses: ["en_revision", "preseleccionado"], dropStatus: "en_revision" },
+  { key: "entrevista_programada", label: "Entrevista", statuses: ["entrevista_programada", "en_evaluacion"], dropStatus: "entrevista_programada" },
+  { key: "seleccionado", label: "Seleccionados", statuses: ["seleccionado"], dropStatus: "seleccionado" },
+  { key: "descartados", label: "Descartados", statuses: ["no_seleccionado", "retirado", "en_reserva"], dropStatus: "no_seleccionado" },
+];
 
 /** Parámetros del listado de candidatos por vacante (en la URL). */
 export const applicationListParamsSchema = z.object({

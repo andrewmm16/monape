@@ -71,7 +71,7 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
           <FieldError errors={[errors.responsibilities]} />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field data-invalid={Boolean(errors.location)}>
             <FieldLabel htmlFor="location">Ubicación</FieldLabel>
             <Input id="location" {...form.register("location")} />
@@ -87,11 +87,6 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-          </Field>
-          <Field data-invalid={Boolean(errors.contractType)}>
-            <FieldLabel htmlFor="contractType">Tipo de contrato</FieldLabel>
-            <Input id="contractType" placeholder="Si se conoce" {...form.register("contractType")} />
-            <FieldError errors={[errors.contractType]} />
           </Field>
         </div>
 
@@ -119,14 +114,7 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
           </Field>
         </div>
 
-        <fieldset className="space-y-4 rounded-lg border p-4">
-          <legend className="px-1 text-sm font-medium">Publicación</legend>
-          <p className="text-sm text-muted-foreground">
-            Al publicar la vacante aparece en la página pública, en Google y en los buscadores de empleo, salvo que sea
-            confidencial. Para salir allí necesita una descripción de al menos 50 caracteres, el tipo de empleo y, si no es
-            remota, la ciudad y la región.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
             <Field data-invalid={Boolean(errors.city)}>
               <FieldLabel htmlFor="city">Ciudad</FieldLabel>
               <Input id="city" {...form.register("city")} />
@@ -170,7 +158,7 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
               <FieldError errors={[errors.salaryCurrency]} />
             </Field>
             <Field data-invalid={Boolean(errors.salaryPeriod)}>
-              <FieldLabel htmlFor="salaryPeriod">Periodo</FieldLabel>
+              <FieldLabel htmlFor="salaryPeriod">Periodo del sueldo</FieldLabel>
               <NativeSelect id="salaryPeriod" className="w-full" {...form.register("salaryPeriod")}>
                 <NativeSelectOption value="">Sin definir</NativeSelectOption>
                 {Constants.public.Enums.salary_period.map((period) => (
@@ -179,6 +167,7 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
+              <FieldDescription>Cada cuánto corresponde el monto del sueldo (normalmente, por mes).</FieldDescription>
               <FieldError errors={[errors.salaryPeriod]} />
             </Field>
           </div>
@@ -194,7 +183,6 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
               </Field>
             )}
           />
-        </fieldset>
 
         <div className="flex gap-2">
           <Button type="submit" disabled={pending}>

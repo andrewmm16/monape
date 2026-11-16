@@ -109,6 +109,13 @@
   --chart-3: #00d2ef;
   --chart-4: #fbbf24;
   --chart-5: #5a5a58;
+  /* Fuentes de candidatos (paleta categórica CVD-segura, validada). */
+  --src-linkedin: #2a78d6;
+  --src-bolsa-empleo: #eb6834;
+  --src-web-empresa: #1baf7a;
+  --src-referido: #eda100;
+  --src-manual: #e87ba4;
+  --src-otro: #898781;
   --radius: 0.625rem;
   --sidebar: #0a0a0f;
   --sidebar-foreground: #f2f2f0;
@@ -156,6 +163,12 @@
   --chart-3: #00d2ef;
   --chart-4: #fbbf24;
   --chart-5: #a3a3a0;
+  --src-linkedin: #3987e5;
+  --src-bolsa-empleo: #d95926;
+  --src-web-empresa: #199e70;
+  --src-referido: #c98500;
+  --src-manual: #d55181;
+  --src-otro: #898781;
   --sidebar: #050506;
   --sidebar-foreground: #f2f2f0;
   --sidebar-primary: #1ff287;

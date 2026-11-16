@@ -10,6 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 
+# caleta sourcing (no subir sesión WhatsApp ni descargas locales)
+/.caleta-whatsapp/
+/scripts/caleta/salida/
+
 # testing
 /coverage
 
@@ -64,3 +68,19 @@ next-env.d.ts
 # lector de correo: estado local (hashes de lo procesado)
 /correo/.state/
 /.build.log
+# CV escaneados del banco de OCR: 8 MB derivados de cv-prueba/, reproducibles
+# con `npx tsx scripts/generar-cv-escaneado.ts` (la degradación es
+# determinista, así que se regeneran idénticos).
+/cv-prueba-escaneado/
+# CV en .docx del banco de formato, reproducibles con generar-cv-docx.ts
+/cv-prueba-docx/
+# Salida del lector de CV en lote (caleta:lote-cv): puede contener datos de contacto
+/salida/
+.next-prod
+.prod.log
+.build-prod.log
+# diagnóstico/artefactos de build y logs de procesos lanzados a mano
+/.next-dev-diag/
+/.robot.log
+# salida generada por el scraper de mercado (datos reproducibles)
+/ofertas_mercado.json

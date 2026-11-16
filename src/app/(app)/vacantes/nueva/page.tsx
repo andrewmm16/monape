@@ -27,7 +27,6 @@ export default async function NewVacancyPage() {
           responsibilities: "",
           location: "",
           modality: "",
-          contractType: "",
           openingDate: "",
           closingDate: "",
           ownerId: user.id,

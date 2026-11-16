@@ -2,7 +2,8 @@ import "server-only";
 import { AppError, toAppError } from "@/lib/errors";
 import { sanitizeSearchTerm } from "@/lib/search";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
-import { DISCARDED_APPLICATION_STATUSES, statusesOfView, type ApplicationListParams } from "./schemas";
+import { positionsByScore } from "./ranking";
+import { DISCARDED_APPLICATION_STATUSES, statusesOfView, type ApplicationListParams, type BoardApplication } from "./schemas";
 
 export const APPLICATIONS_PAGE_SIZE = 20;
 
@@ -40,6 +41,84 @@ export async function listVacancyApplications(
   const { data, error, count } = await query;
   if (error) throw toAppError(error);
   return { rows: data, total: count ?? 0 };
+}
+
+/**
+ * Tope de candidatos sobre el que se calcula la posición. Vienen ordenados por
+ * puntuación, así que el tope recorta por abajo: los primeros —los únicos cuya
+ * posición se mira— entran siempre. Más allá del tope no se muestra posición.
+ */
+const RANK_LIMIT = 2000;
+
+export type ApplicationRanking = {
+  /** id de la postulación → posición (1 es la mayor puntuación). */
+  positions: Map<string, number>;
+  /** Cuántos candidatos entran en la comparación. */
+  evaluated: number;
+};
+
+/**
+ * Posición de cada candidato por puntuación DENTRO de la vacante. Es la mitad
+ * comparativa de la lectura: el nivel dice si la persona cumple el puesto y la
+ * posición dice cuánto destaca entre quienes siguen en carrera. Se calcula al
+ * mostrar la vacante, nunca se guarda: dependería del grupo y el mismo
+ * candidato cambiaría de valor cada vez que llega otro postulante, lo que
+ * rompería el expediente (y la base de datos lo rechazaría).
+ *
+ * Solo entran los evaluados que siguen en proceso: la posición de alguien ya
+ * descartado no significa nada. Los empates comparten posición y consumen
+ * hueco (1.º, 2.º, 2.º, 4.º), como en una clasificación deportiva.
+ */
+export async function rankVacancyApplications(
+  supabase: AppSupabaseClient,
+  vacancyId: string,
+): Promise<ApplicationRanking> {
+  const { data, error } = await supabase
+    .from("application_overview")
+    .select("id, score")
+    .eq("vacancy_id", vacancyId)
+    .not("status", "in", `(${DISCARDED_APPLICATION_STATUSES.join(",")})`)
+    .not("evaluation_id", "is", null)
+    .order("score", { ascending: false, nullsFirst: false })
+    .limit(RANK_LIMIT);
+  if (error) throw toAppError(error);
+
+  const positions = positionsByScore(data ?? []);
+  return { positions, evaluated: positions.size };
+}
+
+/** Tope de tarjetas que muestra el tablero (vista embudo), por prudencia. */
+const BOARD_LIMIT = 500;
+
+/**
+ * Todos los candidatos de la vacante para la vista de tablero (embudo),
+ * ordenados por puntuación. No se pagina: el tablero agrupa por situación en el
+ * cliente. No oculta compatibilidades bajas (igual que el listado).
+ */
+export async function listApplicationsForBoard(
+  supabase: AppSupabaseClient,
+  vacancyId: string,
+): Promise<BoardApplication[]> {
+  const { data, error } = await supabase
+    .from("application_overview")
+    .select("id, candidate_name, status, score, level, evaluation_id")
+    .eq("vacancy_id", vacancyId)
+    .order("score", { ascending: false, nullsFirst: false })
+    .order("applied_at", { ascending: false })
+    .limit(BOARD_LIMIT);
+  if (error) throw toAppError(error);
+  return (data ?? []).flatMap((row) =>
+    row.id
+      ? [{
+          id: row.id,
+          candidate_name: row.candidate_name,
+          status: row.status,
+          score: row.score,
+          level: row.level,
+          evaluation_id: row.evaluation_id,
+        }]
+      : [],
+  );
 }
 
 /** Cuántas postulaciones tiene la vacante en cada vista (sin búsqueda ni filtros). */
@@ -114,6 +193,34 @@ export async function listRequirementVerifications(supabase: AppSupabaseClient, 
     .eq("application_id", applicationId);
   if (error) throw toAppError(error);
   return data;
+}
+
+/** Respuestas a las preguntas eliminatorias de una postulación (las que no cumplen, primero). */
+export async function listKillerAnswers(supabase: AppSupabaseClient, applicationId: string) {
+  const { data, error } = await supabase
+    .from("application_killer_answers")
+    .select(
+      "id, meets, answer_boolean, answer_number, answer_text, question:vacancy_killer_questions(question, question_type, position)",
+    )
+    .eq("application_id", applicationId);
+  if (error) throw toAppError(error);
+  return data.sort(
+    (a, b) => Number(a.meets) - Number(b.meets) || (a.question?.position ?? 0) - (b.question?.position ?? 0),
+  );
+}
+
+/** Cuántas respuestas que no cumplen tiene cada postulación (solo las que tienen alguna). */
+export async function countKillerFlags(supabase: AppSupabaseClient, applicationIds: string[]) {
+  const flags = new Map<string, number>();
+  if (applicationIds.length === 0) return flags;
+  const { data, error } = await supabase
+    .from("application_killer_answers")
+    .select("application_id")
+    .in("application_id", applicationIds)
+    .eq("meets", false);
+  if (error) throw toAppError(error);
+  for (const row of data) flags.set(row.application_id, (flags.get(row.application_id) ?? 0) + 1);
+  return flags;
 }
 
 export async function listApplicationEvents(supabase: AppSupabaseClient, applicationId: string) {

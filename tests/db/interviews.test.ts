@@ -688,3 +688,61 @@ describe("reprogramar sobre postulaciones cerradas", () => {
     expect((await interviewRow(id)).status).toBe("cancelada");
   });
 });
+
+describe("set_interview_coordinates", () => {
+  const setCoordinates = (interview: string, lat: number | null, lng: number | null, actor = rrhh()) =>
+    asActor(db, actor, () => db.query("select public.set_interview_coordinates($1, $2, $3)", [interview, lat, lng]));
+
+  it("guarda el punto de una entrevista presencial y lo borra con null, null", async () => {
+    const id = await schedule(await newApplication(), { modality: "presencial", location: "Av. Larco 345, Miraflores" });
+    expect(await interviewRow(id)).toMatchObject({ location_lat: null, location_lng: null });
+
+    await setCoordinates(id, -12.1219, -77.0297);
+    expect(await interviewRow(id)).toMatchObject({ location_lat: -12.1219, location_lng: -77.0297 });
+
+    await setCoordinates(id, null, null);
+    expect(await interviewRow(id)).toMatchObject({ location_lat: null, location_lng: null });
+  });
+
+  it("rechaza coordenadas incompletas o fuera de rango", async () => {
+    const id = await schedule(await newApplication(), { modality: "presencial", location: "Av. Larco 345" });
+    expect((await expectError(setCoordinates(id, -12.1, null))).message).toMatch(/latitud y la longitud/);
+    expect((await expectError(setCoordinates(id, null, -77))).message).toMatch(/latitud y la longitud/);
+    expect((await expectError(setCoordinates(id, 91, -77))).message).toMatch(/fuera de rango/);
+    expect((await expectError(setCoordinates(id, -12, -181))).message).toMatch(/fuera de rango/);
+    expect(await interviewRow(id)).toMatchObject({ location_lat: null, location_lng: null });
+  });
+
+  it("las restricciones de la tabla también protegen contra escrituras directas", async () => {
+    const id = await schedule(await newApplication(), { modality: "presencial", location: "Av. Larco 345" });
+    await expectError(db.query("update public.interviews set location_lat = -12 where id = $1", [id]));
+    await expectError(db.query("update public.interviews set location_lat = 95, location_lng = 0 where id = $1", [id]));
+    await expectError(db.query("update public.interviews set location_lat = 0, location_lng = 200 where id = $1", [id]));
+  });
+
+  it("solo una entrevista presencial tiene coordenadas; borrarlas siempre se permite", async () => {
+    const id = await schedule(await newApplication(), { modality: "virtual" });
+    expect((await expectError(setCoordinates(id, -12.1, -77.0))).message).toMatch(/presencial/);
+    await setCoordinates(id, null, null);
+  });
+
+  it("falla con una entrevista inexistente", async () => {
+    const error = await expectError(setCoordinates("00000000-0000-4000-8000-000000000000", -12, -77));
+    expect(error.message).toMatch(/no existe/);
+  });
+
+  it("anon y usuarios inactivos no pueden llamarla", async () => {
+    const id = await schedule(await newApplication(), { modality: "presencial", location: "Av. Larco 345" });
+    await expectError(setCoordinates(id, -12, -77, anon));
+    expect((await expectError(setCoordinates(id, -12, -77, user(ids.inactivo)))).message).toBe("No autorizado");
+    expect(await interviewRow(id)).toMatchObject({ location_lat: null, location_lng: null });
+  });
+
+  it("no cambia lo demás de la entrevista", async () => {
+    const id = await schedule(await newApplication(), { modality: "presencial", location: "Av. Larco 345" });
+    const before = await interviewRow(id);
+    await setCoordinates(id, -12.1, -77.0);
+    const after = await interviewRow(id);
+    expect({ ...after, location_lat: null, location_lng: null, updated_at: null }).toEqual({ ...before, updated_at: null });
+  });
+});

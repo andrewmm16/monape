@@ -27,13 +27,21 @@ export const ERROR_CODES = {
 
 /**
  * Errores que exigen a una persona: el robot se detiene y no lo reintenta.
- * Nunca se intenta resolver un CAPTCHA ni un código de verificación.
+ * Nunca se intenta resolver un código de verificación.
  */
 export const HUMAN_REQUIRED = new Set<string>([
   ERROR_CODES.sessionExpired,
   ERROR_CODES.verificationRequired,
   ERROR_CODES.browserClosed,
 ]);
+
+/**
+ * Verificaciones que una persona resuelve EN LA VENTANA ABIERTA del robot (un código
+ * de verificación o la sesión vencida), posiblemente por acceso remoto. Admiten «relevo»: el
+ * robot espera sin apagarse y continúa con «listo», sin reiniciar. No incluye
+ * `navegador_cerrado` (ahí no hay ventana que mantener) ni los cambios de página.
+ */
+export const WAITABLE = new Set<string>([ERROR_CODES.sessionExpired, ERROR_CODES.verificationRequired]);
 
 /** Mensaje de Playwright cuando no se pudo llegar al servidor del portal (red, DNS, conexión rechazada o cortada). */
 const UNREACHABLE = /net::ERR_(?:CONNECTION_(?:REFUSED|RESET|CLOSED|TIMED_OUT)|NAME_NOT_RESOLVED|INTERNET_DISCONNECTED|NETWORK_CHANGED|ADDRESS_UNREACHABLE|TIMED_OUT)/;

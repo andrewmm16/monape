@@ -8,8 +8,19 @@ import { chromium } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-type Exp = { cargo: string; empresa: string; periodo: string; logros: string[] };
-type Cv = {
+export type Exp = { cargo: string; empresa: string; periodo: string; logros: string[] };
+/**
+ * Defectos de maquetación reales que un PDF arrastra hasta la extracción. No
+ * son adornos: son las formas que rompían el motor, y hacen falta en un PDF de
+ * verdad porque una cadena escrita a mano en un test no pasa por pdf.js.
+ *
+ *  - `espaciado`: títulos de sección con letter-spacing, que la extracción
+ *    devuelve letra por letra («E X P E R I E N C I A»).
+ *  - `plantilla`: la formación en una línea con barras («Universidad | Carrera
+ *    | 2016 - 2021»), donde la barra corta la oración.
+ */
+export type Estilo = "espaciado" | "plantilla";
+export type Cv = {
   nombre: string;
   apellido: string;
   titular: string;
@@ -19,10 +30,11 @@ type Cv = {
   formacion: string[];
   habilidades: string[];
   idiomas: string[];
+  estilo?: Estilo;
 };
-type Puesto = { carpeta: string; cvs: Cv[] };
+export type Puesto = { carpeta: string; cvs: Cv[] };
 
-const PUESTOS: Puesto[] = [
+export const PUESTOS: Puesto[] = [
   {
     carpeta: "01_Asistente_Contable",
     cvs: [
@@ -261,6 +273,160 @@ const PUESTOS: Puesto[] = [
       },
     ],
   },
+  {
+    // Puesto con un requisito LEGAL (colegiatura) y con la escalera de grados
+    // en juego: licenciada frente a técnica en enfermería no son lo mismo.
+    carpeta: "06_Enfermeria_Asistencial",
+    cvs: [
+      {
+        nombre: "Rosa Elvira", apellido: "Ticona Flores", titular: "Licenciada en Enfermería | Cuidados Intensivos", ciudad: "Arequipa, Perú",
+        resumen: "Licenciada en enfermería colegiada con 7 años de experiencia en atención hospitalaria, de los cuales 4 en unidad de cuidados intensivos. Segunda especialidad en enfermería intensiva.",
+        exp: [
+          { cargo: "Enfermera Asistencial - UCI", empresa: "Clínica Ficticia del Sur S.A.C.", periodo: "Feb 2022 - Actualidad", logros: ["Atendí pacientes críticos en UCI con ventilación mecánica, ratio 1:2.", "Apliqué protocolos de soporte vital avanzado y RCP en 40 códigos azules.", "Capacité al personal nuevo en manejo de bombas de infusión y catéteres centrales."] },
+          { cargo: "Enfermera Asistencial - Hospitalización", empresa: "Hospital Regional Ficticio", periodo: "Mar 2019 - Ene 2022", logros: ["Administré tratamiento a 25 pacientes por turno en medicina interna.", "Registré notas de enfermería e historia clínica electrónica."] },
+        ],
+        formacion: ["Licenciada en Enfermería - Universidad Nacional Ficticia de Arequipa (2013 - 2018), título profesional", "Colegiada en el Colegio de Enfermeros del Perú (matrícula ficticia), habilitación vigente", "Segunda especialidad en Enfermería en Cuidados Intensivos - Universidad Ficticia (2021)"],
+        habilidades: ["Atención de pacientes críticos en UCI", "Soporte vital básico y avanzado (RCP)", "Administración de medicamentos y bombas de infusión", "Historia clínica electrónica", "Bioseguridad"],
+        idiomas: ["Español nativo", "Inglés básico (A2)"],
+      },
+      {
+        nombre: "Milagros", apellido: "Cáceres Peña", titular: "Licenciada en Enfermería | Hospitalización", ciudad: "Lima, Perú",
+        resumen: "Licenciada en enfermería colegiada con 3 años de experiencia en hospitalización y consulta externa. Busco crecer en el área asistencial.",
+        exp: [
+          { cargo: "Enfermera Asistencial", empresa: "Centro Médico Ficticio Los Jardines", periodo: "Ago 2023 - Actualidad", logros: ["Atención de pacientes en hospitalización de medicina general.", "Curaciones, canalización de vías periféricas y toma de funciones vitales.", "Apoyo en el programa de inmunizaciones."] },
+          { cargo: "Enfermera de Consulta Externa", empresa: "Policlínico Ficticio San Martín", periodo: "Set 2022 - Jul 2023", logros: ["Triaje y preparación de pacientes para consulta.", "Educación sanitaria a pacientes con diabetes e hipertensión."] },
+        ],
+        formacion: ["Licenciada en Enfermería - Universidad Privada Ficticia de Lima (2017 - 2022), título profesional", "Colegiada en el Colegio de Enfermeros del Perú (matrícula ficticia)", "Curso de Soporte Vital Básico - Instituto Ficticio de Salud (2023)"],
+        habilidades: ["Atención en hospitalización", "Soporte vital básico (RCP)", "Canalización de vías periféricas", "Inmunizaciones", "Notas de enfermería"],
+        idiomas: ["Español nativo"],
+      },
+      {
+        nombre: "Nancy", apellido: "Huanca Pari", titular: "Técnica en Enfermería", ciudad: "Juliaca, Perú",
+        resumen: "Técnica en enfermería con 4 años de experiencia apoyando la atención de pacientes en hospitalización. Responsable y con buen trato al paciente.",
+        exp: [
+          { cargo: "Técnica en Enfermería", empresa: "Clínica Ficticia del Altiplano", periodo: "Jun 2022 - Actualidad", logros: ["Apoyé en el aseo, movilización y alimentación de pacientes hospitalizados.", "Tomé funciones vitales y registré en la hoja de control.", "Preparé material estéril para procedimientos."] },
+          { cargo: "Técnica en Enfermería", empresa: "Posta Médica Ficticia Rural", periodo: "May 2021 - May 2022", logros: ["Apoyo en campañas de vacunación y control de niño sano."] },
+        ],
+        formacion: ["Técnica en Enfermería - Instituto Superior Tecnológico Ficticio del Altiplano (2018 - 2020)", "Secundaria completa - I.E. Ficticia N.º 0006"],
+        habilidades: ["Toma de funciones vitales", "Aseo y movilización de pacientes", "Preparación de material estéril", "Trato al paciente"],
+        idiomas: ["Español nativo", "Quechua"],
+      },
+      {
+        nombre: "Diana", apellido: "Córdova Siles", titular: "Recepcionista de Clínica", ciudad: "Lima, Perú",
+        resumen: "Recepcionista con 3 años de experiencia en admisión de pacientes y manejo de citas en clínica privada. Busco continuar en el sector salud.",
+        exp: [
+          { cargo: "Recepcionista de Admisión", empresa: "Clínica Ficticia Santa Rosa", periodo: "Feb 2023 - Actualidad", logros: ["Admisión de pacientes, verificación de seguros y cobro en caja.", "Programación de citas médicas en el sistema.", "Atención telefónica y orientación al paciente."] },
+        ],
+        formacion: ["Secretariado Ejecutivo - Instituto Ficticio de Lima (2020 - 2022)", "Secundaria completa - I.E. Ficticia N.º 0007"],
+        habilidades: ["Admisión de pacientes", "Programación de citas", "Atención al cliente", "Excel básico"],
+        idiomas: ["Español nativo"],
+      },
+    ],
+  },
+  {
+    // Puesto cargado de siglas cortas (PLAME, AFP, ONP, T-Registro) y con una
+    // negación explícita en el CV de la candidata media.
+    carpeta: "07_Asistente_Planillas",
+    cvs: [
+      {
+        nombre: "Katherine", apellido: "Vilca Soto", titular: "Analista de Planillas | Remuneraciones", ciudad: "Lima, Perú",
+        resumen: "Bachiller en Administración con 5 años de experiencia en planillas, liquidaciones y declaración de PLAME. Manejo de T-Registro, AFPnet y legislación laboral peruana.",
+        exp: [
+          { cargo: "Analista de Planillas", empresa: "Corporación Ficticia de Servicios S.A.", periodo: "Ene 2022 - Actualidad", logros: ["Procesé la planilla mensual de 420 trabajadores sin observaciones en 3 años.", "Declaré PLAME y realicé el alta y baja en T-Registro de 180 ingresos y ceses.", "Calculé CTS, gratificaciones, vacaciones truncas y liquidaciones conforme a la legislación laboral peruana.", "Automaticé el cuadro de aportes AFP y ONP en Excel avanzado con macros, ahorrando 2 días por cierre."] },
+          { cargo: "Asistente de Planillas", empresa: "Textiles Ficticios del Perú S.A.C.", periodo: "Feb 2020 - Dic 2021", logros: ["Apoyé el cálculo de la planilla quincenal de 150 operarios.", "Registré descuentos judiciales, adelantos y préstamos."] },
+        ],
+        formacion: ["Bachiller en Administración - Universidad Nacional Ficticia de Lima (2015 - 2019)", "Diplomado en Gestión de Remuneraciones y Legislación Laboral - Instituto Ficticio (2021)"],
+        habilidades: ["Planillas y remuneraciones", "PLAME y T-Registro", "AFPnet (AFP y ONP)", "Legislación laboral peruana", "Cálculo de CTS y liquidaciones", "Excel avanzado (macros, tablas dinámicas)"],
+        idiomas: ["Español nativo", "Inglés básico (A2)"],
+      },
+      {
+        nombre: "Elmer", apellido: "Chuquilín Vega", titular: "Asistente de Planillas", ciudad: "Trujillo, Perú",
+        resumen: "Técnico en Administración con 2 años de experiencia en apoyo a planillas y control de asistencia. Conocimiento de PLAME y T-Registro.",
+        exp: [
+          { cargo: "Asistente de Planillas", empresa: "Agroindustrial Ficticia del Norte S.A.C.", periodo: "Nov 2024 - Actualidad", logros: ["Consolidé el control de asistencia y horas extra de 90 operarios.", "Apoyé la declaración de PLAME y el registro en T-Registro supervisado por la jefa de RRHH.", "Elaboré boletas de pago mensuales en el sistema."] },
+          { cargo: "Practicante de Recursos Humanos", empresa: "Servicios Ficticios La Libertad E.I.R.L.", periodo: "Oct 2023 - Oct 2024", logros: ["Archivo de legajos y apoyo en convocatorias.", "Registro de descansos médicos."] },
+        ],
+        formacion: ["Técnico en Administración de Empresas - Instituto Superior Ficticio de Trujillo (2020 - 2023)", "Curso de Planillas y PLAME - Academia Ficticia Laboral (2024)"],
+        habilidades: ["Control de asistencia", "PLAME y T-Registro", "Boletas de pago", "Excel intermedio", "Nociones de legislación laboral"],
+        idiomas: ["Español nativo"],
+      },
+      {
+        nombre: "Brenda", apellido: "Ramos Chávez", titular: "Asistente Administrativa", ciudad: "Lima, Perú",
+        resumen: "Asistente administrativa con 3 años de experiencia en soporte de oficina y atención al personal. No cuento con experiencia en planillas ni en PLAME, pero sí en el manejo de legajos y documentación del personal.",
+        exp: [
+          { cargo: "Asistente Administrativa de RRHH", empresa: "Importaciones Ficticias Lima S.A.C.", periodo: "Mar 2023 - Actualidad", logros: ["Organicé y digitalicé los legajos de 200 trabajadores.", "Coordiné exámenes médicos ocupacionales y entrega de EPP.", "Atendí consultas del personal sobre vacaciones y descansos médicos."] },
+          { cargo: "Recepcionista", empresa: "Estudio Ficticio de Abogados", periodo: "Ene 2022 - Feb 2023", logros: ["Atención de visitas, mensajería y agenda."] },
+        ],
+        formacion: ["Administración (8.º ciclo de 10, en curso) - Universidad Privada Ficticia de Lima", "Secundaria completa - I.E. Ficticia N.º 0008"],
+        habilidades: ["Gestión de legajos", "Coordinación de exámenes médicos", "Excel básico", "Atención al personal"],
+        idiomas: ["Español nativo"],
+      },
+      {
+        nombre: "Walter", apellido: "Quiroz Mamani", titular: "Vendedor de Tienda", ciudad: "Lima, Perú",
+        resumen: "Vendedor con 6 años de experiencia en tienda de electrodomésticos. Busco una oportunidad en oficina.",
+        exp: [
+          { cargo: "Vendedor de Piso", empresa: "Electro Ficticia Perú S.A.C.", periodo: "Abr 2020 - Actualidad", logros: ["Cumplí la cuota mensual de ventas durante 4 años consecutivos.", "Asesoré a clientes en financiamiento y garantías extendidas."] },
+        ],
+        formacion: ["Secundaria completa - I.E. Ficticia N.º 0009"],
+        habilidades: ["Venta en piso", "Atención al cliente", "Manejo de caja"],
+        idiomas: ["Español nativo"],
+      },
+    ],
+  },
+  {
+    // Puesto con dos defectos de maquetación REALES: el CV más fuerte lleva los
+    // títulos de sección espaciados letra por letra y el segundo pone la
+    // formación en una línea con barras. Los dos pasan por pdf.js de verdad.
+    carpeta: "08_Residente_Obra",
+    cvs: [
+      {
+        nombre: "Hernán", apellido: "Zegarra Loayza", titular: "Ingeniero Civil | Residente de Obra", ciudad: "Cusco, Perú",
+        resumen: "Ingeniero civil titulado y colegiado con 9 años de experiencia en ejecución de obras de edificación y saneamiento. Manejo avanzado de AutoCAD, S10 y MS Project.",
+        estilo: "espaciado",
+        exp: [
+          { cargo: "Residente de Obra", empresa: "Constructora Ficticia Andina S.A.C.", periodo: "Mar 2021 - Actualidad", logros: ["Dirigí la ejecución de 4 obras de edificación multifamiliar por S/ 18 millones en total.", "Controlé valorizaciones y presupuestos en S10 y la programación en MS Project.", "Implementé el plan de seguridad y salud en obra conforme a la Ley 29783, sin accidentes incapacitantes.", "Elaboré y revisé planos de replanteo en AutoCAD nivel avanzado."] },
+          { cargo: "Ingeniero de Campo", empresa: "Consorcio Ficticio Saneamiento Sur", periodo: "Feb 2018 - Feb 2021", logros: ["Supervisé la instalación de 12 km de redes de agua potable y alcantarillado.", "Elaboré metrados y valorizaciones mensuales en S10."] },
+          { cargo: "Asistente de Obra", empresa: "Ingeniería Ficticia del Cusco E.I.R.L.", periodo: "Ene 2017 - Ene 2018", logros: ["Control de avance diario y cuaderno de obra."] },
+        ],
+        formacion: ["Ingeniería Civil - Universidad Nacional Ficticia del Cusco (2010 - 2015), título profesional de Ingeniero Civil", "Colegiado en el Colegio de Ingenieros del Perú (CIP, matrícula ficticia), habilitación vigente", "Diplomado en Gerencia de Proyectos de Construcción - Instituto Ficticio (2020)"],
+        habilidades: ["Residencia y supervisión de obra", "AutoCAD nivel avanzado", "S10 (presupuestos y valorizaciones)", "MS Project", "Seguridad y salud en obra (Ley 29783)", "Metrados y control de avance"],
+        idiomas: ["Español nativo", "Inglés intermedio (B1)", "Quechua"],
+      },
+      {
+        nombre: "Pedro", apellido: "Ríos Benavides", titular: "Ingeniero Civil | Supervisión de Obra", ciudad: "Lima, Perú",
+        resumen: "Ingeniero civil titulado y colegiado con 5 años de experiencia en supervisión de obras de edificación. Manejo de AutoCAD y S10.",
+        estilo: "plantilla",
+        exp: [
+          { cargo: "Supervisor de Obra", empresa: "Inmobiliaria Ficticia Lima Norte S.A.C.", periodo: "Jun 2022 - Actualidad", logros: ["Supervisé la ejecución de 2 edificios de vivienda de 8 pisos.", "Revisé valorizaciones mensuales del contratista en S10.", "Elaboré informes de avance y compatibilización de planos en AutoCAD nivel intermedio."] },
+          { cargo: "Asistente de Supervisión", empresa: "Consultora Ficticia de Proyectos S.A.C.", periodo: "Ago 2020 - May 2022", logros: ["Control de calidad de concreto y acero en obra.", "Apoyo en la elaboración del cuaderno de obra."] },
+        ],
+        formacion: ["Universidad Privada Ficticia de Lima | Ingeniería Civil | 2014 - 2019 | Título profesional", "Colegio de Ingenieros del Perú | CIP | matrícula ficticia vigente"],
+        habilidades: ["Supervisión de obra", "AutoCAD nivel intermedio", "S10", "Control de calidad de concreto", "Lectura de planos"],
+        idiomas: ["Español nativo", "Inglés básico (A2)"],
+      },
+      {
+        nombre: "Sandra", apellido: "Ayala Quispe", titular: "Bachiller en Ingeniería Civil", ciudad: "Huancayo, Perú",
+        resumen: "Bachiller en ingeniería civil con 3 años de experiencia en asistencia técnica de obra. En trámite el título profesional.",
+        exp: [
+          { cargo: "Asistente de Residencia", empresa: "Constructora Ficticia del Centro S.R.L.", periodo: "Feb 2023 - Actualidad", logros: ["Apoyé el control de avance y el llenado del cuaderno de obra.", "Elaboré metrados y planos de detalle en AutoCAD nivel intermedio."] },
+          { cargo: "Practicante de Ingeniería", empresa: "Municipalidad Ficticia Distrital", periodo: "Mar 2022 - Ene 2023", logros: ["Apoyo en expedientes técnicos de pistas y veredas."] },
+        ],
+        formacion: ["Bachiller en Ingeniería Civil - Universidad Nacional Ficticia del Centro (2016 - 2021)", "Título profesional en trámite", "Curso de S10 básico - Academia Ficticia de Ingeniería (2023)"],
+        habilidades: ["AutoCAD nivel intermedio", "Metrados", "S10 básico", "Control de avance de obra"],
+        idiomas: ["Español nativo"],
+      },
+      {
+        nombre: "Gregorio", apellido: "Ninahuanca Soto", titular: "Maestro de Obra", ciudad: "Lima, Perú",
+        resumen: "Maestro de obra con 15 años de experiencia dirigiendo cuadrillas en construcción de viviendas. Experiencia práctica en encofrado, albañilería y acabados.",
+        exp: [
+          { cargo: "Maestro de Obra", empresa: "Construcciones Ficticias Villa S.A.C.", periodo: "Ene 2012 - Actualidad", logros: ["Dirigí cuadrillas de hasta 20 obreros en obras de vivienda unifamiliar.", "Ejecuté encofrados, vaciado de losas y acabados.", "Coordiné el abastecimiento de materiales en obra."] },
+        ],
+        formacion: ["Secundaria completa - I.E. Ficticia N.º 0010", "Curso de albañilería - CETPRO Ficticio (2010)"],
+        habilidades: ["Encofrado y albañilería", "Lectura básica de planos", "Dirección de cuadrillas", "Acabados"],
+        idiomas: ["Español nativo"],
+      },
+    ],
+  },
 ];
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -280,6 +446,7 @@ h1 { font-size: 22pt; margin: 0; color: #1f3a5f; }
 .tit { font-size: 11.5pt; color: #444; margin: 2px 0 4px; }
 .contacto { font-size: 9.5pt; color: #555; border-bottom: 2px solid #1f3a5f; padding-bottom: 6px; }
 h2 { font-size: 11pt; text-transform: uppercase; color: #1f3a5f; border-bottom: 1px solid #ccc; margin: 14px 0 6px; padding-bottom: 2px; }
+${cv.estilo === "espaciado" ? "h2 { letter-spacing: 6px; }" : ""}
 .row { display: flex; justify-content: space-between; }
 .row span { color: #555; font-size: 9.5pt; }
 .emp { font-style: italic; color: #444; }
@@ -300,8 +467,19 @@ li { margin-bottom: 2px; }
 </body></html>`;
 }
 
-const sinTildes = (s: string) =>
+export const sinTildes = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "");
+
+/** Nombre del archivo y correo ficticio de un CV, iguales en PDF y en .docx. */
+export function identidad(cv: Cv, orden: number): { base: string; correo: string; telefono: string } {
+  const apellido = sinTildes(cv.apellido.split(" ")[0]!);
+  const nombre = sinTildes(cv.nombre.split(" ")[0]!);
+  return {
+    base: `CV_${apellido}_${nombre}`,
+    correo: `${nombre.toLowerCase()}.${apellido.toLowerCase()}@example.com`,
+    telefono: `999 000 0${String(orden).padStart(2, "0")}`,
+  };
+}
 
 async function main() {
   const raiz = path.resolve(import.meta.dirname, "..", "cv-prueba");
@@ -313,12 +491,9 @@ async function main() {
     mkdirSync(dir, { recursive: true });
     for (const cv of p.cvs) {
       n++;
-      const nn = String(n).padStart(2, "0");
-      const apellido = sinTildes(cv.apellido.split(" ")[0]);
-      const nombre = sinTildes(cv.nombre.split(" ")[0]);
-      const correo = `${sinTildes(cv.nombre.split(" ")[0]).toLowerCase()}.${apellido.toLowerCase()}@example.com`;
-      await page.setContent(html(cv, `999 000 0${nn}`, correo), { waitUntil: "load" });
-      const archivo = path.join(dir, `CV_${apellido}_${nombre}.pdf`);
+      const { base, correo, telefono } = identidad(cv, n);
+      await page.setContent(html(cv, telefono, correo), { waitUntil: "load" });
+      const archivo = path.join(dir, `${base}.pdf`);
       await page.pdf({ path: archivo, format: "A4", printBackground: true });
       console.log("OK", archivo);
     }
@@ -327,7 +502,13 @@ async function main() {
   console.log(`Generados ${n} CVs en ${raiz}`);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// Solo genera si se ejecuta este archivo. Otros scripts importan PUESTOS para
+// construir los mismos CV en otros formatos, y no deben reescribir los PDF.
+const ejecutadoDirectamente = process.argv[1] !== undefined && import.meta.url.endsWith(path.basename(process.argv[1]));
+
+if (ejecutadoDirectamente) {
+  main().catch((e: unknown) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

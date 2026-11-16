@@ -54,8 +54,18 @@ const serverEnvSchema = z
     EVALUATION_WEBHOOK_SECRET: optionalText,
     // API del robot de portales (/api/bot/*): apagada si no se define el secreto.
     PORTAL_BOT_SECRET: optionalText,
+    // Correo transaccional (Resend): en `test` (por defecto) no se envía nada.
+    // En `live` exige la clave y un remitente verificado.
+    RESEND_API_KEY: optionalText,
+    EMAIL_FROM: optionalText,
+    EMAIL_DELIVERY_MODE: z.enum(["test", "live"]).default("test"),
   })
   .superRefine((env, ctx) => {
+    if (env.EMAIL_DELIVERY_MODE === "live") {
+      for (const name of ["RESEND_API_KEY", "EMAIL_FROM"] as const) {
+        if (!env[name]) ctx.addIssue({ code: "custom", path: [name], message: "Obligatoria si EMAIL_DELIVERY_MODE=live" });
+      }
+    }
     if (env.PUBLIC_JOBS_ENABLED) {
       for (const name of ["PUBLIC_SITE_URL", "PUBLIC_COMPANY_NAME"] as const) {
         if (!env[name]) ctx.addIssue({ code: "custom", path: [name], message: "Obligatoria si PUBLIC_JOBS_ENABLED=true" });

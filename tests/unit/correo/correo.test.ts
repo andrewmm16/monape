@@ -96,6 +96,9 @@ class FakeApi implements BotApiLike {
   async reportStatus(): Promise<never> {
     throw new Error("no usado");
   }
+  async dailySummary(): Promise<never> {
+    throw new Error("no usado");
+  }
 }
 
 let api: FakeApi;

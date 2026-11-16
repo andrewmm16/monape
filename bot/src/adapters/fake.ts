@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { ERROR_CODES, PortalError } from "../errors";
-import { AVISO_COOKIES, estricto, registerBook, tolerante } from "../selectors";
+import { AVISO_COOKIES, DESAFIO_SELECTORES, estricto, registerBook, tolerante } from "../selectors";
 import type { ActivePublication, ApplicantSummary, PublishResult, VacancyData } from "../types";
 import { FakeSiteAdapter, HEALTH_VACANCY, locationOf } from "./fake-base";
 
@@ -10,7 +10,7 @@ import { FakeSiteAdapter, HEALTH_VACANCY, locationOf } from "./fake-base";
  * resultado (ver `selectors.ts`). Este portal retira con una petición directa: no hay botón de retirar.
  */
 export const TRABAJOS_DIARIOS_BOOK = registerBook("trabajos-diarios", {
-  captcha: estricto("Aviso de verificación humana (CAPTCHA)", "#captcha"),
+  ...DESAFIO_SELECTORES,
   aviso_cookies: AVISO_COOKIES,
   campo_titulo: tolerante("Campo del título del puesto", "#titulo", [{ etiqueta: ["Título del puesto", "Título", "Titulo", "Cargo", "Puesto"] }, { css: "[name^=titulo]" }]),
   campo_descripcion: tolerante("Campo de la descripción", "#descripcion", [{ etiqueta: ["Descripción", "Descripcion"] }, { css: "[name^=descripcion]" }]),
@@ -78,7 +78,7 @@ export class FakePortalAdapter extends FakeSiteAdapter {
       await this.guard(page);
       await this.fillForm(page, vacancy);
       await this.clickKey(page, "boton_enviar");
-      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}, ${this.sel("captcha")}`).first().waitFor();
+      await page.locator(`${this.sel("resultado_publicada")}, ${this.sel("resultado_error")}`).first().waitFor();
       await this.guard(page);
 
       if ((await page.locator(this.sel("resultado_error")).count()) > 0) throw new PortalError(ERROR_CODES.publicationRejected);

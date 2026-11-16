@@ -2,12 +2,24 @@ import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { ERROR_CODES, PortalError } from "../errors";
 import { activeSelector, probeElement, resolveCss, resolveElement, type Raiz, type ResolveOptions, type Vars } from "../selectors";
 import { captureStructure } from "../structure";
+import { resolverDesafio } from "../captcha";
+import { registrarDesafio } from "../captcha/metrica";
 import type { ApplicantSummary, ActivePublication, PortalAdapter, PublishResult, ResumeFile, VacancyData } from "../types";
+
+/**
+ * Log opcional de los adaptadores ficticios (lo fija el robot con `setAdapterLog`). Por
+ * defecto no hace nada, así las pruebas no imprimen. Es a nivel de módulo, como el estado
+ * de `selectors.ts`: hay un único proceso del robot (lo garantiza `robot.lock`).
+ */
+let adapterLog: (mensaje: string) => void = () => {};
+export function setAdapterLog(fn: (mensaje: string) => void): void {
+  adapterLog = fn;
+}
 
 /**
  * Base de los adaptadores de los portales FICTICIOS. Solo reúne lo que no
  * depende de la estructura de cada portal (pestaña propia, detección de sesión
- * y CAPTCHA, descarga del CV). Los selectores NO se comparten: cada portal
+ * y descarga del CV). Los selectores NO se comparten: cada portal
  * declara su propio «libro de selectores» (ver `selectors.ts`), como pasa con los reales.
  */
 
@@ -132,15 +144,65 @@ export abstract class FakeSiteAdapter implements PortalAdapter {
     for (const clave of claves) await this.el(page, clave, { state: "attached", where });
   }
 
-  /** Detecta lo que solo una persona puede resolver y se detiene; acepta un aviso de cookies si tapa la página. */
+  /**
+   * Detecta lo que solo una persona puede resolver y se detiene; acepta un aviso de
+   * cookies si tapa la página. Ante un desafío de verificación (casilla, cuadrícula de
+   * imágenes, slider, rotar, texto/aritmética u OTP) lo resuelve con lógica interna
+   * (`utils/captcha-solver.ts`), SIN intervención humana: lo reintenta hasta 3 veces.
+   * Si aun así no cede (no debería, en nuestros portales todo desafío es resoluble) se
+   * trata como un cambio de la página, no como un relevo humano.
+   */
   protected async guard(page: Page, options: { offer?: boolean } = {}): Promise<void> {
     if (new URL(page.url()).pathname === `${this.sitePath}/login`) throw new PortalError(ERROR_CODES.sessionExpired);
-    if ((await page.locator(this.sel("captcha")).count()) > 0) throw new PortalError(ERROR_CODES.verificationRequired);
+    // Desafío de verificación: se resuelve localmente, sin servicios externos ni personas.
+    if ((await this.probe(page, "desafio")) !== null) {
+      const etiqueta = await this.etiquetaDesafio(page);
+      const destino = page.url();
+      let resuelto = false;
+      let intentos = 0;
+      while (intentos < 3 && !resuelto) {
+        intentos++;
+        await resolverDesafio({
+          page,
+          probe: (clave, opciones) => this.probe(page, clave, opciones),
+          obtenerCodigoOtp: () => this.obtenerCodigoOtp(),
+          log: (mensaje) => adapterLog(`[${this.slug}] ${mensaje}`),
+        });
+        await page.goto(destino).catch(() => undefined);
+        resuelto = (await this.probe(page, "desafio")) === null;
+      }
+      // Métrica: cuántos/qué desafíos aparecen por portal y si se resolvieron (decide qué solvers reales construir).
+      registrarDesafio({ portal: this.slug, tipo: etiqueta, resuelto, intentos });
+      if (!resuelto) throw new PortalError(ERROR_CODES.pageChanged, `no se pudo resolver el desafío de verificación (${etiqueta}) tras 3 intentos`);
+      adapterLog(`[${this.slug}] verificación «${etiqueta}» resuelta con lógica interna (sin intervención humana).`);
+    }
     // Página «No existe» al abrir una oferta concreta: la oferta ya no está en el portal (no es un cambio de su estructura).
     if (options.offer && (await page.title()).startsWith("No existe")) throw new PortalError(ERROR_CODES.offerNotFound, "la oferta ya no existe en el portal (404)");
     // Aviso de cookies (tolerante): si tapa la página se acepta; si no hay, no se hace nada.
     const cookies = await this.probe(page, "aviso_cookies");
     if (cookies) await cookies.click({ timeout: 2_000 }).catch(() => undefined);
+  }
+
+  /** Nombre legible del tipo de desafío presente (solo para el log). */
+  private async etiquetaDesafio(page: Page): Promise<string> {
+    if ((await this.probe(page, "desafio_casilla")) !== null) return "casilla «no soy un robot»";
+    if ((await this.probe(page, "desafio_celda")) !== null) return "cuadrícula de imágenes";
+    if ((await this.probe(page, "desafio_girar")) !== null) return "rotar imagen";
+    if ((await this.probe(page, "desafio_slider")) !== null) return "slider";
+    if ((await this.probe(page, "desafio_otp")) !== null) return "código por correo (OTP)";
+    return "texto/aritmética";
+  }
+
+  /** Lee el código OTP del buzón falso del portal (simula que el bot accede al correo de la cuenta). */
+  private async obtenerCodigoOtp(): Promise<string | null> {
+    try {
+      const response = await this.context.request.get(`${this.baseUrl}/__fake/otp?portal=${encodeURIComponent(this.slug)}`);
+      if (!response.ok()) return null;
+      const data = (await response.json()) as { codigo?: unknown };
+      return typeof data.codigo === "string" ? data.codigo : null;
+    } catch {
+      return null;
+    }
   }
 
   // ---------------------------------------------------------------- pestañas y diagnóstico

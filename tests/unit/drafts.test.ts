@@ -51,7 +51,7 @@ describe("buildObservationDraft", () => {
   it("resume la evaluación con fecha, método, versiones, nivel y puntuación", () => {
     const draft = buildObservationDraft(input({}, UNRELATED));
     expect(draft.split("\n")[0]).toBe(
-      `Resumen de la evaluación del ${formatDate(CREATED_AT)} (Motor de reglas (determinista), criterios v1, CV v2): Faltan datos en el CV, 0 % del peso acreditado. Es orientativa.`,
+      `Resumen de la evaluación del ${formatDate(CREATED_AT)} (Motor de reglas (determinista), criterios v1, CV v2): El CV no evidencia los requisitos, 0 % del peso acreditado. Es orientativa.`,
     );
   });
 
@@ -95,7 +95,7 @@ describe("suggestStatus", () => {
 
   it("explica en qué se basa la sugerencia", () => {
     expect(suggestStatus(input({ score: 85, level: "alta" }, STRONG), "nuevo")?.basis).toBe(
-      `Afinidad alta (85 % acreditado) en la evaluación del ${formatDate(CREATED_AT)}`,
+      `Cumple los requisitos (85 % acreditado) en la evaluación del ${formatDate(CREATED_AT)}`,
     );
   });
 

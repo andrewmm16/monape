@@ -60,6 +60,37 @@ describe("determineLevel", () => {
     const items = [item(3, "acreditado"), item(4, "no_cumplido"), item(3, "sin_evidencia")];
     expect(determineLevel(computeScores(items), items)).toBe("baja");
   });
+
+  it("el motor de reglas no puede producir «baja» en ninguna combinación", () => {
+    // Propiedad documentada en docs/metodologia-evaluacion.md §4: el motor de
+    // reglas nunca asigna «no cumplido», así que puntuación + sin evidencia
+    // suman 100 y una puntuación por debajo de 40 implica más del 50 % sin
+    // evidencia, o sea «pendiente». «Baja» solo llega tras una verificación
+    // humana. Esto lo comprueba de forma exhaustiva en vez de afirmarlo: si
+    // alguien cambia los umbrales y «baja» pasa a ser alcanzable sin que
+    // intervenga una persona, esta prueba lo dice.
+    const DEL_MOTOR: Assessment[] = ["acreditado", "sin_evidencia", "pendiente_verificacion"];
+    const PESOS = [1, 2, 5, 9];
+    const niveles = new Set<string>();
+
+    const recorrer = (items: ReturnType<typeof item>[], falta: number): void => {
+      if (items.length > 0) niveles.add(determineLevel(computeScores(items), items));
+      if (falta === 0) return;
+      for (const peso of PESOS) {
+        for (const assessment of DEL_MOTOR) {
+          for (const priority of ["obligatorio", "deseable"] as const) {
+            items.push(item(peso, assessment, priority));
+            recorrer(items, falta - 1);
+            items.pop();
+          }
+        }
+      }
+    };
+    recorrer([], 3);
+
+    expect(niveles.has("baja")).toBe(false);
+    expect([...niveles].sort()).toEqual(["alta", "parcial", "pendiente"]);
+  });
 });
 
 describe("assembleEvaluation", () => {

@@ -249,7 +249,7 @@ Migraciones `20261028000400_privacy_notices.sql`, `20261028000500_online_applica
 
 **Riesgos aceptados y pendientes:** ver los puntos 15 y 16 de [pendientes.md](pendientes.md) y el checklist de [despliegue.md](despliegue.md): el worker en Vercel, `x-forwarded-for` detrás de otro proxy y el barrido de huérfanos.
 
-**Sin verificar:** nada de esto se ha probado en internet. El texto del aviso es un borrador sin aprobación legal.
+**Sin verificar:** nada de esto se ha probado en internet. El texto del aviso es un borrador.
 
 ## 4 undecies. «Evaluar pendientes» y lectura local de CV escaneados (OCR) · 28/10/2026
 

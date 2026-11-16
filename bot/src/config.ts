@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { WorkSchedule } from "./schedule";
 
 export interface BotConfig {
   apiUrl: string;
@@ -11,6 +12,10 @@ export interface BotConfig {
   pollSeconds: number;
   /** Pausa entre acciones en el portal, para no cargarlo. */
   pauseMs: number;
+  /** Variación aleatoria de la pausa (fracción 0-1): el ritmo se parece más al de una persona. */
+  pauseJitter: number;
+  /** Horario de trabajo del robot (hora de Perú): fuera de él no publica ni revisa, pero sigue vivo. */
+  work: WorkSchedule;
   maxJobsPerCycle: number;
   /** Cada cuántas horas se prueba la estructura del portal; 0 = nunca. */
   healthCheckHours: number;
@@ -18,9 +23,13 @@ export interface BotConfig {
   resumeCheckMinutes: number;
   /** Retraso de cada acción del navegador, para verlo trabajar. */
   slowMoMs: number;
+  /** Quita las alternativas tolerantes de «campo_titulo» para forzar el camino de la reparación por IA. Solo para demostración/pruebas; no usar en producción. */
+  sinTolerancia: boolean;
   fakePortalUrl: string;
   /** Número del responsable (solo dígitos, con código de país) para avisos por WhatsApp; `null` = sin avisos. */
   notifyPhone: string | null;
+  /** Hora (0-23, hora de Perú) del resumen diario por WhatsApp; `null` = desactivado. */
+  dailySummaryHour: number | null;
   /** Ofertas publicadas cuyo resultado aún no se informó a la app (evita publicar dos veces). */
   journalFile: string;
   /** Carpeta de los incidentes del robot (un JSON por incidente). */
@@ -87,10 +96,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     headless: env.BOT_HEADLESS === "true",
     pollSeconds: number(env, "BOT_POLL_SECONDS", 600, 60, 86_400),
     pauseMs: number(env, "BOT_PAUSE_MS", 2_000, 0, 60_000),
+    pauseJitter: number(env, "BOT_PAUSE_JITTER", 0, 0, 1),
+    work: { hours: parseWorkHours(env), days: parseWorkDays(env) },
     maxJobsPerCycle: number(env, "BOT_MAX_JOBS_PER_CYCLE", 10, 1, 100),
     healthCheckHours: number(env, "BOT_HEALTH_CHECK_HOURS", 24, 0, 168),
     resumeCheckMinutes: resumeCheckMinutes(env),
     slowMoMs: number(env, "BOT_SLOWMO_MS", 0, 0, 5_000),
+    sinTolerancia: env.BOT_SIN_TOLERANCIA === "true",
     fakePortalUrl: (env.BOT_FAKE_PORTAL_URL ?? "http://127.0.0.1:4010").replace(/\/+$/, ""),
     journalFile: path.resolve(env.BOT_JOURNAL_FILE ?? "bot/.state/publicadas.json"),
     incidentsDir: path.resolve(env.BOT_INCIDENTS_DIR ?? "bot/.state/incidentes"),
@@ -100,6 +112,36 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...loadRepairConfig(env),
     ...loadNotifyConfig(env),
   };
+}
+
+/** Franja horaria «inicio-fin» (hora de Perú, fin exclusivo); vacío = las 24 horas. */
+function parseWorkHours(env: Record<string, string | undefined>): WorkSchedule["hours"] {
+  const raw = (env.BOT_WORK_HOURS ?? "").trim();
+  if (!raw) return null;
+  const match = /^(\d{1,2})-(\d{1,2})$/.exec(raw);
+  if (!match) throw new Error("BOT_WORK_HOURS debe ser «inicio-fin», por ejemplo 8-20 (hora de Perú).");
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (start < 0 || end > 24 || start >= end) {
+    throw new Error("BOT_WORK_HOURS debe ir de 0 a 24 con inicio < fin, por ejemplo 8-20.");
+  }
+  return { start, end };
+}
+
+/** Días hábiles «inicio-fin» en ISO (1 = lunes … 7 = domingo); vacío = todos los días. */
+function parseWorkDays(env: Record<string, string | undefined>): WorkSchedule["days"] {
+  const raw = (env.BOT_WORK_DAYS ?? "").trim();
+  if (!raw) return null;
+  const match = /^(\d)-(\d)$/.exec(raw);
+  if (!match) throw new Error("BOT_WORK_DAYS debe ser «inicio-fin» en días ISO (1=lunes … 7=domingo), por ejemplo 1-5.");
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (start < 1 || end > 7 || start > end) {
+    throw new Error("BOT_WORK_DAYS debe ir de 1 (lunes) a 7 (domingo) con inicio ≤ fin, por ejemplo 1-5.");
+  }
+  const days: number[] = [];
+  for (let day = start; day <= end; day++) days.push(day);
+  return days;
 }
 
 /** 0 (desactivado) o de 1 a 1440 minutos. */
@@ -195,7 +237,7 @@ export function loadRepairConfig(env: Record<string, string | undefined> = proce
 /** Solo lo de los avisos: la vinculación de WhatsApp no necesita la dirección de la app ni el secreto. */
 export function loadNotifyConfig(
   env: Record<string, string | undefined> = process.env,
-): Pick<BotConfig, "notifyPhone" | "whatsappAuthDir"> {
+): Pick<BotConfig, "notifyPhone" | "whatsappAuthDir" | "dailySummaryHour"> {
   const phone = (env.BOT_NOTIFY_PHONE ?? "").trim();
   if (phone && !/^[1-9]\d{7,14}$/.test(phone)) {
     throw new Error("BOT_NOTIFY_PHONE debe tener solo dígitos, con código de país y sin «+» (por ejemplo 51999999999).");
@@ -203,5 +245,18 @@ export function loadNotifyConfig(
   return {
     notifyPhone: phone || null,
     whatsappAuthDir: path.resolve(env.BOT_WHATSAPP_DIR ?? "bot/.state/whatsapp"),
+    dailySummaryHour: dailySummaryHour(env),
   };
+}
+
+/** Hora del resumen diario: «off» lo desactiva, vacío = 8, o una hora entera de 0 a 23. */
+function dailySummaryHour(env: Record<string, string | undefined>): number | null {
+  const raw = (env.BOT_DAILY_SUMMARY_HOUR ?? "").trim().toLowerCase();
+  if (raw === "off") return null;
+  if (raw === "") return 8;
+  const hour = Number(raw);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+    throw new Error("BOT_DAILY_SUMMARY_HOUR debe ser «off» o una hora entera de 0 a 23 (hora de Perú).");
+  }
+  return hour;
 }

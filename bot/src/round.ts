@@ -1,4 +1,4 @@
-import { ERROR_CODES, HUMAN_REQUIRED, errorCodeOf } from "./errors";
+import { ERROR_CODES, HUMAN_REQUIRED, WAITABLE, errorCodeOf } from "./errors";
 import { sanitizeText } from "./incidents";
 import { reportStatus, runCycle, type Logger, type RunnerDeps } from "./runner";
 
@@ -55,13 +55,24 @@ export const isResumable = (slot: AdapterSlot): boolean => {
   return RESUMABLE_REASONS.has(slot.haltReason);
 };
 
-/** Todos detenidos y ninguno reanudable: solo una persona puede seguir (el robot termina con código 2). */
-export const allStopped = (slots: AdapterSlot[]): boolean => slots.every((slot) => slot.halted && !isResumable(slot));
+/**
+ * Detenido esperando a que una persona resuelva una verificación (un código o la sesión)
+ * en la ventana abierta del robot. No se reinicia: se reanuda con «listo».
+ */
+export const isWaitingHuman = (slot: AdapterSlot): boolean =>
+  slot.halted && slot.haltReason !== undefined && WAITABLE.has(slot.haltReason);
+
+/**
+ * Todos detenidos y ninguno reanudable ni esperando verificación: el robot termina
+ * (código 2). Si alguno espera «listo», NO termina: deja la ventana abierta y aguarda.
+ */
+export const allStopped = (slots: AdapterSlot[]): boolean =>
+  slots.every((slot) => slot.halted && !isResumable(slot) && !isWaitingHuman(slot));
 
 /**
  * Una vuelta del robot: un `runCycle` por cada portal no detenido, en orden y uno
  * a la vez (comparten navegador, cada uno con su pestaña). Si uno se detiene
- * (CAPTCHA, sesión vencida, portal cambiado) se marca y los demás siguen; un fallo
+ * (sesión vencida, portal cambiado) se marca y los demás siguen; un fallo
  * pasajero (la app no responde) no detiene a nadie y se reintenta en la vuelta siguiente.
  */
 export async function runRound(slots: AdapterSlot[], log: Logger, shouldStop: () => boolean = () => false): Promise<RoundResult> {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, SearchIcon } from "lucide-react";
 import { z } from "zod";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
@@ -36,11 +36,18 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/candi
         description={canManage ? "Registro de candidatos, CV y postulaciones." : "Candidatos de las vacantes en las que participa."}
         actions={
           canManage ? (
-            <Button asChild>
-              <Link href="/candidatos/nuevo">
-                <PlusIcon /> Registrar candidato
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/candidatos/buscar">
+                  <SearchIcon /> Búsqueda avanzada
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/candidatos/nuevo">
+                  <PlusIcon /> Registrar candidato
+                </Link>
+              </Button>
+            </div>
           ) : null
         }
       />

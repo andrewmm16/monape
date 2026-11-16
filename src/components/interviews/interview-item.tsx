@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClockIcon, MapPinIcon, UserRoundIcon } from "lucide-react";
 import { ApplicationStatusBadge } from "@/components/common/badges";
+import { LocationMap } from "@/components/common/location-map";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { INTERVIEW_MODALITY_LABELS, INTERVIEW_RESULT_LABELS, INTERVIEW_STATUS_LABELS } from "@/lib/labels";
@@ -15,6 +16,9 @@ export type InterviewItemData = {
   duration_minutes: number;
   modality: Enums<"interview_modality">;
   location: string | null;
+  /** Punto de la dirección (solo presencial elegida con el autocompletado). */
+  location_lat?: number | null;
+  location_lng?: number | null;
   interviewers: string | null;
   instructions: string | null;
   status: Enums<"interview_status">;
@@ -130,6 +134,12 @@ export function InterviewItem({
           </span>
         ) : null}
       </div>
+
+      {interview.modality === "presencial" && typeof interview.location_lat === "number" && typeof interview.location_lng === "number" ? (
+        <div className="max-w-md">
+          <LocationMap lat={interview.location_lat} lng={interview.location_lng} label={interview.location ?? undefined} />
+        </div>
+      ) : null}
 
       {interview.instructions ? <p className="text-xs whitespace-pre-wrap text-muted-foreground">{interview.instructions}</p> : null}
       {interview.result_notes ? (

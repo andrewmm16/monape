@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
+import { AddressAutocomplete } from "@/components/common/address-autocomplete";
+import { LocationMap } from "@/components/common/location-map";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,6 +51,8 @@ function defaultScheduleValues(): InterviewFormValues {
     durationMinutes: "45",
     modality: "presencial",
     location: "",
+    locationLat: null,
+    locationLng: null,
     interviewers: "",
     instructions: "",
   };
@@ -60,9 +64,18 @@ export type InterviewForEdit = {
   duration_minutes: number;
   modality: Enums<"interview_modality">;
   location: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
   interviewers: string | null;
   instructions: string | null;
 };
+
+/** Textos del campo de lugar según la modalidad. */
+const LOCATION_FIELD = {
+  presencial: { label: "Dirección", placeholder: "Calle, número y distrito" },
+  virtual: { label: "Enlace de la reunión", placeholder: "https://…" },
+  telefonica: { label: "Teléfono o indicación", placeholder: "Opcional. Ej.: Llamar al +51 999 999 999" },
+} as const;
 
 function valuesOf(interview: InterviewForEdit): InterviewFormValues {
   const { date, time } = isoToLima(interview.scheduled_at);
@@ -72,6 +85,8 @@ function valuesOf(interview: InterviewForEdit): InterviewFormValues {
     durationMinutes: String(interview.duration_minutes),
     modality: interview.modality,
     location: interview.location ?? "",
+    locationLat: interview.modality === "presencial" ? (interview.location_lat ?? null) : null,
+    locationLng: interview.modality === "presencial" ? (interview.location_lng ?? null) : null,
     interviewers: interview.interviewers ?? "",
     instructions: interview.instructions ?? "",
   };
@@ -89,6 +104,10 @@ type FormDialogProps = {
 export function InterviewFormDialog({ trigger, defaultOpen = false, applicationId, interview }: FormDialogProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [openedAt, setOpenedAt] = useState(() => Date.now());
+  // Con la lista de sugerencias abierta, Escape la cierra a ella y no al diálogo.
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  // La sugerencia elegida lleva una numeración que el mapa no tiene: se avisa de que el punto es la calle.
+  const [approximatePoint, setApproximatePoint] = useState(false);
   const editing = Boolean(interview);
   const form = useForm<InterviewFormValues>({
     resolver: zodResolver(interviewFormSchema, undefined, { raw: true }),
@@ -106,6 +125,13 @@ export function InterviewFormDialog({ trigger, defaultOpen = false, applicationI
   const id = `interview-${interview?.id ?? applicationId}`;
 
   const [date, time] = useWatch({ control: form.control, name: ["date", "time"] });
+  const [modality, location, locationLat, locationLng] = useWatch({
+    control: form.control,
+    name: ["modality", "location", "locationLat", "locationLng"],
+  });
+  const locationField = LOCATION_FIELD[modality] ?? LOCATION_FIELD.presencial;
+  const locationId = `${id}-location`;
+  const hasPoint = modality === "presencial" && typeof locationLat === "number" && typeof locationLng === "number";
   const iso = limaToIso(date, time);
   const isPastDate = iso !== null && Date.parse(iso) < openedAt;
 
@@ -117,11 +143,18 @@ export function InterviewFormDialog({ trigger, defaultOpen = false, applicationI
           form.reset(interview ? valuesOf(interview) : defaultScheduleValues());
           setOpenedAt(Date.now());
         }
+        setSuggestionsOpen(false);
+        setApproximatePoint(false);
         setOpen(next);
       }}
     >
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+        onEscapeKeyDown={(event) => {
+          if (suggestionsOpen) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{editing ? "Reprogramar entrevista" : "Programar entrevista"}</DialogTitle>
           <DialogDescription>
@@ -161,7 +194,21 @@ export function InterviewFormDialog({ trigger, defaultOpen = false, applicationI
               </Field>
               <Field data-invalid={Boolean(errors.modality)}>
                 <FieldLabel htmlFor={`${id}-modality`}>Modalidad</FieldLabel>
-                <NativeSelect id={`${id}-modality`} className="w-full" {...form.register("modality")}>
+                <NativeSelect
+                  id={`${id}-modality`}
+                  className="w-full"
+                  {...form.register("modality", {
+                    // Dirección, enlace y teléfono no se mezclan: al cambiar de modalidad se limpia el lugar.
+                    onChange: () => {
+                      form.setValue("location", "");
+                      form.setValue("locationLat", null);
+                      form.setValue("locationLng", null);
+                      form.clearErrors("location");
+                      setSuggestionsOpen(false);
+                      setApproximatePoint(false);
+                    },
+                  })}
+                >
                   {Constants.public.Enums.interview_modality.map((modality) => (
                     <NativeSelectOption key={modality} value={modality}>
                       {INTERVIEW_MODALITY_LABELS[modality]}
@@ -172,8 +219,57 @@ export function InterviewFormDialog({ trigger, defaultOpen = false, applicationI
               </Field>
             </div>
             <Field data-invalid={Boolean(errors.location)}>
-              <FieldLabel htmlFor={`${id}-location`}>Lugar o enlace</FieldLabel>
-              <Input id={`${id}-location`} placeholder="Dirección o enlace de la reunión" {...form.register("location")} />
+              <FieldLabel htmlFor={locationId}>{locationField.label}</FieldLabel>
+              {modality === "presencial" ? (
+                <>
+                  <AddressAutocomplete
+                    id={locationId}
+                    value={location}
+                    placeholder={locationField.placeholder}
+                    invalid={Boolean(errors.location)}
+                    onOpenChange={setSuggestionsOpen}
+                    // Editar el texto invalida el punto elegido antes: se quitan las coordenadas y el mapa.
+                    onTextChange={(text) => {
+                      form.setValue("location", text, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+                      form.setValue("locationLat", null);
+                      form.setValue("locationLng", null);
+                      setApproximatePoint(false);
+                    }}
+                    onSelect={(place) => {
+                      form.setValue("location", place.label, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+                      form.setValue("locationLat", place.lat);
+                      form.setValue("locationLng", place.lng);
+                      setApproximatePoint(place.approximate === true);
+                    }}
+                  />
+                  {hasPoint ? (
+                    <>
+                      <LocationMap lat={locationLat} lng={locationLng} label={location} />
+                      {approximatePoint ? (
+                        <FieldDescription>
+                          El mapa no tiene esa numeración: la dirección se guarda completa, pero el punto marca la calle, no el número exacto.
+                        </FieldDescription>
+                      ) : null}
+                    </>
+                  ) : (
+                    <FieldDescription>
+                      Escriba la calle con su número (por ejemplo, Jr. Los Zafiros 2023) y elija una sugerencia para ver el punto en el mapa. También puede dejarla escrita a mano.
+                    </FieldDescription>
+                  )}
+                </>
+              ) : modality === "virtual" ? (
+                <Input
+                  key="virtual"
+                  id={locationId}
+                  type="url"
+                  inputMode="url"
+                  autoComplete="off"
+                  placeholder={locationField.placeholder}
+                  {...form.register("location")}
+                />
+              ) : (
+                <Input key="telefonica" id={locationId} autoComplete="off" placeholder={locationField.placeholder} {...form.register("location")} />
+              )}
               <FieldError errors={[errors.location]} />
             </Field>
             <Field data-invalid={Boolean(errors.interviewers)}>

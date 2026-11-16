@@ -50,6 +50,17 @@ export async function listRequirements(supabase: AppSupabaseClient, vacancyId: s
   return data;
 }
 
+export async function listKillerQuestions(supabase: AppSupabaseClient, vacancyId: string) {
+  const { data, error } = await supabase
+    .from("vacancy_killer_questions")
+    .select("*")
+    .eq("vacancy_id", vacancyId)
+    .order("position")
+    .order("created_at");
+  if (error) throw toAppError(error);
+  return data;
+}
+
 /** Vacantes que admiten nuevas postulaciones (para asociar candidatos). */
 export async function listOpenVacancies(supabase: AppSupabaseClient) {
   const { data, error } = await supabase

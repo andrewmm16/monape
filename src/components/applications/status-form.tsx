@@ -19,6 +19,7 @@ import {
   suggestStatus,
   type DraftInput,
 } from "@/modules/evaluation/drafts";
+import { isCommunicableStatus } from "@/modules/applications/communicable";
 import { Constants, type Enums } from "@/types/database";
 
 type Status = Enums<"application_status">;
@@ -55,7 +56,7 @@ export function StatusForm({
 
   const form = useForm<ChangeStatusInput>({
     resolver: zodResolver(changeStatusSchema, undefined, { raw: true }),
-    defaultValues: { applicationId, status: initialStatus as Status, ...initialDrafts },
+    defaultValues: { applicationId, status: initialStatus as Status, notifyCandidate: false, ...initialDrafts },
   });
   const { submit, pending } = useFormAction(form, changeApplicationStatus);
   const errors = form.formState.errors;
@@ -154,6 +155,17 @@ export function StatusForm({
           <Textarea id="note" rows={6} {...form.register("note")} />
           <FieldError errors={[errors.note]} />
         </Field>
+        {isCommunicableStatus(selected) ? (
+          <Field orientation="horizontal">
+            <input id="notifyCandidate" type="checkbox" className="mt-1 size-4" {...form.register("notifyCandidate")} />
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="notifyCandidate">Avisar al candidato por correo</FieldLabel>
+              <FieldDescription>
+                Opcional. Se envía un mensaje breve con el nuevo estado, sin el motivo ni las observaciones internas.
+              </FieldDescription>
+            </div>
+          </Field>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={pending}>
             {pending ? "Guardando…" : "Actualizar estado"}

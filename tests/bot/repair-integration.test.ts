@@ -121,9 +121,10 @@ describe("reparación asistida con el portal ficticio", () => {
     expect(await new ProposalStore(path.join(dir, "propuestas")).get(1)).toMatchObject({ probada: true, intentos: 2, selector: "#titulo-v2" });
     expect(prompts[0]).toContain("titulo-v2");
     expect(prompts[0]).toContain("campo_titulo");
-    expect(sent).toEqual([
-      "Propuesta PROBADA para #1: usar «#titulo-v2» como campo_titulo; la prueba de estructura pasó con este cambio. Responda «sí 1» para aplicarla o «no 1» para rechazarla.",
-    ]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain("Probé un arreglo: usar «#titulo-v2» como campo_titulo");
+    expect(sent[0]).toContain("«sí 1»");
+    expect(sent[0]).toContain("pausé ese portal, los demás siguen");
     expect(getOverride(SLUG, "campo_titulo")).toBeUndefined();
 
     // 3. Sin aprobar, el robot sigue fallando.
@@ -143,7 +144,7 @@ describe("reparación asistida con el portal ficticio", () => {
     };
     const result = await runResumeChecks([slot], () => {}, () => false, (slug, ok, startedAt) => repair.onHealthResult(slug, ok, startedAt));
     expect(result.resumed).toEqual([SLUG]);
-    expect(sent.at(-1)).toContain("Reparación aplicada y verificada");
+    expect(sent.at(-1)).toContain("Aplicado y verificado");
     expect(await new ProposalStore(path.join(dir, "propuestas")).get(1)).toMatchObject({ estado: "aplicada", verificadaEn: expect.any(String), tokensEntrada: 1600, tokensSalida: 120 });
 
     // 5. Con el selector aprobado, publicar funciona de verdad.

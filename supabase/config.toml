@@ -211,11 +211,6 @@ token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
-# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# [auth.captcha]
-# enabled = true
-# provider = "hcaptcha"
-# secret = ""
 
 [auth.email]
 # En la CLI esta clave habilita el PROVEEDOR de correo (GOTRUE_EXTERNAL_EMAIL_ENABLED):
@@ -342,7 +337,7 @@ skip_nonce_check = false
 email_optional = false
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
-# You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
+# You can configure "web3" rate limit in the [auth.rate_limit] section if self-hosting.
 [auth.web3.solana]
 enabled = false
 

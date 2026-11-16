@@ -1,7 +1,6 @@
 # Lector de correo de postulaciones
 
-Proceso aparte (como `bot/`) que lee los correos de aviso de los portales de empleo en el buzón de la empresa, extrae al postulante y su CV adjunto y los entrega a la app por la API del robot (`BotApi`, reutilizada de `bot/src/api.ts`). Diseño: `docs/opcion-correos-de-aviso.md`.
-
+Proceso aparte (como `bot/`) que lee los correos de aviso de los portales de empleo en el buzón de la empresa, extrae al postulante y su CV adjunto y los entrega a la app por la API del robot (`BotApi`, reutilizada de `bot/src/api.ts`).
 ## Ejecutarlo
 
 ```

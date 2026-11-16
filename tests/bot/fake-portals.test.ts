@@ -155,13 +155,6 @@ describe.each(PORTAL_SLUGS)("portal ficticio %s", (slug) => {
     });
   });
 
-  it("ante un CAPTCHA se detiene con verificacion_requerida", async () => {
-    portal.setCaptcha(true, slug);
-    api.queue.push(job());
-    expect(await runCycle(deps)).toEqual({ halted: true, reason: ERROR_CODES.verificationRequired });
-    expect(portal.jobs.size).toBe(0);
-  });
-
   it("sin sesión iniciada se detiene con sesion_expirada", async () => {
     portal.setLoggedIn(false, slug);
     api.queue.push(job());
@@ -262,11 +255,11 @@ describe("compatibilidad y panel", () => {
   });
 
   it("/__fake/modo actúa por portal", async () => {
-    await fetch(`${portal.url}/__fake/modo?portal=linkedin&captcha=1`, { method: "POST" });
+    await fetch(`${portal.url}/__fake/modo?portal=linkedin&sesion=0`, { method: "POST" });
     const linkedin = await (await fetch(`${portal.url}/linkedin/empleos/publicar`)).text();
     const bumeran = await (await fetch(`${portal.url}/bumeran/avisos/nuevo`)).text();
-    expect(linkedin).toContain("challenge-dialog");
-    expect(bumeran).not.toContain("recaptcha-caja");
+    expect(linkedin).toContain("Simular inicio de sesión");
+    expect(bumeran).not.toContain("Simular inicio de sesión");
     expect((await fetch(`${portal.url}/__fake/modo?portal=nadie`)).status).toBe(400);
   });
 });

@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { CandidateMessageDialog } from "@/components/applications/candidate-message-dialog";
 import { EvaluationCard } from "@/components/applications/evaluation-card";
 import { NoteForm } from "@/components/applications/note-form";
+import { KillerAnswersCard } from "@/components/applications/killer-answers-card";
 import { StatusForm } from "@/components/applications/status-form";
 import { ActionButton } from "@/components/common/action-button";
 import { ApplicationStatusBadge } from "@/components/common/badges";
@@ -26,6 +28,7 @@ import {
   listApplicationEvents,
   listEvaluationItems,
   listEvaluations,
+  listKillerAnswers,
   listRequirementVerifications,
 } from "@/modules/applications/queries";
 import { listApplicationInterviews } from "@/modules/interviews/queries";
@@ -49,12 +52,13 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const canManage = can(user.role, "applications:manage");
   const canEvaluate = can(user.role, "evaluations:run");
 
-  const [evaluations, events, currentResume, verifications, interviews] = await Promise.all([
+  const [evaluations, events, currentResume, verifications, interviews, killerAnswers] = await Promise.all([
     listEvaluations(supabase, application.id),
     listApplicationEvents(supabase, application.id),
     getCurrentResume(supabase, application.candidate.id),
     listRequirementVerifications(supabase, application.id),
     listApplicationInterviews(supabase, application.id),
+    listKillerAnswers(supabase, application.id),
   ]);
   const schedulable = canManage && canScheduleInterview(application.status, application.vacancy.status);
   const newerResume =
@@ -172,6 +176,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             </div>
           ) : null}
 
+          <KillerAnswersCard answers={killerAnswers} />
           <EvaluationCard
             applicationId={application.id}
             evaluation={selected}
@@ -198,6 +203,26 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               ) : null}
             </CardContent>
           </Card>
+
+          {canManage ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comunicación con el candidato</CardTitle>
+                <CardDescription>
+                  Envíe un correo directo a la persona candidata. Queda registrado en el historial (solo el asunto).
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {application.candidate.email ? (
+                  <CandidateMessageDialog applicationId={application.id} candidateName={application.candidate.full_name} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    La persona candidata no tiene un correo registrado, por lo que no se le puede escribir desde aquí.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card id="entrevistas">
             <CardHeader>

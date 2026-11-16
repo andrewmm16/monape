@@ -24,7 +24,7 @@ import { findElement } from "./locate";
  *   - ESTRICTOS (solo selector exacto + override aprobado por una persona): el botón final de
  *     enviar/publicar y el botón de retirar, porque un clic equivocado publica o retira de
  *     verdad. También lo son las marcas que deciden el resultado (publicada / error, marca del
- *     paso del asistente, CAPTCHA, estado cerrado de la oferta): leerlas mal podría duplicar o
+ *     paso del asistente, estado cerrado de la oferta): leerlas mal podría duplicar o
  *     perder una publicación. Si fallan, el error es `pagina_cambio`, como siempre.
  *
  * Los selectores NO deben contener datos personales (solo estructura: ids, clases, etiquetas).
@@ -68,6 +68,27 @@ export const AVISO_COOKIES: EntradaLibro = tolerante("Botón para aceptar el avi
   },
 ]);
 
+/**
+ * Desafíos de verificación sencillos que el robot resuelve con lógica interna (ver
+ * `utils/captcha-solver.ts`): aritmética o texto plano estático a escribir, y un
+ * deslizador a arrastrar. Son ESTRICTOS (deciden el flujo). Mientras el portal no
+ * muestre un desafío, estos elementos no existen y el `guard()` sigue de largo. Se
+ * declaran por atributos `data-desafio*` para no mezclarse con el resto de la página.
+ */
+export const DESAFIO_SELECTORES: LibroSelectores = {
+  desafio: estricto("Contenedor del desafío de verificación", "[data-desafio]"),
+  desafio_pregunta: estricto("Enunciado del desafío (texto a resolver)", "[data-desafio-pregunta]"),
+  desafio_respuesta: estricto("Campo donde escribir la respuesta del desafío", "[data-desafio-respuesta]"),
+  desafio_slider: estricto("Tirador del deslizador del desafío", "[data-desafio-slider]"),
+  desafio_pista: estricto("Riel (zona objetivo) del deslizador del desafío", "[data-desafio-pista]"),
+  desafio_enviar: estricto("Botón para enviar la respuesta del desafío", "[data-desafio-enviar]"),
+  desafio_casilla: estricto("Casilla «no soy un robot» del desafío", "[data-desafio-casilla]"),
+  desafio_celda: estricto("Celda de la cuadrícula de imágenes del desafío", "[data-desafio-celda]"),
+  desafio_girar: estricto("Botón para girar la imagen del desafío", "[data-desafio-girar]"),
+  desafio_rotar: estricto("Imagen a rotar del desafío (lleva el ángulo actual y el objetivo)", "[data-desafio-rotar]"),
+  desafio_otp: estricto("Marca del desafío de código por correo (OTP)", "[data-desafio-otp]"),
+};
+
 // ------------------------------------------------------------------ registro de libros
 
 const libros = new Map<string, LibroSelectores>();
@@ -79,6 +100,18 @@ export function registerBook(portal: string, libro: LibroSelectores): LibroSelec
 }
 
 export const getBook = (portal: string): LibroSelectores | undefined => libros.get(portal);
+
+/**
+ * Quita las alternativas tolerantes de una clave del libro (deja solo el selector
+ * por defecto). Lo usan la medición, el entrenamiento y el modo `BOT_SIN_TOLERANCIA`
+ * para forzar que un cambio del portal llegue a la reparación por IA en vez de
+ * resolverse con un selector de respaldo. No falla si el portal o la clave no existen.
+ */
+export function quitarAlternativasTolerantes(portal: string, clave: string): void {
+  const book = getBook(portal);
+  const entrada = book?.[clave];
+  if (book && entrada) book[clave] = tolerante(entrada.descripcion, entrada.selector, []);
+}
 
 // ------------------------------------------------------------------ validación de selectores
 

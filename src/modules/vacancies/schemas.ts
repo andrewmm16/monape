@@ -28,7 +28,6 @@ export const vacancyFormSchema = z
     responsibilities: z.string().trim().max(10_000, "Máximo 10 000 caracteres"),
     location: optionalText(200),
     modality: z.enum(Constants.public.Enums.work_modality).or(z.literal("").transform(() => null)),
-    contractType: optionalText(120),
     openingDate: optionalDate,
     closingDate: optionalDate,
     ownerId: z.uuid().or(z.literal("").transform(() => null)),
@@ -88,6 +87,63 @@ export const requirementFormSchema = z.object({
 });
 
 export type RequirementFormInput = z.input<typeof requirementFormSchema>;
+
+/** Una opción por línea (o separadas por «;»); sin vacías ni repetidas. */
+const optionList = z
+  .string()
+  .max(2000, "Demasiado largo")
+  .transform((value) => [...new Set(value.split(/[;\n]/).map((o) => o.trim()).filter(Boolean))]);
+
+/**
+ * Pregunta eliminatoria. Marca al candidato, nunca lo descarta. La condición que
+ * "aprueba" depende del tipo y la BD la vuelve a exigir (killer_question_shape).
+ */
+export const killerQuestionFormSchema = z
+  .object({
+    question: z.string().trim().min(5, "Mínimo 5 caracteres").max(300, "Máximo 300 caracteres"),
+    questionType: z.enum(Constants.public.Enums.killer_question_type),
+    helpText: optionalText(300),
+    isRequired: z.boolean(),
+    // Sí/No: respuesta que cumple.
+    expectedBoolean: z.enum(["si", "no", ""]),
+    // Número: comparador + umbral.
+    comparator: z.enum(Constants.public.Enums.killer_number_comparator).or(z.literal("")),
+    threshold: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || /^-?\d{1,10}([.,]\d{1,2})?$/.test(v), "Número inválido")
+      .transform((v) => (v === "" ? null : Number(v.replace(",", ".")))),
+    // Opción única: todas las opciones y las que cumplen.
+    options: optionList,
+    acceptedOptions: optionList,
+  })
+  .superRefine((v, ctx) => {
+    if (v.questionType === "si_no") {
+      if (v.expectedBoolean === "") {
+        ctx.addIssue({ code: "custom", path: ["expectedBoolean"], message: "Indique qué respuesta cumple" });
+      }
+    } else if (v.questionType === "numero") {
+      if (v.comparator === "") ctx.addIssue({ code: "custom", path: ["comparator"], message: "Elija la condición" });
+      if (v.threshold === null) ctx.addIssue({ code: "custom", path: ["threshold"], message: "Indique el valor" });
+    } else {
+      if (v.options.length < 2 || v.options.length > 20) {
+        ctx.addIssue({ code: "custom", path: ["options"], message: "Indique entre 2 y 20 opciones" });
+      } else if (v.options.some((o) => o.length > 200)) {
+        ctx.addIssue({ code: "custom", path: ["options"], message: "Cada opción admite hasta 200 caracteres" });
+      }
+      if (v.acceptedOptions.length === 0) {
+        ctx.addIssue({ code: "custom", path: ["acceptedOptions"], message: "Indique al menos una opción que cumple" });
+      } else if (!v.acceptedOptions.every((o) => v.options.includes(o))) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["acceptedOptions"],
+          message: "Todas deben estar en la lista de opciones",
+        });
+      }
+    }
+  });
+
+export type KillerQuestionFormInput = z.input<typeof killerQuestionFormSchema>;
 
 export const vacancyStatusSchema = z.enum(Constants.public.Enums.vacancy_status);
 

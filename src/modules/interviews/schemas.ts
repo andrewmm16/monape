@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Constants, type Enums } from "@/types/database";
-import { limaToIso } from "./datetime";
+import { limaToIso, safeHttpUrl } from "./datetime";
 
 /** Estados que cierran la postulación: no admiten entrevistas nuevas ni cambian por una entrevista. */
 export const CLOSED_STATUSES = ["seleccionado", "no_seleccionado", "retirado"] as const;
@@ -29,11 +29,36 @@ export const interviewFormSchema = z
       .regex(/^\d{1,3}$/, "Indique la duración en minutos")
       .refine((v) => Number(v) >= 15 && Number(v) <= 480, "La duración debe estar entre 15 y 480 minutos"),
     modality: z.enum(Constants.public.Enums.interview_modality, { error: "Seleccione la modalidad" }),
+    /** Presencial: dirección · Virtual: enlace http(s) · Telefónica: teléfono o indicación (opcional). */
     location: optionalText(500),
+    /** Punto de la dirección elegida con el autocompletado (solo presencial); null si se escribió a mano. */
+    locationLat: z.number().min(-90, "Latitud fuera de rango").max(90, "Latitud fuera de rango").nullish(),
+    locationLng: z.number().min(-180, "Longitud fuera de rango").max(180, "Longitud fuera de rango").nullish(),
     interviewers: optionalText(300),
     instructions: optionalText(2000),
   })
-  .refine((v) => limaToIso(v.date, v.time) !== null, { message: "La fecha o la hora no son válidas", path: ["date"] });
+  .superRefine((v, ctx) => {
+    if (limaToIso(v.date, v.time) === null) {
+      ctx.addIssue({ code: "custom", message: "La fecha o la hora no son válidas", path: ["date"] });
+    }
+    if (v.modality === "presencial" && v.location.length === 0) {
+      ctx.addIssue({ code: "custom", message: "Indique la dirección de la entrevista", path: ["location"] });
+    }
+    if (v.modality === "virtual") {
+      if (v.location.length === 0) {
+        ctx.addIssue({ code: "custom", message: "Indique el enlace de la reunión", path: ["location"] });
+      } else if (safeHttpUrl(v.location) === null) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Escriba un enlace válido que empiece con http:// o https://",
+          path: ["location"],
+        });
+      }
+    }
+    if ((v.locationLat == null) !== (v.locationLng == null)) {
+      ctx.addIssue({ code: "custom", message: "Las coordenadas del lugar están incompletas", path: ["location"] });
+    }
+  });
 
 export type InterviewFormValues = z.input<typeof interviewFormSchema>;
 

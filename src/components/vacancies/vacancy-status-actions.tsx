@@ -1,10 +1,10 @@
 import { ActionButton } from "@/components/common/action-button";
-import { PublishVacancyButton } from "@/components/vacancies/publish-vacancy-button";
-import { changeVacancyStatus, deleteDraftVacancy } from "@/modules/vacancies/actions";
+import { changeVacancyStatus, deleteVacancy } from "@/modules/vacancies/actions";
 import { VACANCY_TRANSITIONS } from "@/modules/vacancies/schemas";
 import type { Enums } from "@/types/database";
 
-// «publicada» no está aquí: se publica con PublishVacancyButton.
+// «publicada» no está aquí: se publica desde la sección visible de la pestaña
+// Portales (grilla de portales + botón Publicar), no desde el encabezado.
 const LABELS: Record<Exclude<Enums<"vacancy_status">, "publicada">, { label: string; description: string }> = {
   cerrada: { label: "Cerrar", description: "No se podrán registrar nuevas postulaciones. Podrá reabrirla." },
   archivada: {
@@ -18,23 +18,15 @@ export function VacancyStatusActions({
   vacancyId,
   status,
   canDelete,
-  portals,
-  blockers,
 }: {
   vacancyId: string;
   status: Enums<"vacancy_status">;
   canDelete: boolean;
-  /** Portales que el robot atiende, para elegirlos al publicar. */
-  portals: { id: string; name: string }[];
-  /** Lo que falta para poder publicar (vacío si ya puede). */
-  blockers: string[];
 }) {
   return (
     <>
       {VACANCY_TRANSITIONS[status].map((next) =>
-        next === "publicada" ? (
-          <PublishVacancyButton key={next} vacancyId={vacancyId} portals={portals} blockers={blockers} reopen={status === "cerrada"} />
-        ) : (
+        next === "publicada" ? null : (
           <ActionButton
             key={next}
             variant="outline"
@@ -45,17 +37,20 @@ export function VacancyStatusActions({
           </ActionButton>
         ),
       )}
-      {canDelete && status === "borrador" ? (
+      {canDelete && (status === "borrador" || status === "archivada") ? (
         <ActionButton
           variant="destructive"
-          action={deleteDraftVacancy.bind(null, vacancyId)}
+          action={deleteVacancy.bind(null, vacancyId)}
           confirm={{
-            title: "¿Eliminar el borrador?",
-            description: "Solo se eliminan borradores sin postulaciones. Esta acción no se puede deshacer.",
+            title: status === "borrador" ? "¿Eliminar el borrador?" : "¿Eliminar la vacante archivada?",
+            description:
+              status === "borrador"
+                ? "Solo se eliminan borradores sin postulaciones. Esta acción no se puede deshacer."
+                : "Solo se eliminan vacantes archivadas sin postulaciones. Esta acción no se puede deshacer.",
             confirmLabel: "Eliminar",
           }}
         >
-          Eliminar borrador
+          {status === "borrador" ? "Eliminar borrador" : "Eliminar vacante"}
         </ActionButton>
       ) : null}
     </>

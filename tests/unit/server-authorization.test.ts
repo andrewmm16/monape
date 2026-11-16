@@ -103,7 +103,7 @@ vi.mock("next/navigation", () => ({
   unstable_rethrow: vi.fn(),
 }));
 
-const { createVacancy, approveCriteria, addRequirement, deleteDraftVacancy } = await import("@/modules/vacancies/actions");
+const { createVacancy, approveCriteria, addRequirement, deleteVacancy } = await import("@/modules/vacancies/actions");
 const { createCandidate, verifyCandidateField } = await import("@/modules/candidates/actions");
 const { uploadResume } = await import("@/modules/resumes/actions");
 const { runEvaluation, changeApplicationStatus, reviewEvaluation, addApplicationNote, requestOpinion } = await import(
@@ -134,7 +134,6 @@ const vacancyInput: VacancyFormInput = {
   responsibilities: "",
   location: "",
   modality: "",
-  contractType: "",
   openingDate: "",
   closingDate: "",
   ownerId: "",
@@ -175,7 +174,7 @@ describe("cuenta desactivada: ninguna acción llega a la base de datos", () => {
     ["crear vacante", () => createVacancy(vacancyInput)],
     ["aprobar criterios", () => approveCriteria(ID)],
     ["agregar requisito", () => addRequirement(ID, { category: "otro", priority: "deseable", description: "X", keywords: "", weight: 1, minYears: "", isEssential: false })],
-    ["eliminar vacante", () => deleteDraftVacancy(ID)],
+    ["eliminar vacante", () => deleteVacancy(ID)],
     ["registrar candidato", () => createCandidate({ fullName: "Persona", email: "", phone: "", location: "", linkedinUrl: "", source: "manual", sourceDetail: "", vacancyId: "" })],
     ["verificar datos", () => verifyCandidateField(ID, "email")],
     ["subir CV", () => uploadResume(resumeForm())],
@@ -208,7 +207,7 @@ describe("RRHH", () => {
   });
 
   it("no elimina vacantes (solo administración) y sí registra observaciones", async () => {
-    expect(await deleteDraftVacancy(ID)).toEqual({ ok: false, error: "No tiene permisos para realizar esta acción." });
+    expect(await deleteVacancy(ID)).toEqual({ ok: false, error: "No tiene permisos para realizar esta acción." });
     expect(state.calls).toEqual([]);
     const result = await addApplicationNote({ applicationId: ID, note: "Buen dominio técnico" });
     expect(result.ok).toBe(true);

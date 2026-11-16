@@ -232,13 +232,13 @@ describe("servicio: pedir la propuesta", () => {
       ensayo: { resultado: "paso", mensaje: PASS.mensaje, en: "2026-03-02T10:00:00.000Z" },
     });
     expect(await store.get(1)).toMatchObject({ estado: "propuesta" });
-    expect(sent).toEqual([
-      "Propuesta PROBADA para #1: usar «#titulo-v2» como campo_titulo; la prueba de estructura pasó con este cambio. Responda «sí 1» para aplicarla o «no 1» para rechazarla.",
-    ]);
+    expect(sent).toHaveLength(1);
     expect(sent[0]).toBe(proposalMessage(saved));
+    expect(sent[0]).toContain("pausé ese portal, los demás siguen");
+    expect(sent[0]).toContain("Probé un arreglo: usar «#titulo-v2» como campo_titulo");
   });
 
-  it("clave inventada, selector peligroso, «sin propuesta», refusal y max_tokens: nada guardado ni avisado, solo log", async () => {
+  it("clave inventada, selector peligroso, «sin propuesta», refusal y max_tokens: nada guardado; avisa «sin arreglo» (uno por incidente) y deja el detalle en el log", async () => {
     const cases: CompleteResult[] = [
       answer({ clave: "campo_que_no_existe" }),
       answer({ selector: "#a; drop" }),
@@ -251,7 +251,9 @@ describe("servicio: pedir la propuesta", () => {
       await repair.handleNewIncident(incident());
     }
     expect(await readdir(path.join(dir, "propuestas")).then((names) => names.filter((n) => /^\d+\.json$/.test(n)))).toEqual([]);
-    expect(sent).toEqual([]);
+    // Sin propuesta utilizable ahora SÍ se avisa (un único mensaje «sin arreglo» por incidente), para no dejar al usuario sin señal.
+    expect(sent).toHaveLength(5);
+    expect(sent.every((m) => m.includes("No encontré un arreglo automático"))).toBe(true);
     expect(logs).toHaveLength(5);
     expect(logs.join("\n")).toContain("descartada");
     expect(logs.join("\n")).toContain("refusal");
@@ -269,7 +271,9 @@ describe("servicio: pedir la propuesta", () => {
     for (const id of [1, 2, 3]) await repair.handleNewIncident(incident({ id }));
     expect(complete).toHaveBeenCalledTimes(2);
     expect(logs.some((l) => l.includes("límite diario (2)"))).toBe(true);
-    expect(sent).toHaveLength(2);
+    // 2 propuestas + 1 aviso «sin arreglo» del incidente que topó el límite = 3 mensajes.
+    expect(sent).toHaveLength(3);
+    expect(sent.at(-1)).toContain("No encontré un arreglo automático");
 
     clock += 24 * 3_600_000;
     await repair.handleNewIncident(incident({ id: 4 }));
@@ -432,7 +436,7 @@ describe("verificación y reversión automática", () => {
     clock += 60_000;
     await repair.onHealthResult(PORTAL, true);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toContain("Reparación aplicada y verificada");
+    expect(sent[0]).toContain("Aplicado y verificado");
     expect(await store.get(1)).toMatchObject({ estado: "aplicada", verificadaEn: "2026-03-02T10:01:00.000Z" });
 
     await repair.onHealthResult(PORTAL, true); // no se avisa dos veces

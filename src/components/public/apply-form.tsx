@@ -7,8 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { submitOnlineApplication } from "@/modules/online-apply/actions";
+import { buildKillerAnswers, collectKillerFields, killerFieldId, KILLER_FIELD_PREFIX } from "@/modules/online-apply/killer-answers";
 import { solveChallenge } from "@/modules/online-apply/pow";
 import { onlineApplicationSchema } from "@/modules/online-apply/schema";
+import type { PublicKillerQuestion } from "@/modules/public-jobs/types";
 
 const MAX_CV_BYTES = 4 * 1024 * 1024;
 /** El servidor exige al menos 3 s entre la emisión del desafío y el envío. */
@@ -17,10 +19,12 @@ const MIN_WAIT_MS = 3500;
 const MAX_CHALLENGE_AGE_MS = 25 * 60 * 1000;
 
 type Solved = { challenge: string; solution: string; receivedAt: number };
-type FieldName = "fullName" | "email" | "phone" | "location" | "linkedinUrl" | "cv" | "acceptNotice";
+type StaticFieldName = "fullName" | "email" | "phone" | "location" | "linkedinUrl" | "cv" | "acceptNotice";
+/** Los campos de las preguntas eliminatorias se llaman `kq_<id de la pregunta>`. */
+type FieldName = StaticFieldName | `${typeof KILLER_FIELD_PREFIX}${string}`;
 type Errors = Partial<Record<FieldName, string>>;
 
-const FIELD_IDS: Record<FieldName, string> = {
+const FIELD_IDS: Record<StaticFieldName, string> = {
   fullName: "apply-full-name",
   email: "apply-email",
   phone: "apply-phone",
@@ -30,10 +34,15 @@ const FIELD_IDS: Record<FieldName, string> = {
   acceptNotice: "apply-accept-notice",
 };
 
-const FIELD_ORDER: FieldName[] = ["fullName", "email", "phone", "location", "linkedinUrl", "cv", "acceptNotice"];
+const FIELD_ORDER_BEFORE_CV: StaticFieldName[] = ["fullName", "email", "phone", "location", "linkedinUrl"];
+const FIELD_ORDER_AFTER_CV: StaticFieldName[] = ["cv", "acceptNotice"];
 
 function isFieldName(value: string): value is FieldName {
-  return value in FIELD_IDS;
+  return value in FIELD_IDS || value.startsWith(KILLER_FIELD_PREFIX);
+}
+
+function fieldDomId(name: FieldName): string {
+  return name in FIELD_IDS ? FIELD_IDS[name as StaticFieldName] : `apply-${name}`;
 }
 
 function wait(ms: number): Promise<void> {
@@ -62,11 +71,13 @@ export function ApplyForm({
   noticeId,
   noticeVersion,
   companyName,
+  killerQuestions = [],
 }: {
   vacancyCode: string;
   noticeId: string;
   noticeVersion: number;
   companyName: string;
+  killerQuestions?: PublicKillerQuestion[];
 }) {
   const challengeRef = useRef<Promise<Solved> | null>(null);
   const referrerRef = useRef<HTMLInputElement>(null);
@@ -108,8 +119,13 @@ export function ApplyForm({
 
   function showErrors(next: Errors) {
     setErrors(next);
-    const first = FIELD_ORDER.find((name) => next[name]);
-    if (first) document.getElementById(FIELD_IDS[first])?.focus();
+    const order: FieldName[] = [
+      ...FIELD_ORDER_BEFORE_CV,
+      ...killerQuestions.map((q) => killerFieldId(q.id) as FieldName),
+      ...FIELD_ORDER_AFTER_CV,
+    ];
+    const first = order.find((name) => next[name]);
+    if (first) document.getElementById(fieldDomId(first))?.focus();
   }
 
   function validate(form: HTMLFormElement): Errors {
@@ -125,12 +141,18 @@ export function ApplyForm({
       acceptNotice,
       acceptTalentPool,
       noticeId,
+      killerAnswers: collectKillerFields(data),
     });
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
         const key = String(issue.path[0] ?? "");
         if (isFieldName(key) && !next[key]) next[key] = issue.message;
       }
+    }
+    // Solo se exige responder las obligatorias; una respuesta que no cumpla NO impide enviar.
+    const killer = buildKillerAnswers(killerQuestions, collectKillerFields(data));
+    for (const [key, messages] of Object.entries(killer.errors)) {
+      if (isFieldName(key) && messages[0]) next[key] = messages[0];
     }
     const file = data.get("cv");
     if (!(file instanceof File) || file.size === 0) next.cv = "Adjunte su CV en PDF o Word.";
@@ -196,7 +218,7 @@ export function ApplyForm({
     );
   }
 
-  const describedBy = (name: FieldName) => (errors[name] ? `${FIELD_IDS[name]}-error` : undefined);
+  const describedBy = (name: FieldName) => (errors[name] ? `${fieldDomId(name)}-error` : undefined);
 
   return (
     <form
@@ -281,6 +303,63 @@ export function ApplyForm({
         />
         <FieldError id={FIELD_IDS.linkedinUrl} message={errors.linkedinUrl} />
       </div>
+
+      {killerQuestions.length > 0 ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Responda estas preguntas sobre el puesto.</p>
+          {killerQuestions.map((question) => {
+            const name = killerFieldId(question.id) as FieldName;
+            const domId = fieldDomId(name);
+            const error = errors[name];
+            const label = `${question.question}${question.required ? "" : " (opcional)"}`;
+            const choices: { value: string; label: string }[] =
+              question.type === "si_no"
+                ? [
+                    { value: "si", label: "Sí" },
+                    { value: "no", label: "No" },
+                  ]
+                : question.options.map((option) => ({ value: option, label: option }));
+            return (
+              <fieldset key={question.id} className="space-y-1.5" aria-describedby={error ? `${domId}-error` : undefined}>
+                {question.type === "numero" ? (
+                  <>
+                    <Label htmlFor={domId}>{label}</Label>
+                    <Input
+                      id={domId}
+                      name={name}
+                      inputMode="decimal"
+                      maxLength={16}
+                      className="h-10"
+                      aria-invalid={error ? true : undefined}
+                      aria-describedby={error ? `${domId}-error` : undefined}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <legend className="text-sm font-medium leading-snug">{label}</legend>
+                    <div className="space-y-1">
+                      {choices.map((choice, index) => (
+                        <label key={choice.value} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name={name}
+                            value={choice.value}
+                            id={index === 0 ? domId : undefined}
+                            className="size-4"
+                          />
+                          {choice.label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {question.helpText ? <p className="text-sm text-muted-foreground">{question.helpText}</p> : null}
+                <FieldError id={domId} message={error} />
+              </fieldset>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor={FIELD_IDS.cv}>CV (PDF o Word, hasta 4 MB)</Label>

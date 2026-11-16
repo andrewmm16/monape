@@ -8,7 +8,7 @@ import { FakeLinkedinAdapter } from "../../bot/src/adapters/fake-linkedin";
 import { FakeTrabajosDiariosAdapter } from "../../bot/src/adapters/fake-trabajos-diarios";
 import { ERROR_CODES } from "../../bot/src/errors";
 import { startFakePortal, type FakePortal } from "../../bot/src/fake-portal/server";
-import { runRound, type AdapterSlot } from "../../bot/src/round";
+import { isWaitingHuman, runRound, type AdapterSlot } from "../../bot/src/round";
 import { createHealthSchedule } from "../../bot/src/runner";
 import { MemorySeenStore } from "../../bot/src/seen";
 import type { Job } from "../../bot/src/types";
@@ -99,16 +99,16 @@ describe("robot con varios adaptadores y un solo navegador", () => {
     expect(api.portalStatuses.map((status) => status.portal).sort()).toEqual(slots.map((slot) => slot.slug).sort());
   });
 
-  it("si un portal se detiene, se reporta y los demás siguen; termina cuando todos están detenidos", async () => {
-    portal.setCaptcha(true, "indeed");
+  it("si un portal se detiene, se reporta y los demás siguen; si todos esperan una verificación, el robot aguarda", async () => {
+    portal.setLoggedIn(false, "indeed");
     const first = await runRound(slots, () => {});
-    expect(first.newlyHalted).toEqual([{ slug: "indeed", reason: ERROR_CODES.verificationRequired }]);
+    expect(first.newlyHalted).toEqual([{ slug: "indeed", reason: ERROR_CODES.sessionExpired }]);
     expect(first.allHalted).toBe(false);
     expect(first.failed).toBe(false);
     expect(portal.jobs.size).toBe(4);
     expect(api.portalStatuses.find((status) => status.portal === "indeed")).toMatchObject({
       state: "necesita_persona",
-      reason: ERROR_CODES.verificationRequired,
+      reason: ERROR_CODES.sessionExpired,
     });
 
     // En la vuelta siguiente el portal detenido ya no se toca y los demás siguen trabajando.
@@ -124,7 +124,9 @@ describe("robot con varios adaptadores y un solo navegador", () => {
     for (const slug of ["linkedin", "bumeran", "trabajos-diarios", "computrabajo"]) api.queues[slug] = [job()];
     const last = await runRound(slots, () => {});
     expect(last.newlyHalted.map((halted) => halted.slug)).toEqual(["linkedin", "bumeran", "trabajos-diarios", "computrabajo"]);
-    expect(last.allHalted).toBe(true);
+    // Todos esperan una verificación humana (la sesión vencida): el robot no termina, aguarda el «listo».
+    expect(last.allHalted).toBe(false);
+    expect(slots.every(isWaitingHuman)).toBe(true);
   });
 
   it("si la app no responde, la vuelta se marca fallida pero ningún portal se detiene", async () => {
