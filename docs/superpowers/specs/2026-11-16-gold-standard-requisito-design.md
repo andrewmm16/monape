@@ -48,27 +48,29 @@ Vocabulario = el del motor (`Assessment`): `acreditado` / `no_cumplido` / `sin_e
 / `pendiente_verificacion`.
 
 1. **Requisito esencial/legal** (`isEssential`, p.ej. colegiatura CEP/CIP, colegiatura de
-   contador): si el CV lo declara → `pendiente_verificacion` (correcto: el motor no puede
-   acreditar un requisito legal solo con el CV; RRHH lo verifica con documento). Si el CV
-   no lo menciona → `sin_evidencia`.
+   contador): si el CV lo declara → `pendiente_verificacion` (motivo `legal`). Correcto: el
+   motor no puede acreditar un requisito legal solo con el CV; RRHH lo verifica con
+   documento. Si el CV no lo menciona → `sin_evidencia`.
 2. **Evidencia clara y suficiente** (cumple el nivel pedido y, si aplica, el mínimo de
    años) → `acreditado`.
-3. **Evidencia que contradice el requisito tal como está redactado** → `no_cumplido`.
-   Dos casos:
-   - **Negación explícita** (el CV dice que no lo tiene).
-   - **Nivel o alcance por debajo de lo pedido**: pide "avanzado" y el CV dice
-     "intermedio"; pide mínimo 3 años y el CV tiene 2. Hay evidencia positiva, pero no
-     alcanza el requisito.
-4. **Sin ninguna mención** → `sin_evidencia`.
-5. **Celdas dudosas** (matiz real, p.ej. "nociones de", "básico-intermedio" contra
-   "intermedio-avanzado"): se etiqueta con la verdad más defendible y se marca
-   `revisar: true` para tu visto bueno.
+3. **Cumplimiento PARCIAL** → `pendiente_verificacion` (motivo `parcial`). Hay evidencia
+   relevante, pero no alcanza lo pedido: nivel por debajo ("Excel intermedio" cuando se
+   pide "avanzado", AutoCAD intermedio, técnica cuando se pide licenciatura), años por
+   debajo del mínimo, estudios en curso/en trámite, o lenguaje que matiza a la baja
+   ("nociones de…", "básico"). **No es ni acreditado ni no_cumplido: es una señal para que
+   RRHH lo juzgue.** Es la corrección clave de Omar: un cumplimiento parcial no puede caer
+   en `no_cumplido`.
+4. **Negación explícita** (el CV afirma que NO lo tiene, p.ej. "no cuento con experiencia
+   en planillas") → `no_cumplido`. Este veredicto queda reservado solo para esto.
+5. **Sin ninguna mención** → `sin_evidencia`.
+6. **Celdas dudosas** (el matiz es discutible): se etiqueta con la verdad más defendible y
+   se marca `revisar: true` para tu visto bueno antes de cerrar la vara.
 
-**La decisión de fondo que te toca confirmar** es la regla 3b: tratar "nivel por debajo
-de lo pedido" como `no_cumplido` (la vara es estricta con el nivel). Es lo que hará
-aflorar la sobre-acreditación del motor. La alternativa sería marcarlo `sin_evidencia`
-(más indulgente). Recomiendo `no_cumplido` porque hay evidencia que sí contradice el
-nivel, no ausencia de evidencia.
+**Cómo expone esto el problema de Chuquilín:** sus casillas de "Excel intermedio" y
+"nociones de legislación laboral" quedan en la vara como `pendiente_verificacion`
+(parcial). El motor hoy las da como `acreditado`. Esa discrepancia (motor `acreditado` vs.
+vara `pendiente`) es precisamente lo que el medidor cuenta como **sobre-acreditación**, sin
+necesidad de marcarlas injustamente como "no cumplido".
 
 ## Diseño
 
