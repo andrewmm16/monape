@@ -380,8 +380,8 @@ function consequenceText(
   }
   if (outcome === "paso") {
     return status === "en_evaluacion"
-      ? "La postulación ya está «En evaluación»; no cambia de estado."
-      : "La postulación pasará a «En evaluación».";
+      ? `La postulación ya está «${APPLICATION_STATUS_LABELS.en_evaluacion}»; no cambia de estado.`
+      : `La postulación pasará a «${APPLICATION_STATUS_LABELS.en_evaluacion}».`;
   }
   return "La postulación pasará a «No seleccionado» y se moverá a Descartados; se puede reactivar cambiando su estado. No se borra nada.";
 }

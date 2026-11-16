@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/common/action-button";
+import { DeleteArchivedVacancyDialog } from "@/components/vacancies/delete-archived-vacancy-dialog";
 import { changeVacancyStatus, deleteVacancy } from "@/modules/vacancies/actions";
 import { VACANCY_TRANSITIONS } from "@/modules/vacancies/schemas";
 import type { Enums } from "@/types/database";
@@ -18,10 +19,12 @@ export function VacancyStatusActions({
   vacancyId,
   status,
   canDelete,
+  applicationCount,
 }: {
   vacancyId: string;
   status: Enums<"vacancy_status">;
   canDelete: boolean;
+  applicationCount: number;
 }) {
   return (
     <>
@@ -37,21 +40,21 @@ export function VacancyStatusActions({
           </ActionButton>
         ),
       )}
-      {canDelete && (status === "borrador" || status === "archivada") ? (
+      {canDelete && status === "borrador" ? (
         <ActionButton
           variant="destructive"
           action={deleteVacancy.bind(null, vacancyId)}
           confirm={{
-            title: status === "borrador" ? "¿Eliminar el borrador?" : "¿Eliminar la vacante archivada?",
-            description:
-              status === "borrador"
-                ? "Solo se eliminan borradores sin postulaciones. Esta acción no se puede deshacer."
-                : "Solo se eliminan vacantes archivadas sin postulaciones. Esta acción no se puede deshacer.",
+            title: "¿Eliminar el borrador?",
+            description: "Solo se eliminan borradores sin postulaciones. Esta acción no se puede deshacer.",
             confirmLabel: "Eliminar",
           }}
         >
-          {status === "borrador" ? "Eliminar borrador" : "Eliminar vacante"}
+          Eliminar borrador
         </ActionButton>
+      ) : null}
+      {canDelete && status === "archivada" ? (
+        <DeleteArchivedVacancyDialog vacancyId={vacancyId} applicationCount={applicationCount} />
       ) : null}
     </>
   );

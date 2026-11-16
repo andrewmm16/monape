@@ -130,6 +130,16 @@ export async function countApplicationViews(supabase: AppSupabaseClient, vacancy
   return { discarded: discarded.count ?? 0, inProcess: (total.count ?? 0) - (discarded.count ?? 0) };
 }
 
+/** Total de postulaciones de una vacante (cualquier estado). */
+export async function countVacancyApplications(supabase: AppSupabaseClient, vacancyId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("application_overview")
+    .select("id", { count: "exact", head: true })
+    .eq("vacancy_id", vacancyId);
+  if (error) throw toAppError(error);
+  return count ?? 0;
+}
+
 /**
  * Postulaciones pendientes de evaluar de una vacante: no retiradas y sin
  * evaluación, o con una evaluación hecha con criterios anteriores. Es la única

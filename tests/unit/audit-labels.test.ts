@@ -12,7 +12,7 @@ describe("describeAuditEntry", () => {
       entity_id: ID,
       metadata: { changed_fields: ["status"], status: { from: "en_revision", to: "preseleccionado" } },
     });
-    expect(result.text).toBe("Cambió el estado de una postulación: En revisión → Preseleccionado");
+    expect(result.text).toBe("Cambió el estado de una postulación: En revisión → Por entrevistar");
     expect(result.href).toBe(`/postulaciones/${ID}`);
   });
 
@@ -131,7 +131,7 @@ describe("describeAuditEntry con nombres reales", () => {
         { action: "update", entity_type: "applications", entity_id: APP, metadata: { status: { from: "en_revision", to: "preseleccionado" } } },
         ctx,
       ).text,
-    ).toBe("Cambió el estado de la postulación de Ana Pérez: En revisión → Preseleccionado");
+    ).toBe("Cambió el estado de la postulación de Ana Pérez: En revisión → Por entrevistar");
   });
 
   it("los campos modificados salen en español", () => {

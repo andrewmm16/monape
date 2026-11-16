@@ -32,6 +32,7 @@ import {
   countApplicationViews,
   countKillerFlags,
   countPendingEvaluations,
+  countVacancyApplications,
   listApplicationsForBoard,
   listVacancyApplications,
   rankVacancyApplications,
@@ -142,6 +143,10 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     throw error;
   });
   const canManage = can(user.role, "vacancies:manage");
+  const canDeleteVacancy = can(user.role, "vacancies:delete");
+  // El conteo solo se usa en la confirmación de borrado en cascada (archivadas).
+  const archivedApplicationCount =
+    vacancy.status === "archivada" && canDeleteVacancy ? await countVacancyApplications(supabase, vacancy.id) : 0;
 
   // Pasos para publicar: lo que falta y los portales que el robot atiende (se eligen al publicar).
   const { count: requirementCount, error: requirementCountError } = await supabase
@@ -337,7 +342,8 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
               <VacancyStatusActions
                 vacancyId={vacancy.id}
                 status={vacancy.status}
-                canDelete={can(user.role, "vacancies:delete")}
+                canDelete={canDeleteVacancy}
+                applicationCount={archivedApplicationCount}
               />
             </>
           ) : null

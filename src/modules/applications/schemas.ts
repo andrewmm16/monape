@@ -6,7 +6,7 @@ export const applicationStatusSchema = z.enum(Constants.public.Enums.application
 });
 
 /**
- * Estados que RRHH puede elegir a mano. «En evaluación» lo pone la entrevista
+ * Estados que RRHH puede elegir a mano. «Evaluación post-entrevista» lo pone la entrevista
  * al registrar que la persona pasó. Los demás del catálogo antiguo
  * (preseleccionado, en reserva) ya no se ofrecen, pero siguen siendo válidos
  * en la base de datos para no perder historial.
@@ -161,8 +161,8 @@ export type BoardColumn = {
    * Estado que se propone al soltar una tarjeta aquí (siempre un estado de
    * SELECTABLE_STATUSES); `null` si la columna no admite soltar. Soltar no
    * cambia nada por sí solo: abre la confirmación con motivo, igual que la
-   * ficha. La situación «en_evaluacion» (la pone la entrevista, no es
-   * seleccionable) se muestra dentro de la columna Entrevista.
+   * ficha. La situación «en_evaluacion» la pone la entrevista (no es
+   * seleccionable), por eso la columna «Evaluación post-entrevista» no admite soltar.
    */
   dropStatus: Enums<"application_status"> | null;
 };
@@ -174,7 +174,8 @@ export type BoardColumn = {
 export const BOARD_COLUMNS: readonly BoardColumn[] = [
   { key: "nuevo", label: "Nuevos", statuses: ["nuevo"], dropStatus: "nuevo" },
   { key: "en_revision", label: "En revisión", statuses: ["en_revision", "preseleccionado"], dropStatus: "en_revision" },
-  { key: "entrevista_programada", label: "Entrevista", statuses: ["entrevista_programada", "en_evaluacion"], dropStatus: "entrevista_programada" },
+  { key: "entrevista_programada", label: "Entrevista", statuses: ["entrevista_programada"], dropStatus: "entrevista_programada" },
+  { key: "en_evaluacion", label: "Evaluación post-entrevista", statuses: ["en_evaluacion"], dropStatus: null },
   { key: "seleccionado", label: "Seleccionados", statuses: ["seleccionado"], dropStatus: "seleccionado" },
   { key: "descartados", label: "Descartados", statuses: ["no_seleccionado", "retirado", "en_reserva"], dropStatus: "no_seleccionado" },
 ];

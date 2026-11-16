@@ -101,9 +101,9 @@ export const EXTRACTION_STATUS_LABELS: Record<Enums<"extraction_status">, string
 export const APPLICATION_STATUS_LABELS: Record<Enums<"application_status">, string> = {
   nuevo: "Nuevo",
   en_revision: "En revisión",
-  preseleccionado: "Preseleccionado",
+  preseleccionado: "Por entrevistar",
   entrevista_programada: "Entrevista programada",
-  en_evaluacion: "En evaluación",
+  en_evaluacion: "Evaluación post-entrevista",
   seleccionado: "Seleccionado",
   no_seleccionado: "No seleccionado",
   en_reserva: "En reserva",

@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { CandidateMessageDialog } from "@/components/applications/candidate-message-dialog";
+import { TeamEvaluationCard } from "@/components/scorecards/team-evaluation-card";
+import { consolidateScorecards } from "@/modules/scorecards/consolidation";
+import { listScorecards } from "@/modules/scorecards/queries";
 import { EvaluationCard } from "@/components/applications/evaluation-card";
 import { NoteForm } from "@/components/applications/note-form";
 import { KillerAnswersCard } from "@/components/applications/killer-answers-card";
@@ -52,14 +55,17 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const canManage = can(user.role, "applications:manage");
   const canEvaluate = can(user.role, "evaluations:run");
 
-  const [evaluations, events, currentResume, verifications, interviews, killerAnswers] = await Promise.all([
+  const [evaluations, events, currentResume, verifications, interviews, killerAnswers, scorecards] = await Promise.all([
     listEvaluations(supabase, application.id),
     listApplicationEvents(supabase, application.id),
     getCurrentResume(supabase, application.candidate.id),
     listRequirementVerifications(supabase, application.id),
     listApplicationInterviews(supabase, application.id),
     listKillerAnswers(supabase, application.id),
+    listScorecards(supabase, application.id),
   ]);
+  const scorecardConsolidation = consolidateScorecards(scorecards);
+  const myScorecard = scorecards.find((entry) => entry.evaluatorId === user.id) ?? null;
   const schedulable = canManage && canScheduleInterview(application.status, application.vacancy.status);
   const newerResume =
     currentResume && application.resume && currentResume.id !== application.resume.id ? currentResume : null;
@@ -267,6 +273,14 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               )}
             </CardContent>
           </Card>
+
+          <TeamEvaluationCard
+            applicationId={application.id}
+            entries={scorecards}
+            consolidation={scorecardConsolidation}
+            myEntry={myScorecard}
+            canEvaluate={canManage}
+          />
 
           <Card>
             <CardHeader>

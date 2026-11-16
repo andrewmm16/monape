@@ -6,8 +6,10 @@ import { z } from "zod";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
 import { AppError, toAppError } from "@/lib/errors";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { applyPortalSelection } from "@/modules/portals/actions";
+import { RESUMES_BUCKET } from "@/modules/resumes/storage";
 import {
   canTransitionVacancy,
   killerQuestionFormSchema,
@@ -138,6 +140,35 @@ export async function deleteVacancy(id: string): Promise<ActionResult> {
     const { data, error } = await supabase.from("vacancies").delete().eq("id", vacancyId).select("id");
     if (error) throw toAppError(error);
     if (!data.length) throw new AppError("Solo pueden eliminarse vacantes en borrador o archivadas sin postulaciones.", "conflict");
+    revalidatePath("/vacantes");
+    redirect("/vacantes");
+  });
+}
+
+/**
+ * Borrado en cascada de una vacante ARCHIVADA: elimina la vacante, sus
+ * postulaciones y su historial, y los candidatos sin ninguna otra postulación.
+ * Solo administradores (la función de BD lo exige). Tras el borrado en BD, limpia
+ * del bucket los CV de los candidatos eliminados para no dejar archivos huérfanos.
+ */
+export async function deleteArchivedVacancyCascade(id: string): Promise<ActionResult> {
+  return runAction("vacancies.delete_archived_cascade", async () => {
+    await requirePermission("vacancies:delete");
+    const vacancyId = parseInput(z.uuid(), id);
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("delete_archived_vacancy", { p_vacancy_id: vacancyId });
+    if (error) throw toAppError(error);
+
+    const paths = (data as { resume_paths?: string[] } | null)?.resume_paths ?? [];
+    if (paths.length > 0) {
+      // El borrado en BD ya se confirmó; si falla la limpieza del bucket, los
+      // archivos quedan huérfanos (barrido pendiente) pero no se revierte nada.
+      try {
+        await createSupabaseAdminClient().storage.from(RESUMES_BUCKET).remove(paths);
+      } catch {
+        // Ignorado a propósito: no debe tumbar la operación ya confirmada.
+      }
+    }
     revalidatePath("/vacantes");
     redirect("/vacantes");
   });

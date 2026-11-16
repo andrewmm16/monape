@@ -166,7 +166,7 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   await resultDialog.getByRole("button", { name: "Registrar resultado" }).click();
   await expect(resultDialog.getByText("Seleccione el resultado de la entrevista")).toBeVisible();
   await resultDialog.getByLabel("Pasó", { exact: true }).check();
-  await expect(resultDialog.getByTestId("interview-consequence")).toContainText("pasará a «En evaluación»");
+  await expect(resultDialog.getByTestId("interview-consequence")).toContainText("pasará a «Evaluación post-entrevista»");
   await expect(resultDialog.getByText("Requisitos comprobados en la entrevista")).toBeVisible();
   const english = resultDialog.getByLabel("Resultado de «Inglés intermedio»");
   await expect(english).toBeVisible();
@@ -174,10 +174,10 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   await expect(resultDialog.getByText("Valoración actual: No aparece en el CV")).toBeVisible();
   await english.selectOption({ label: "Cumple" });
   await resultDialog.getByRole("button", { name: "Registrar resultado" }).click();
-  await expect(page.getByText(/Resultado registrado\. La postulación está en «En evaluación»/)).toBeVisible();
+  await expect(page.getByText(/Resultado registrado\. La postulación está en «Evaluación post-entrevista»/)).toBeVisible();
 
   await page.goto(`/postulaciones/${ids.pass}`);
-  await expect(page.getByText("En evaluación", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Evaluación post-entrevista", { exact: true }).first()).toBeVisible();
   const englishItem = page.getByRole("listitem").filter({ hasText: "Inglés intermedio" }).filter({ hasText: "Peso" });
   await expect(englishItem).toContainText("Verificado · Entrevista");
   await expect(englishItem).toContainText(/Comprobado en la entrevista del \d{2}\/\d{2}\/\d{4}/);

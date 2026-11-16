@@ -192,8 +192,8 @@ export function ApplicationsBoard({ rows, canManage }: { rows: BoardApplication[
 
       {canManage && !dirty ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Arrastra las tarjetas entre columnas; abajo podrás confirmar todos los cambios juntos. «En evaluación» lo asigna la
-          entrevista.
+          Arrastra las tarjetas entre columnas; abajo podrás confirmar todos los cambios juntos. «Evaluación post-entrevista» la
+          asigna la entrevista, no se arrastra.
         </p>
       ) : null}
 

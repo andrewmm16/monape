@@ -108,6 +108,54 @@ export type Database = {
           },
         ]
       }
+      application_scorecards: {
+        Row: {
+          application_id: string
+          comment: string | null
+          created_at: string
+          evaluator_id: string
+          id: string
+          recommendation: Database["public"]["Enums"]["scorecard_recommendation"]
+          scores: Json
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          comment?: string | null
+          created_at?: string
+          evaluator_id: string
+          id?: string
+          recommendation: Database["public"]["Enums"]["scorecard_recommendation"]
+          scores?: Json
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          comment?: string | null
+          created_at?: string
+          evaluator_id?: string
+          id?: string
+          recommendation?: Database["public"]["Enums"]["scorecard_recommendation"]
+          scores?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_scorecards_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_scorecards_evaluator_id_fkey"
+            columns: ["evaluator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           applied_at: string
@@ -2023,6 +2071,12 @@ export type Database = {
           effective_from: string | null
         }[]
       }
+      delete_archived_vacancy: {
+        Args: {
+          p_vacancy_id: string | null
+        }
+        Returns: Json
+      }
       find_candidate_duplicates: {
         Args: {
           p_email: string | null
@@ -2435,6 +2489,7 @@ export type Database = {
       requirement_category: "formacion" | "experiencia" | "habilidad_tecnica" | "herramienta" | "certificacion" | "competencia" | "idioma" | "otro"
       requirement_priority: "obligatorio" | "deseable"
       salary_period: "hora" | "dia" | "semana" | "mes" | "anio"
+      scorecard_recommendation: "avanza" | "duda" | "no_avanza"
       vacancy_status: "borrador" | "publicada" | "cerrada" | "archivada"
       verification_source: "entrevista" | "documento" | "referencia" | "prueba_tecnica" | "otro"
       work_modality: "presencial" | "remoto" | "hibrido"
@@ -2489,6 +2544,7 @@ export const Constants = {
       requirement_category: ["formacion", "experiencia", "habilidad_tecnica", "herramienta", "certificacion", "competencia", "idioma", "otro"],
       requirement_priority: ["obligatorio", "deseable"],
       salary_period: ["hora", "dia", "semana", "mes", "anio"],
+      scorecard_recommendation: ["avanza", "duda", "no_avanza"],
       vacancy_status: ["borrador", "publicada", "cerrada", "archivada"],
       verification_source: ["entrevista", "documento", "referencia", "prueba_tecnica", "otro"],
       work_modality: ["presencial", "remoto", "hibrido"],
