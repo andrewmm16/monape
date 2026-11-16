@@ -68,8 +68,22 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    también las equivalencias de evidencia de synonyms.ts («libros contables»
  *    para «contabilidad»). El rationale indica qué expresión equivalente
  *    coincidió, para que RRHH la verifique con la cita delante.
+ *
+ * Novedades de reglas-v6 (deterministas, sin servicios externos):
+ *  - El nivel de una habilidad o herramienta se mide con una escalera de tres
+ *    peldaños (básico < intermedio < avanzado), no con la antigua separación
+ *    «básico vs. lo demás». Así un puesto que pide «avanzado» ya no queda
+ *    cumplido con un «Excel intermedio»: se marca PARCIAL (pendiente), nunca «no
+ *    cumplido». Se toma el nivel más alto que declara el CV frente al mínimo que
+ *    pide la descripción (misma asimetría que la escalera de grados).
+ *  - «Nivel usuario» en el requisito se trata como básico: un «Excel básico»
+ *    sigue acreditando un requisito «a nivel usuario».
+ *  - «Nociones de X» (conocimiento superficial declarado por la persona) queda
+ *    pendiente de verificación aunque el requisito no fije nivel, si todas las
+ *    menciones del término están así matizadas. «Básico» a secas sigue bastando
+ *    cuando no se pide un nivel concreto.
  */
-export const RULE_ENGINE_VERSION = "reglas-v5";
+export const RULE_ENGINE_VERSION = "reglas-v6";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -251,6 +265,43 @@ const IN_PROGRESS = /\b(?:en curso|cursando|ciclo|semestre|estudiante|actualment
 const STUDY_CUES = /\b(?:bachiller|titul[oa]d[oa]?|titulo|licenciad[oa]|egresad[oa]|graduad[oa]|colegiad[oa]|colegiatura|grado|maestria|magister|doctorad[oa]|diplomado|especializacion|posgrado|universidad|instituto|tecnic[oa]|ingenier[oa]|carrera|estudios?|facultad)\b/;
 const BASIC_LEVEL = /\b(?:basic[oa]s?|inicial|principiante|elemental|nociones)\b/;
 const HIGHER_LEVEL = /\b(?:intermedi[oa]s?|avanzad[oa]s?|experto|experta|senior|advanced|intermediate|fluido|fluida|nativ[oa])\b/;
+
+/**
+ * Escalera de nivel declarado para habilidades y herramientas (no idiomas), de
+ * mayor a menor. A diferencia de BASIC_LEVEL/HIGHER_LEVEL —que solo separan
+ * «básico» de «lo demás»— distingue los tres peldaños, para que un puesto que
+ * pide «avanzado» no quede cumplido con un «intermedio». Es la misma asimetría
+ * de la escalera de grados académicos: el requisito toma el mínimo que pide y el
+ * CV el máximo que declara.
+ */
+const LEVEL_WORDS: ReadonlyArray<readonly [number, RegExp]> = [
+  [3, /\b(?:avanzad[oa]s?|experto|experta|senior|advanced|fluido|fluida|nativ[oa])\b/],
+  [2, /\b(?:intermedi[oa]s?|intermediate)\b/],
+  [1, /\b(?:basic[oa]s?|inicial|principiante|elemental|nociones)\b/],
+];
+const LEVEL_NAMES: Record<number, string> = { 1: "básico", 2: "intermedio", 3: "avanzado" };
+// «A nivel usuario» equivale a pedir un nivel básico. Solo se usa para leer el
+// nivel que EXIGE el requisito, nunca el que declara el CV, para que un «Excel
+// básico» siga acreditando un requisito «a nivel usuario».
+const USER_LEVEL = /\b(?:a\s+)?nivel\s+usuario\b|\busuario\b/;
+// «Nociones de X» es un conocimiento superficial declarado por la propia persona.
+// Aunque el requisito no fije nivel, es un cumplimiento parcial a verificar. Es
+// más débil que «básico», que sí basta cuando no se pide un nivel concreto.
+const NOCIONES = /\bnociones\b/;
+
+/** Nivel más alto declarado en un texto (3 avanzado … 1 básico), o null. */
+function declaredSkillLevel(texto: string): number | null {
+  for (const [nivel, patron] of LEVEL_WORDS) if (patron.test(texto)) return nivel;
+  return null;
+}
+
+/** Nivel mínimo que exige una descripción de requisito, o null si no fija nivel. */
+function requiredSkillLevel(texto: string): number | null {
+  let minimo: number | null = null;
+  for (const [nivel, patron] of LEVEL_WORDS) if (patron.test(texto) && (minimo === null || nivel < minimo)) minimo = nivel;
+  if (USER_LEVEL.test(texto) && (minimo === null || minimo > 1)) minimo = 1;
+  return minimo;
+}
 
 /**
  * Niveles del marco común europeo escritos solo con el código. Un CV peruano
@@ -547,33 +598,58 @@ export function evaluateRequirement(
     };
   }
 
-  // Nivel: si el puesto pide nivel intermedio o avanzado y el CV declara solo nivel básico, no se acredita.
-  if (asksForHigherLevel(requirement)) {
-    // El nivel se lee en el ítem de la enumeración donde está el término, no en
-    // toda la oración: en «Excel (básico) y Power BI avanzado» el «avanzado» es
-    // de Power BI.
-    // `every` corta en la primera coincidencia que no sea de nivel básico, así
-    // que no se calcula el ítem de todas si ya hay una que acredita.
-    // En un requisito de idioma cuenta además el código del marco europeo: un
-    // CV escribe «Inglés A2» mucho más a menudo que «Inglés básico». Si los dos
-    // lados traen código se comparan como niveles (B1 no llega a B2); si el CV
-    // no trae código, se vuelve a la comparación por palabras.
-    const idioma = isLanguageRequirement(requirement);
-    const pedido = idioma ? cefrLevel(normalizeTerm(requirement.description), "minimo") : null;
-    const insuficiente = (text: string) => {
-      if (pedido !== null) {
-        const declarado = cefrLevel(text, "maximo");
-        if (declarado !== null) return declarado < pedido;
+  // Nivel declarado frente al que pide el puesto. El nivel se lee en el ítem de la
+  // enumeración donde está el término, no en toda la oración: en «Excel (básico) y
+  // Power BI avanzado» el «avanzado» es de Power BI.
+  if (isLanguageRequirement(requirement)) {
+    // Idiomas: se conserva la comparación por código del marco europeo (A2 < B2),
+    // con regreso a las palabras (básico / intermedio / avanzado) cuando el CV no
+    // trae código. `every` corta en la primera mención que ya acredita.
+    if (asksForHigherLevel(requirement)) {
+      const pedido = cefrLevel(normalizeTerm(requirement.description), "minimo");
+      const insuficiente = (text: string) => {
+        if (pedido !== null) {
+          const declarado = cefrLevel(text, "maximo");
+          if (declarado !== null) return declarado < pedido;
+        }
+        return BASIC_LEVEL.test(text) && !HIGHER_LEVEL.test(text);
+      };
+      if (matches.every((m) => insuficiente(itemTextOf(original, haystack, m)))) {
+        return {
+          ...base,
+          assessment: "pendiente_verificacion",
+          evidence,
+          rationale: `${foundText} Pero el CV declara un nivel básico y el puesto pide un nivel intermedio o avanzado. Verifique el nivel real.`,
+        };
       }
-      return BASIC_LEVEL.test(text) && !HIGHER_LEVEL.test(text);
-    };
-    const soloBasico = matches.every((m) => insuficiente(itemTextOf(original, haystack, m)));
-    if (soloBasico) {
+    }
+  } else {
+    // Habilidades y herramientas: escalera de tres peldaños. Se toma el nivel más
+    // alto declarado entre las coincidencias y se compara con el mínimo que pide
+    // la descripción. Un nivel por debajo es PARCIAL (pendiente), nunca «no
+    // cumplido»: el dominio real puede ser mayor de lo que el CV expresa.
+    const required = requiredSkillLevel(normalizeTerm(requirement.description));
+    const declaredMax = matches.reduce<number | null>((max, m) => {
+      const nivel = declaredSkillLevel(itemTextOf(original, haystack, m));
+      return nivel === null ? max : max === null ? nivel : Math.max(max, nivel);
+    }, null);
+    if (required !== null && declaredMax !== null && declaredMax < required) {
       return {
         ...base,
         assessment: "pendiente_verificacion",
         evidence,
-        rationale: `${foundText} Pero el CV declara un nivel básico y el puesto pide un nivel intermedio o avanzado. Verifique el nivel real.`,
+        rationale: `${foundText} Pero el CV declara un nivel ${LEVEL_NAMES[declaredMax]} y el puesto pide un nivel ${LEVEL_NAMES[required]} o superior. Verifique el nivel real.`,
+      };
+    }
+    // Sin nivel exigido, pero la persona lo declara solo como «nociones» en todas
+    // sus menciones: conocimiento superficial que conviene verificar. «Básico» a
+    // secas sí basta cuando el requisito no pide un nivel.
+    if (required === null && matches.every((m) => NOCIONES.test(itemTextOf(original, haystack, m)))) {
+      return {
+        ...base,
+        assessment: "pendiente_verificacion",
+        evidence,
+        rationale: `${foundText} Pero el CV lo declara solo como «nociones», un conocimiento general que conviene verificar.`,
       };
     }
   }

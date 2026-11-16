@@ -437,7 +437,10 @@ export const PUESTOS: PuestoFixture[] = [
         category: "herramienta",
         priority: "obligatorio",
         description: "Excel avanzado",
-        keywords: ["Excel avanzado"],
+        // El término es la habilidad; el nivel lo pone la descripción y lo
+        // comprueba la escalera de nivel del motor (igual que p7-r5 y p8-r4). Así
+        // «Excel intermedio-avanzado» acredita y «Excel intermedio» queda parcial.
+        keywords: ["Excel"],
         weight: 6,
         minYears: null,
         isEssential: false,

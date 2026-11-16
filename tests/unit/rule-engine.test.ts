@@ -822,8 +822,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v5", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v5");
+  it("RULE_ENGINE_VERSION es reglas-v6", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v6");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {
