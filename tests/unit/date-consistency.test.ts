@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { buildExperienceIndex, findImpossibleDateRanges } from "@/modules/evaluation/experience-dates";
-import { findDateOverlaps, describeDateOverlaps, describeImpossibleRanges } from "@/modules/evaluation/date-consistency";
+import {
+  findDateOverlaps,
+  describeDateOverlaps,
+  describeImpossibleRanges,
+  countShortTenures,
+  describeJobHopping,
+} from "@/modules/evaluation/date-consistency";
 
 const REF = new Date(Date.UTC(2026, 10, 14)); // 2026-11-14, determinista
 
@@ -122,5 +128,57 @@ describe("describeImpossibleRanges", () => {
 
   it("devuelve lista vacía sin rangos imposibles", () => {
     expect(describeImpossibleRanges([])).toEqual([]);
+  });
+});
+
+function shortTenuresOf(cv: string) {
+  return countShortTenures(buildExperienceIndex(cv, REF));
+}
+
+describe("countShortTenures", () => {
+  it("cuenta los empleos cuya duración máxima es de 12 meses o menos", () => {
+    const cv = [
+      "Experiencia laboral",
+      "Cajero - Alfa",
+      "enero 2019 - junio 2019",
+      "Asistente - Beta",
+      "marzo 2020 - octubre 2020",
+      "Auxiliar - Gamma",
+      "febrero 2021 - septiembre 2021",
+    ].join("\n");
+    expect(shortTenuresOf(cv)).toBe(3);
+  });
+
+  it("no cuenta como corto un empleo declarado solo con el año (podría abarcar hasta 24 meses)", () => {
+    const cv = [
+      "Experiencia laboral",
+      "Cajero - Alfa",
+      "2015 - 2016",
+      "Asistente - Beta",
+      "2017 - 2018",
+      "Auxiliar - Gamma",
+      "2019 - 2020",
+    ].join("\n");
+    expect(shortTenuresOf(cv)).toBe(0);
+  });
+
+  it("no cuenta un empleo largo", () => {
+    const cv = ["Experiencia laboral", "Analista - Alfa", "enero 2015 - diciembre 2021"].join("\n");
+    expect(shortTenuresOf(cv)).toBe(0);
+  });
+});
+
+describe("describeJobHopping", () => {
+  it("emite una nota neutra con la cifra cuando hay 3 o más empleos cortos", () => {
+    const notes = describeJobHopping(3);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("3");
+    expect(notes[0]!.toLowerCase()).toContain("entrevista");
+    expect(notes[0]!.toLowerCase()).toContain("no es un motivo de descarte");
+  });
+
+  it("no emite nota con menos de 3 empleos cortos", () => {
+    expect(describeJobHopping(2)).toEqual([]);
+    expect(describeJobHopping(0)).toEqual([]);
   });
 });

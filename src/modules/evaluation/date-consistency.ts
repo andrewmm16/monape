@@ -22,8 +22,12 @@ import type { Evidence } from "./types";
  * Así se evitan los falsos positivos de fechas con solo el año: dos empleos
  * secuenciales que comparten únicamente el año de transición no tienen `lo`
  * solapado, y dos empleos declarados con el mismo año colapsan a 1 mes (< umbral).
- * No se marcan huecos (ausencia de información, terreno de sesgo) ni fechas
- * imposibles (quedan para una fase posterior).
+ * No se marcan huecos (ausencia de información, terreno de sesgo).
+ *
+ * El módulo reúne las tres señales deterministas sobre las fechas del CV, todas
+ * como notas neutras para la entrevista (nunca descartes): solapamientos,
+ * fechas imposibles (`findImpossibleDateRanges`) y rotación laboral
+ * (`countShortTenures`: varios empleos de corta duración).
  */
 
 /** Meses de coexistencia garantizada a partir de los cuales se considera un solapamiento real. */
@@ -73,6 +77,43 @@ export function describeDateOverlaps(overlaps: DateOverlap[]): string[] {
     );
 }
 
+/** Meses máximos de una contratación para considerarla "de corta duración". */
+const SHORT_TENURE_MAX_MONTHS = 12;
+/** Nº de empleos cortos a partir del cual se emite la nota neutra de rotación. */
+const MIN_SHORT_TENURES = 3;
+
+/**
+ * Cuenta los empleos de la sección de experiencia que con CERTEZA son cortos: un
+ * empleo se cuenta solo si incluso su duración MÁXIMA posible (cota `hi`) es
+ * ≤ `SHORT_TENURE_MAX_MONTHS`. Así, un empleo declarado solo con el año (que
+ * podría abarcar hasta 24 meses) no se cuenta como corto y no infla la señal.
+ */
+export function countShortTenures(index: ExperienceIndex): number {
+  let count = 0;
+  for (const entry of index.entries) {
+    let maxMonths = 0;
+    for (const p of entry.periods) {
+      const months = p.hi[1] - p.hi[0] + 1;
+      if (months > maxMonths) maxMonths = months;
+    }
+    if (maxMonths > 0 && maxMonths <= SHORT_TENURE_MAX_MONTHS) count++;
+  }
+  return count;
+}
+
+/**
+ * Nota NEUTRA de rotación: si hay varios empleos de corta duración, sugiere
+ * conversar la trayectoria en la entrevista. No descarta ni puntúa: la rotación
+ * no es, por sí sola, un criterio de selección. La cifra se incluye como
+ * evidencia, no como un "índice de inestabilidad".
+ */
+export function describeJobHopping(shortTenures: number): string[] {
+  if (shortTenures < MIN_SHORT_TENURES) return [];
+  return [
+    `El historial laboral muestra varios empleos de corta duración (${shortTenures} de 12 meses o menos). No es un motivo de descarte; conviene conversar la trayectoria profesional en la entrevista.`,
+  ];
+}
+
 const IMPOSSIBLE_LABEL: Record<ImpossibleRange["reason"], string> = {
   fin_antes_inicio: "la fecha de fin es anterior a la de inicio",
   inicio_futuro: "la fecha de inicio es posterior a la fecha actual",
@@ -98,5 +139,6 @@ export function detectDateSignalNotes(original: string, referenceDate: Date): st
   return [
     ...describeDateOverlaps(findDateOverlaps(index)),
     ...describeImpossibleRanges(findImpossibleDateRanges(masked, referenceDate)),
+    ...describeJobHopping(countShortTenures(index)),
   ];
 }
