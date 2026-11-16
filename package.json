@@ -41,6 +41,7 @@
     "caleta:whatsapp": "node --env-file-if-exists=.env.local scripts/caleta/enviar-whatsapp-caleta.mjs",
     "caleta:diario": "node --env-file-if-exists=.env.local scripts/caleta/caleta-diario.mjs",
     "medir:motor": "tsx scripts/medir-motor/main.ts",
+    "calibrar:motor": "tsx scripts/medir-motor/calibracion.ts",
     "medir:motor:adversario": "tsx scripts/medir-motor/adversario.ts",
     "medir:motor:legitimo": "tsx scripts/medir-motor/legitimo.ts",
     "medir:motor:escaneado": "tsx --conditions=react-server scripts/medir-motor/escaneado.ts",
