@@ -1,4 +1,5 @@
 import { conjunctTerms } from "./conjunctions";
+import { coreTerms, relatedListTerms } from "./related";
 import { equivalentsFor } from "./synonyms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
 import {
@@ -114,8 +115,17 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    pide intermedio lo cumple solo en parte → pendiente. Un rango que parte de
  *    intermedio («intermedio-avanzado») sigue contando como su extremo alto. Vale
  *    igual para habilidades e idiomas.
+ *
+ * Novedades de reglas-v10:
+ *  - Evidencia relacionada (related.ts): si el CV no trae ningún término pedido
+ *    pero sí un cargo parecido («asistente de residencia» frente a «residente de
+ *    obra») o una habilidad más general («negociación» frente a «negociación de
+ *    contratos»), queda PENDIENTE con esa pista en vez de «sin evidencia». Nunca
+ *    acredita ni cambia el puntaje.
+ *  - Cada duda concreta lleva una marca legible por código (`signal`, ver
+ *    EngineSignal en types.ts) para que una segunda opinión sepa qué revisar.
  */
-export const RULE_ENGINE_VERSION = "reglas-v9";
+export const RULE_ENGINE_VERSION = "reglas-v10";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -635,6 +645,71 @@ function genericTerms(requirement: RequirementInput): string[] {
   return out;
 }
 
+/**
+ * Evidencia relacionada (reglas-v10, ver related.ts): si el CV no trae ningún
+ * término configurado pero sí un cargo o una habilidad PARECIDOS, el requisito
+ * queda pendiente con esa pista en vez de «sin evidencia». Nunca acredita: un
+ * cargo parecido no es el mismo cargo. Se descartan las menciones negadas, de
+ * interés, de terceros o en enlaces, igual que con los términos configurados.
+ */
+function relatedEvidence(
+  original: string,
+  haystack: NormalizedText,
+  requirement: RequirementInput,
+  terms: string[],
+  experienceIndex: () => ExperienceIndex,
+): Omit<ItemAssessment, "requirementId"> | null {
+  const listTerms = relatedListTerms(requirement);
+  const cores = coreTerms(requirement);
+  const candidates = [...listTerms];
+  for (const core of cores.keys()) {
+    if (!candidates.some((c) => normalizeTerm(c) === normalizeTerm(core))) candidates.push(core);
+  }
+  if (candidates.length === 0) return null;
+  const valid = collectMatches(haystack, candidates).filter(
+    (m) =>
+      !isNegatedMention(original, haystack, m) &&
+      !isAspirationalMention(original, haystack, m) &&
+      !isThirdPartyMention(original, haystack, m) &&
+      !isLinkMention(original, haystack, m),
+  );
+  // Una mención dentro de otra más larga («negociación» en «técnicas de negociación»)
+  // no se cuenta aparte.
+  const found = valid.filter(
+    (m) => !valid.some((o) => o !== m && o.start <= m.start && o.end >= m.end && o.end - o.start > m.end - m.start),
+  );
+  if (found.length === 0) return null;
+
+  const foundTerms = [...new Set(found.map((m) => m.term))];
+  const label = (t: string) => (cores.has(t) ? `«${t}» (más general que «${cores.get(t)}»)` : `«${t}»`);
+  const shown = foundTerms.slice(0, 3).map(label).join(", ");
+  const searched = `No aparece ninguno de los términos configurados (${terms.join(", ")})`;
+  const evidence = pickEvidence(original, haystack, found);
+
+  if (requirement.category === "experiencia") {
+    const dated = estimateFromIndex(experienceIndex(), foundTerms);
+    const years =
+      dated === null || dated.maxYears <= 0
+        ? ""
+        : dated.minYears === dated.maxYears
+          ? ` (~${formatYears(dated.maxYears)} años según las fechas del CV)`
+          : ` (entre ${formatYears(dated.minYears)} y ${formatYears(dated.maxYears)} años según las fechas del CV)`;
+    const minimum = requirement.minYears !== null ? ` El mínimo pedido es ${formatYears(requirement.minYears)} años.` : "";
+    return {
+      assessment: "pendiente_verificacion",
+      evidence,
+      rationale: `${searched}, pero el CV menciona un cargo relacionado: ${shown}${years}. Es un cargo parecido, no el mismo: verifique si sus funciones equivalen a lo que pide el puesto.${minimum}`,
+      signal: "cargo_relacionado",
+    };
+  }
+  return {
+    assessment: "pendiente_verificacion",
+    evidence,
+    rationale: `${searched}, pero el CV menciona algo relacionado: ${shown}. Es una pista, no lo mismo que pide el puesto: verifique el alcance real.`,
+    signal: "habilidad_relacionada",
+  };
+}
+
 export function evaluateRequirement(
   original: string,
   haystack: NormalizedText,
@@ -693,9 +768,13 @@ export function evaluateRequirement(
       assessment: "pendiente_verificacion",
       evidence: pickEvidence(original, haystack, allMatches),
       rationale: `El CV menciona: ${[...new Set(allMatches.map((m) => m.term))].join(", ")}, pero solo en frases que parecen negarlo, expresar un interés, atribuirlo a otra persona o dentro de un correo o un enlace (por ejemplo «sin experiencia en…», «interés en…», «mi equipo usaba…» o «concar.com.pe»). Revíselo en el CV.`,
+      signal: "mencion_dudosa",
     };
   }
   if (matches.length === 0) {
+    // Sin los términos pedidos, pero quizá con un cargo o una habilidad parecidos.
+    const related = relatedEvidence(original, haystack, requirement, terms, experienceIndex);
+    if (related) return { ...base, ...related };
     return {
       ...base,
       assessment: "sin_evidencia",
@@ -806,6 +885,7 @@ export function evaluateRequirement(
           rationale: algunoDeclara
             ? `${foundText} Pero el nivel de idioma que declara el CV no alcanza del todo el que pide el puesto. Verifique el nivel real.`
             : `${foundText} Pero el CV no declara el nivel del idioma y el puesto pide un nivel concreto; confírmelo en la entrevista.`,
+          signal: algunoDeclara ? "nivel_inferior" : "nivel_no_declarado",
         };
       }
     }
@@ -825,6 +905,7 @@ export function evaluateRequirement(
         assessment: "pendiente_verificacion",
         evidence,
         rationale: `${foundText} Pero el CV declara un nivel ${LEVEL_NAMES[declaredMax]} y el puesto pide un nivel ${LEVEL_NAMES[required]} o superior. Verifique el nivel real.`,
+        signal: "nivel_inferior",
       };
     }
     // Rango que parte de básico y solo llega justo a lo pedido («básico-intermedio»
@@ -844,6 +925,7 @@ export function evaluateRequirement(
         assessment: "pendiente_verificacion",
         evidence,
         rationale: `${foundText} Pero el CV declara un rango que parte de básico y llega justo a ${LEVEL_NAMES[required]}, el nivel que pide el puesto: lo cumple solo en parte. Confírmelo en la entrevista.`,
+        signal: "nivel_inferior",
       };
     }
     // El CV menciona la habilidad pero NO su nivel, y el puesto pide uno POR ENCIMA
@@ -861,6 +943,7 @@ export function evaluateRequirement(
         assessment: "pendiente_verificacion",
         evidence,
         rationale: `${foundText} Pero el CV no declara el nivel y el puesto pide un nivel ${LEVEL_NAMES[required]} o superior; confírmelo en la entrevista.`,
+        signal: "nivel_no_declarado",
       };
     }
     // Sin nivel exigido, pero la persona lo declara solo como «nociones» en todas
@@ -913,6 +996,7 @@ export function evaluateRequirement(
         assessment: "pendiente_verificacion",
         evidence: dated!.quotes.length > 0 ? dated!.quotes : mentionEvidence,
         rationale: `${foundText} Declara ${formatYears(years!)} años de experiencia, pero las fechas del CV suman como mucho ~${formatYears(dated!.maxYears)} años (calculado al ${formatDate(referenceDate)}; mínimo: ${minimum}). Puede haber experiencia sin fechas o una inconsistencia en el CV: verifíquelo antes de darlo por cumplido.`,
+        signal: "fechas_no_cuadran",
       };
     }
 

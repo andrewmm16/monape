@@ -833,8 +833,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v9", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v9");
+  it("RULE_ENGINE_VERSION es reglas-v10", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v10");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {
@@ -954,5 +954,84 @@ describe("reglas-v7 a v9: conjuntos, nivel base, nivel no declarado, genéricos 
   it("«Inglés básico-intermedio» frente a intermedio → pendiente", () => {
     const r = evalua("Idiomas: Inglés básico-intermedio.", { category: "idioma", description: "Inglés intermedio", keywords: ["Inglés"] });
     expect(r.assessment).toBe("pendiente_verificacion");
+  });
+});
+
+describe("reglas-v10: evidencia relacionada y marcas de duda", () => {
+  const REF = new Date("2026-11-03T12:00:00.000Z");
+  const evalua = (texto: string, overrides: Partial<RequirementInput>) =>
+    evaluateWithRules(texto, [req("r", overrides)], { referenceDate: REF })[0]!;
+  const OBRA: Partial<RequirementInput> = {
+    category: "experiencia",
+    description: "Mínimo 5 años de experiencia en ejecución o supervisión de obras",
+    keywords: ["residente de obra", "supervisor de obra", "ingeniero de campo"],
+    minYears: 5,
+  };
+
+  it("un cargo parecido deja el requisito pendiente con la pista y los años de sus fechas", () => {
+    const r = evalua("EXPERIENCIA LABORAL\nAsistente de Residencia Feb 2023 - Actualidad\nControl de avance de obra.", OBRA);
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.signal).toBe("cargo_relacionado");
+    expect(r.rationale).toContain("«asistente de residencia»");
+    expect(r.rationale).toContain("según las fechas del CV");
+    expect(r.rationale).toContain("no el mismo");
+    expect(r.evidence[0]!.quote).toContain("Asistente de Residencia");
+  });
+
+  it("un cargo parecido nunca acredita, aunque sume muchos años", () => {
+    const r = evalua("EXPERIENCIA LABORAL\nMaestro de Obra Ene 2012 - Actualidad\nMaestro de obra con 15 años de experiencia.", OBRA);
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.signal).toBe("cargo_relacionado");
+  });
+
+  it("si está el cargo pedido, la pista no interviene", () => {
+    const r = evalua("EXPERIENCIA LABORAL\nResidente de Obra Ene 2015 - Actualidad", OBRA);
+    expect(r.assessment).toBe("acreditado");
+    expect(r.signal).toBeUndefined();
+  });
+
+  it("un cargo parecido negado o como interés no cuenta", () => {
+    expect(evalua("Sin experiencia como maestro de obra.", OBRA).assessment).toBe("sin_evidencia");
+    expect(evalua("Busco trabajar como asistente de obra.", OBRA).assessment).toBe("sin_evidencia");
+  });
+
+  it("la lista se aplica por lo que DESCRIBE el requisito, no por un término usado como indicio", () => {
+    const liderazgo: Partial<RequirementInput> = {
+      category: "experiencia",
+      description: "Experiencia liderando equipos",
+      keywords: ["Dirigí un equipo", "Supervisor de Almacén"],
+    };
+    expect(evalua("Asistente de Almacén Feb 2020 - Feb 2022", liderazgo).assessment).toBe("sin_evidencia");
+  });
+
+  it("una habilidad más general (núcleo del término) queda pendiente y se explica", () => {
+    const r = evalua("HABILIDADES\nNegociación básica", {
+      description: "Manejo de negociación de contratos con clientes corporativos",
+      keywords: ["negociación de contratos"],
+    });
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.signal).toBe("habilidad_relacionada");
+    expect(r.rationale).toContain("más general que «negociación de contratos»");
+  });
+
+  it("el núcleo no usa palabras genéricas: «análisis de datos» no se acorta a «análisis»", () => {
+    const r = evalua("Análisis de cuentas por cobrar.", { description: "Análisis de datos", keywords: ["análisis de datos"] });
+    expect(r.assessment).toBe("sin_evidencia");
+  });
+
+  it("vender en tienda no es pista de ventas B2B; vender en campo a negocios sí", () => {
+    const b2b: Partial<RequirementInput> = { description: "Experiencia en ventas B2B a empresas", keywords: ["B2B", "cuentas clave"] };
+    expect(evalua("Vendedora de tienda: atención a clientes finales.", b2b).assessment).toBe("sin_evidencia");
+    const r = evalua("Asesor comercial: ventas en campo a bodegas.", b2b);
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.signal).toBe("habilidad_relacionada");
+  });
+
+  it("marca el tipo de duda en los casos ya existentes", () => {
+    const excel = { category: "herramienta" as const, description: "Excel avanzado", keywords: ["Excel"] };
+    expect(evalua("Excel básico.", excel).signal).toBe("nivel_inferior");
+    expect(evalua("Manejo de Excel.", excel).signal).toBe("nivel_no_declarado");
+    expect(evalua("Sin experiencia en Excel.", excel).signal).toBe("mencion_dudosa");
+    expect(evalua("Excel avanzado.", excel).signal).toBeUndefined();
   });
 });
