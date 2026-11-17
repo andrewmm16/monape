@@ -200,11 +200,13 @@ describe("años de experiencia calculados con las fechas del CV", () => {
     expect(result.rationale).toContain("Se menciona explícitamente 5 años de experiencia (mínimo: 3)");
   });
 
-  it("la mención explícita prevalece sobre las fechas cuando basta", () => {
+  it("si las fechas contradicen los años declarados, no se acredita por el texto (reglas-v7)", () => {
+    // Declara 6 años pero las fechas solo cubren ~9 meses: posible CV inflado.
     const text = cv("Analista con 6 años de experiencia en Excel", "03/2019 - 12/2019");
     const result = run(text, exp(5));
-    expect(result.assessment).toBe("acreditado");
-    expect(result.rationale).toContain("Se menciona explícitamente 6 años");
+    expect(result.assessment).toBe("pendiente_verificacion");
+    expect(result.rationale).toContain("Declara 6 años de experiencia");
+    expect(result.rationale).toContain("las fechas del CV suman como mucho");
   });
 
   it("esencial con mención explícita conserva su mensaje", () => {
@@ -822,8 +824,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v6", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v6");
+  it("RULE_ENGINE_VERSION es reglas-v7", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v7");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {

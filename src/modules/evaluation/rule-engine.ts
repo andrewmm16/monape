@@ -82,8 +82,21 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    pendiente de verificación aunque el requisito no fije nivel, si todas las
  *    menciones del término están así matizadas. «Básico» a secas sigue bastando
  *    cuando no se pide un nivel concreto.
+ *
+ * Novedades de reglas-v7 (deterministas, sin servicios externos):
+ *  - Requisitos conjuntivos: cuando la descripción enumera varios términos unidos
+ *    por «y» («S10 y MS Project», «PLE y PLAME»), el puesto los pide TODOS. Si el
+ *    CV solo evidencia algunos, queda PARCIAL (pendiente), nunca acreditado. «O»
+ *    sigue siendo alternativa: «WMS o SAP» se cumple con cualquiera.
+ *  - Idiomas: se busca el idioma a secas aunque el término configurado traiga el
+ *    nivel pegado («Inglés intermedio»), para que un CV que escribe «Inglés básico
+ *    (A2)» coincida y la escalera del marco europeo pueda marcarlo por debajo.
+ *  - Experiencia: si la persona DECLARA suficientes años pero las fechas del CV no
+ *    los respaldan (al menos 2 años por debajo en su lectura más generosa), no se
+ *    acredita por el texto: se marca pendiente y se avisa de la discrepancia, para
+ *    que RRHH la verifique (CV posiblemente inflado).
  */
-export const RULE_ENGINE_VERSION = "reglas-v6";
+export const RULE_ENGINE_VERSION = "reglas-v7";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -331,6 +344,21 @@ function isLanguageRequirement(requirement: RequirementInput): boolean {
 }
 
 /**
+ * Idiomas que nombra un requisito (descripción + términos), para buscarlos a
+ * secas. El término configurado suele traer el nivel pegado («Inglés intermedio»)
+ * y entonces no coincide con un CV que escribe «Inglés básico (A2)»; añadir el
+ * idioma deja que la escalera CEFR juzgue el nivel.
+ */
+function languageWordsIn(requirement: RequirementInput): string[] {
+  const texto = normalizeTerm(`${requirement.description} ${requirement.keywords.join(" ")}`);
+  const encontrados = new Set<string>();
+  for (const m of texto.matchAll(new RegExp(LANGUAGE_WORDS.source, "g"))) {
+    if (m[0] !== "idioma" && m[0] !== "idiomas") encontrados.add(m[0]);
+  }
+  return [...encontrados].map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+}
+
+/**
  * Nivel del marco europeo que aparece en un texto, como número de 1 (A1) a
  * 6 (C2). `modo` decide qué hacer cuando hay varios: en el REQUISITO se toma el
  * menor, porque las vacantes se escriben como rango o alternativa («intermedio
@@ -499,6 +527,30 @@ export function asksForHigherLevel(requirement: RequirementInput): boolean {
   return isLanguageRequirement(requirement) && (cefrLevel(descripcion, "minimo") ?? 0) > 2;
 }
 
+// Conjunciones de la descripción: «y»/«e»/«and» exigen todos los ítems; «o»/«u»/
+// «or» son alternativas. «&» cuenta como «y».
+const AND_CONJ = /\s(?:y|e|and)\s|&/;
+const OR_CONJ = /\s(?:o|u|or)\s/;
+
+/**
+ * Términos que la descripción exige A LA VEZ. Un requisito es conjuntivo cuando su
+ * descripción enumera dos o más de sus términos unidos por «y» y no por «o»:
+ * «S10 y MS Project» pide ambos; «WMS o ERP (SAP)» pide cualquiera. Devuelve esos
+ * términos, o [] si no aplica (entonces se evalúa como hasta ahora: basta uno).
+ */
+function conjunctTerms(requirement: RequirementInput, terms: string[]): string[] {
+  const desc = normalizeTerm(requirement.description);
+  if (!AND_CONJ.test(desc) || OR_CONJ.test(desc)) return [];
+  // Solo cuentan como ítems distintos los que parecen una herramienta o sistema
+  // propio (sigla, nombre con mayúscula o con dígito): «S10», «MS Project», «PLE»,
+  // «T-Registro». Dos nombres comunes en minúscula unidos por «y» («planillas y
+  // remuneraciones», «facturas y boletas») son un mismo dominio, no dos requisitos
+  // a la vez, y tratarlos como tales bajaría de más. Así la regla solo actúa donde
+  // la intención de «ambos» es inequívoca.
+  const nombrados = terms.filter((t) => desc.includes(normalizeTerm(t)) && /[A-Z0-9]/.test(t));
+  return nombrados.length >= 2 ? nombrados : [];
+}
+
 export function evaluateRequirement(
   original: string,
   haystack: NormalizedText,
@@ -508,6 +560,13 @@ export function evaluateRequirement(
 ): ItemAssessment {
   const base = { requirementId: requirement.id };
   const terms = uniqueTerms(requirement.keywords);
+  // Idiomas: añade el idioma a secas, porque el término configurado suele traer el
+  // nivel pegado y así un «Inglés básico (A2)» no coincidiría (ver languageWordsIn).
+  if (isLanguageRequirement(requirement)) {
+    for (const idioma of languageWordsIn(requirement)) {
+      if (!terms.some((t) => normalizeTerm(t) === normalizeTerm(idioma))) terms.push(idioma);
+    }
+  }
 
   if (terms.length === 0) {
     return {
@@ -555,6 +614,23 @@ export function evaluateRequirement(
     return `${term} (por equivalencia: ${vias.map((v) => `«${v}»`).join(", ")})`;
   };
   const foundText = `El CV menciona: ${foundTerms.map(foundLabel).join(", ")}.`;
+
+  // Requisito conjuntivo: la descripción pide varios términos a la vez («S10 y MS
+  // Project»). Si falta alguno en el CV, es un cumplimiento PARCIAL (pendiente),
+  // nunca acreditado. Solo baja de nivel, así que es seguro.
+  const conjuncts = conjunctTerms(requirement, terms);
+  if (conjuncts.length >= 2) {
+    const encontrados = new Set(matches.map((m) => m.term));
+    const faltan = conjuncts.filter((t) => !encontrados.has(t));
+    if (faltan.length > 0) {
+      return {
+        ...base,
+        assessment: "pendiente_verificacion",
+        evidence,
+        rationale: `${foundText} Pero el puesto pide varios elementos a la vez (${conjuncts.join(" y ")}) y en el CV no aparece: ${faltan.join(", ")}. Verifique si la persona también domina ${faltan.join(", ")}.`,
+      };
+    }
+  }
 
   // Formación: el término debe aparecer en una frase de estudios o título, no en
   // «con interés en Contabilidad» ni en el cargo («Asistente Contable»).
@@ -680,6 +756,19 @@ export function evaluateRequirement(
     const minimum = formatYears(required);
     const byMention = years !== null && years >= required;
     const byDates = dated !== null && dated.minYears >= required;
+    // Discrepancia: declara años suficientes pero las fechas no los respaldan (al
+    // menos 2 años menos aun en su lectura más generosa). No se acredita por el
+    // texto: pendiente y aviso, para que RRHH verifique un CV posiblemente inflado.
+    const datesContradict = years !== null && dated !== null && years - dated.maxYears >= 2;
+
+    if (datesContradict) {
+      return {
+        ...base,
+        assessment: "pendiente_verificacion",
+        evidence: dated!.quotes.length > 0 ? dated!.quotes : mentionEvidence,
+        rationale: `${foundText} Declara ${formatYears(years!)} años de experiencia, pero las fechas del CV suman como mucho ~${formatYears(dated!.maxYears)} años (calculado al ${formatDate(referenceDate)}; mínimo: ${minimum}). Puede haber experiencia sin fechas o una inconsistencia en el CV: verifíquelo antes de darlo por cumplido.`,
+      };
+    }
 
     if (byMention || byDates) {
       if (byMention) {
