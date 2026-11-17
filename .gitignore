@@ -84,3 +84,6 @@ next-env.d.ts
 /.robot.log
 # salida generada por el scraper de mercado (datos reproducibles)
 /ofertas_mercado.json
+
+# Servidores locales lanzados con scripts/servidores.cmd (PID y registros)
+/.servidores/
