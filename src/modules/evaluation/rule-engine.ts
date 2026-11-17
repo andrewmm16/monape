@@ -1,3 +1,4 @@
+import { conjunctTerms } from "./conjunctions";
 import { equivalentsFor } from "./synonyms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
 import {
@@ -562,30 +563,6 @@ export function asksForHigherLevel(requirement: RequirementInput): boolean {
   return isLanguageRequirement(requirement) && (cefrLevel(descripcion, "minimo") ?? 0) > 2;
 }
 
-// Conjunciones de la descripción: «y»/«e»/«and» exigen todos los ítems; «o»/«u»/
-// «or» son alternativas. «&» cuenta como «y».
-const AND_CONJ = /\s(?:y|e|and)\s|&/;
-const OR_CONJ = /\s(?:o|u|or)\s/;
-
-/**
- * Términos que la descripción exige A LA VEZ. Un requisito es conjuntivo cuando su
- * descripción enumera dos o más de sus términos unidos por «y» y no por «o»:
- * «S10 y MS Project» pide ambos; «WMS o ERP (SAP)» pide cualquiera. Devuelve esos
- * términos, o [] si no aplica (entonces se evalúa como hasta ahora: basta uno).
- */
-function conjunctTerms(requirement: RequirementInput, terms: string[]): string[] {
-  const desc = normalizeTerm(requirement.description);
-  if (!AND_CONJ.test(desc) || OR_CONJ.test(desc)) return [];
-  // Solo cuentan como ítems distintos los que parecen una herramienta o sistema
-  // propio (sigla, nombre con mayúscula o con dígito): «S10», «MS Project», «PLE»,
-  // «T-Registro». Dos nombres comunes en minúscula unidos por «y» («planillas y
-  // remuneraciones», «facturas y boletas») son un mismo dominio, no dos requisitos
-  // a la vez, y tratarlos como tales bajaría de más. Así la regla solo actúa donde
-  // la intención de «ambos» es inequívoca.
-  const nombrados = terms.filter((t) => desc.includes(normalizeTerm(t)) && /[A-Z0-9]/.test(t));
-  return nombrados.length >= 2 ? nombrados : [];
-}
-
 // Unión de las palabras de nivel, para separar el término base de una habilidad
 // («Excel avanzado» → «Excel»). Global: se reutiliza y se resetea lastIndex.
 const SKILL_LEVEL_WORDS =
@@ -740,7 +717,7 @@ export function evaluateRequirement(
   // Requisito conjuntivo: la descripción pide varios términos a la vez («S10 y MS
   // Project»). Si falta alguno en el CV, es un cumplimiento PARCIAL (pendiente),
   // nunca acreditado. Solo baja de nivel, así que es seguro.
-  const conjuncts = conjunctTerms(requirement, terms);
+  const conjuncts = conjunctTerms(requirement.description, terms);
   if (conjuncts.length >= 2) {
     const encontrados = new Set(matches.map((m) => m.term));
     const faltan = conjuncts.filter((t) => !encontrados.has(t));

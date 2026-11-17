@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFormAction } from "@/hooks/use-form-action";
 import { REQUIREMENT_CATEGORY_LABELS, REQUIREMENT_PRIORITY_LABELS } from "@/lib/labels";
 import { addRequirement, updateRequirement } from "@/modules/vacancies/actions";
+import { requirementCompoundHint } from "@/modules/vacancies/compound-hint";
 import { requirementFormSchema, type RequirementFormInput } from "@/modules/vacancies/schemas";
 import { appendTerms, splitKeywords, suggestTerms } from "@/modules/vacancies/term-suggestions";
 import { Constants } from "@/types/database";
@@ -68,6 +69,11 @@ export function RequirementDialog({
   const suggestions = suggestTerms(description ?? "", splitKeywords(keywords ?? ""));
 
   const limitReached = suggestions.length > 0 && appendTerms(keywords ?? "", suggestions).added.length === 0;
+  // Si la descripción une términos con «y», se explica cómo los tratará el motor.
+  const compoundHint = requirementCompoundHint(description ?? "", keywords ?? "");
+  const compoundList = compoundHint
+    ? compoundHint.terminos.map((t) => `«${t}»`).join(", ").replace(/, ([^,]*)$/, " y $1")
+    : "";
 
   // Agrega términos al campo con el mismo formato separado por comas del formulario,
   // sin superar los límites del esquema (20 términos y 1000 caracteres).
@@ -116,6 +122,18 @@ export function RequirementDialog({
               <FieldLabel htmlFor="description">Requisito</FieldLabel>
               <Input id="description" placeholder="Ej.: Bachiller en Ingeniería Industrial" {...form.register("description")} />
               <FieldError errors={[errors.description]} />
+              {compoundHint?.tipo === "exige_todos" && (
+                <FieldDescription>
+                  El motor exigirá {compoundList} a la vez: si el CV menciona solo uno, el requisito quedará pendiente de
+                  verificación.
+                </FieldDescription>
+              )}
+              {compoundHint?.tipo === "separar" && (
+                <FieldDescription>
+                  La descripción une {compoundList} con «y». Si el puesto exige cosas distintas a la vez, créelas como
+                  requisitos separados, cada una con su peso y su evidencia; tal como está, basta con que el CV mencione una.
+                </FieldDescription>
+              )}
             </Field>
             <Field data-invalid={Boolean(errors.keywords)}>
               <FieldLabel htmlFor="keywords">Términos de búsqueda</FieldLabel>
