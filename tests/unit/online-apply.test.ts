@@ -537,21 +537,32 @@ describe("Server Action submitOnlineApplication", () => {
   });
 
   it("un desafío inválido (firma, vacante, reciente, solución) se rechaza antes de tocar la base de datos", async () => {
-    const tooFresh = await freshChallenge(CODE, 500);
+    // «Demasiado reciente» se comprueba con el reloj CONGELADO a 0,5 s de la emisión.
+    // Antes dependía del tiempo real: resolver dos pruebas de trabajo con la CPU
+    // cargada (suite completa en paralelo) podía superar los 3 s mínimos y volver
+    // válido el desafío, y la prueba fallaba de forma intermitente.
+    const issuedAt = Date.now();
+    const freshIssued = issueChallenge(SECRET, CODE, issuedAt);
+    const tooFresh = { challenge: freshIssued.challenge, solution: await solveChallenge(freshIssued.challenge, freshIssued.bits) };
     const otherVacancy = await freshChallenge("zzzzzzzzzz");
-    const cases: Record<string, string | File | null>[] = [
-      { challenge: "", solution: "" },
-      { solution: "no-es-la-solucion" },
-      { challenge: `${challenge}x` },
-      { challenge: tooFresh.challenge, solution: tooFresh.solution },
-      { challenge: otherVacancy.challenge, solution: otherVacancy.solution },
-      { vacancyCode: "no-valido" },
+    const cases: Array<{ overrides: Record<string, string | File | null>; now?: number }> = [
+      { overrides: { challenge: "", solution: "" } },
+      { overrides: { solution: "no-es-la-solucion" } },
+      { overrides: { challenge: `${challenge}x` } },
+      { overrides: { challenge: tooFresh.challenge, solution: tooFresh.solution }, now: issuedAt + 500 },
+      { overrides: { challenge: otherVacancy.challenge, solution: otherVacancy.solution } },
+      { overrides: { vacancyCode: "no-valido" } },
     ];
-    for (const overrides of cases) {
+    for (const { overrides, now } of cases) {
       mocks.calls.length = 0;
-      const result = await submitOnlineApplication(form(overrides));
-      expect(result, JSON.stringify(Object.keys(overrides))).toMatchObject({ ok: false, refreshChallenge: true });
-      expect(mocks.calls).toEqual([]);
+      const clock = now === undefined ? null : vi.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        const result = await submitOnlineApplication(form(overrides));
+        expect(result, JSON.stringify(Object.keys(overrides))).toMatchObject({ ok: false, refreshChallenge: true });
+        expect(mocks.calls).toEqual([]);
+      } finally {
+        clock?.mockRestore();
+      }
     }
   });
 
