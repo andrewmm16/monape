@@ -177,7 +177,9 @@ export async function listEvaluations(supabase: AppSupabaseClient, applicationId
   const { data, error } = await supabase
     .from("candidate_evaluations")
     .select(
-      "*, author:profiles!candidate_evaluations_created_by_fkey(full_name), reviewer:profiles!candidate_evaluations_reviewed_by_fkey(full_name), resume:resumes(version, original_filename)",
+      // Los avisos de la lectura del CV (texto oculto, relleno de palabras clave, OCR…) se
+      // muestran junto a la evaluación, que es donde RRHH mira el puntaje.
+      "*, author:profiles!candidate_evaluations_created_by_fkey(full_name), reviewer:profiles!candidate_evaluations_reviewed_by_fkey(full_name), resume:resumes(version, original_filename, resume_extractions(warnings))",
     )
     .eq("application_id", applicationId)
     .order("created_at", { ascending: false });

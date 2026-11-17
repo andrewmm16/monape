@@ -2,6 +2,7 @@ import "server-only";
 import { runExtractionInWorker, type RunOptions, type WorkerFailure } from "./extraction-runner";
 import type { ResumeKind } from "./file-validation";
 import { summarizeHidden } from "./hidden-text";
+import { detectKeywordStuffing, summarizeStuffing } from "./keyword-stuffing";
 import { runOcr } from "./ocr";
 import type { OcrRecognizeOptions, OcrRun } from "./ocr/types";
 import { suggestFields, SUGGESTIONS_VERSION, type SuggestedFields } from "./suggestions";
@@ -76,6 +77,9 @@ export function outcomeFromOcr(run: OcrRun): ExtractionOutcome | null {
   if (run.totalPages > run.pagesRead) {
     warnings.push(`Solo se leyeron las primeras ${run.pagesRead} páginas de ${run.totalPages}.`);
   }
+  // Relleno de palabras clave visible (señal para RRHH; no cambia la evaluación).
+  const stuffingWarning = summarizeStuffing(detectKeywordStuffing(text));
+  if (stuffingWarning) warnings.push(stuffingWarning);
   if (text.length > MAX_TEXT_LENGTH) text = text.slice(0, MAX_TEXT_LENGTH);
   if (text.length < MIN_USEFUL_TEXT) {
     return {
@@ -150,6 +154,9 @@ export async function extractResume(
     // Aviso de texto oculto detectado y excluido (señal anti-trampas para RRHH).
     const hiddenWarning = summarizeHidden(result.hidden);
     if (hiddenWarning) warnings.push(hiddenWarning);
+    // Relleno de palabras clave visible (señal para RRHH; no cambia la evaluación).
+    const stuffingWarning = summarizeStuffing(detectKeywordStuffing(text));
+    if (stuffingWarning) warnings.push(stuffingWarning);
     if (text.length > MAX_TEXT_LENGTH) {
       text = text.slice(0, MAX_TEXT_LENGTH);
       warnings.push("El texto superaba 200 000 caracteres y se truncó.");

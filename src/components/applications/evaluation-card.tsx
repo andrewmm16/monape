@@ -1,5 +1,6 @@
 import { AssessmentBadge, CompatibilityBadge } from "@/components/common/badges";
 import { EmptyState } from "@/components/common/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,6 +135,8 @@ export function EvaluationCard({
   // Solo se verifica sobre la evaluación más reciente y con criterios vigentes.
   const canVerify = canReview && !outdated && history[0]?.id === evaluation.id;
   const currentVerification = new Map(verifications.map((v) => [v.requirement_id, v]));
+  // Avisos de la lectura del CV evaluado (texto oculto, relleno de palabras clave, OCR…).
+  const resumeWarnings = evaluation.resume?.resume_extractions?.warnings ?? [];
 
   return (
     <Card>
@@ -151,6 +154,18 @@ export function EvaluationCard({
       <CardContent className="space-y-6">
         <ScoreMeter score={evaluation.score} potential={evaluation.score_potential} />
         <p className="text-sm">{evaluation.summary}</p>
+        {resumeWarnings.length > 0 ? (
+          <Alert>
+            <AlertTitle>Avisos sobre el CV evaluado</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc space-y-1 pl-4">
+                {resumeWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">Detalle por requisito</h3>

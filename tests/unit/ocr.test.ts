@@ -88,6 +88,11 @@ describe("resultado del OCR como extracción", () => {
     expect(outcome?.suggestions.email?.value).toBe("maria.quispe@correo.test");
   });
 
+  it("avisa del relleno de palabras clave también en un CV leído por OCR", () => {
+    const outcome = outcomeFromOcr({ status: "ok", engine, text: `${LONG_TEXT}\nSAP SAP SAP`, pagesRead: 1, totalPages: 1 });
+    expect(outcome?.warnings.some((w) => w.startsWith("Posible relleno de palabras clave"))).toBe(true);
+  });
+
   it("avisa cuando solo se leyeron las primeras páginas", () => {
     const outcome = outcomeFromOcr({ status: "ok", engine, text: LONG_TEXT, pagesRead: 4, totalPages: 7 });
     expect(outcome?.warnings).toContain("Solo se leyeron las primeras 4 páginas de 7.");
