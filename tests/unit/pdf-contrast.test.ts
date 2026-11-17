@@ -161,6 +161,12 @@ describe("extracción de un PDF con texto sin contraste", () => {
     expect(text).toContain("Todo el CV en blanco");
   });
 
+  it("con lowContrast: false no renderiza ni marca nada (lecturas en lote que no evalúan)", async () => {
+    const { text, hidden } = await extractResumeParts(await pdfConTrucos(), "pdf", { lowContrast: false });
+    expect(hidden.map((h) => h.reason)).not.toContain("nocontrast");
+    expect(text).toContain("TRUCO_BLANCO");
+  });
+
   it("un PDF normal no reporta nada oculto", async () => {
     const { text, hidden } = await extractResumeParts(await makePdf(["Analista contable", "Excel avanzado"]), "pdf");
     expect(hidden).toEqual([]);

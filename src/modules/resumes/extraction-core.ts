@@ -115,10 +115,11 @@ async function renderLowContrast(
  * actual cuando no hay nada oculto. Además marca los items sin contraste con el
  * fondo en la página renderizada (`lowContrast`).
  */
-async function pdfToPages(pdf: TextDocument): Promise<PdfPage[]> {
+async function pdfToPages(pdf: TextDocument, lowContrast: boolean): Promise<PdfPage[]> {
   const pages: PdfPage[] = [];
   let factory: CanvasFactory | null | undefined;
-  const deadline = Date.now() + CONTRAST_BUDGET_MS;
+  // Sin detección por contraste, el plazo ya está vencido y no se renderiza nada.
+  const deadline = lowContrast ? Date.now() + CONTRAST_BUDGET_MS : 0;
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
     const content = await page.getTextContent();
@@ -146,11 +147,11 @@ async function pdfToPages(pdf: TextDocument): Promise<PdfPage[]> {
   return pages;
 }
 
-async function extractPdfParts(bytes: Uint8Array): Promise<ExtractedParts> {
+async function extractPdfParts(bytes: Uint8Array, lowContrast: boolean): Promise<ExtractedParts> {
   // PDF.js 6 no evalúa código de fuentes; además se desactivan formularios XFA.
   const pdf = (await getDocumentProxy(new Uint8Array(bytes), { enableXfa: false, stopAtErrors: false })) as unknown as TextDocument;
   try {
-    const pages = await pdfToPages(pdf);
+    const pages = await pdfToPages(pdf, lowContrast);
     return assembleVisibleText(pages);
   } finally {
     // Libera memoria del documento y del worker de PDF.js.
@@ -169,16 +170,26 @@ async function extractDocxParts(bytes: Uint8Array): Promise<ExtractedParts> {
   return { text: headerFooter ? `${headerFooter}\n\n${value}` : value, hidden };
 }
 
+export type ExtractOptions = {
+  /**
+   * Detecta el texto sin contraste renderizando las páginas del PDF (pdf-contrast.ts).
+   * Activo por defecto. Quien solo necesita el texto de muchos archivos y no evalúa
+   * el CV (p. ej., la lectura en lote de Caleta, que busca datos de contacto) puede
+   * desactivarlo: ahorra el render de cada página.
+   */
+  lowContrast?: boolean;
+};
+
 /**
  * Extrae el texto y los fragmentos ocultos detectados. El texto que devuelve ya
  * está limpio de esos fragmentos, de modo que el motor evalúa solo lo visible y
  * el texto oculto no infla las coincidencias.
  */
-export async function extractResumeParts(bytes: Uint8Array, kind: ResumeFileKind): Promise<ExtractedParts> {
-  return kind === "pdf" ? extractPdfParts(bytes) : extractDocxParts(bytes);
+export async function extractResumeParts(bytes: Uint8Array, kind: ResumeFileKind, options: ExtractOptions = {}): Promise<ExtractedParts> {
+  return kind === "pdf" ? extractPdfParts(bytes, options.lowContrast ?? true) : extractDocxParts(bytes);
 }
 
 /** Compatibilidad: solo el texto (ya limpio de lo oculto). */
-export async function extractRawText(bytes: Uint8Array, kind: ResumeFileKind): Promise<string> {
-  return (await extractResumeParts(bytes, kind)).text;
+export async function extractRawText(bytes: Uint8Array, kind: ResumeFileKind, options: ExtractOptions = {}): Promise<string> {
+  return (await extractResumeParts(bytes, kind, options)).text;
 }

@@ -128,7 +128,9 @@ export async function procesarArchivoCv(ruta: string, base: string): Promise<Can
   const kind = tipoDeArchivo(ruta);
   if (!kind) throw new Error(`extensión no soportada: ${extname(ruta) || "(sin extensión)"}`);
   const bytes = new Uint8Array(await readFile(ruta));
-  const texto = await extractRawText(bytes, kind);
+  // Solo se buscan datos de contacto: sin el render de páginas para el texto sin
+  // contraste (pdf-contrast.ts), que en lotes grandes multiplica el tiempo.
+  const texto = await extractRawText(bytes, kind, { lowContrast: false });
   return analizarCvTexto(texto, relative(base, ruta) || ruta);
 }
 
