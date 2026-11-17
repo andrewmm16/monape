@@ -81,7 +81,7 @@ test("carga masiva de un PDF escaneado: nombre propuesto por OCR, aviso y evalua
   await dialog.getByRole("textbox", { name: "Requisito", exact: true }).fill("Consultas SQL");
   await dialog.getByLabel("Términos de búsqueda").fill("SQL, SQL Server");
   await dialog.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Consultas SQL")).toBeVisible();
+  await expect(page.getByText("Consultas SQL", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Aprobar criterios" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Aprobar criterios" }).click();
   await expect(page.getByText(/Versión 1 aprobada/)).toBeVisible();
@@ -92,5 +92,6 @@ test("carga masiva de un PDF escaneado: nombre propuesto por OCR, aviso y evalua
   await expect(page.getByTestId("evaluate-pending-summary")).toContainText("Se evaluó 1 postulación");
   await expect(page.getByTestId("evaluate-pending-summary")).not.toContainText("sin texto legible");
   const row = page.getByRole("row").filter({ hasText: "Quispe" });
-  await expect(row).toContainText("acreditado");
+  // El requisito se acredita con el texto leído por OCR.
+  await expect(row).toContainText("Cumple: Consultas SQL");
 });

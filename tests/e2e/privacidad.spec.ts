@@ -34,7 +34,10 @@ test("administración crea un borrador, lo activa con una referencia y la págin
   const title = `PRUEBA — sin aprobación legal ${suffix}`;
   await signIn(page, admin.email!, admin.password!);
 
+  // Configuración es un índice (plantillas de correo y aviso de privacidad).
   await page.getByRole("link", { name: "Configuración" }).first().click();
+  await expect(page).toHaveURL(/\/configuracion$/);
+  await page.getByRole("link", { name: /^Aviso de privacidad/ }).click();
   await expect(page).toHaveURL(/\/configuracion\/privacidad/);
   await expect(page.getByRole("heading", { name: "Aviso de privacidad", level: 1 })).toBeVisible();
 
@@ -89,11 +92,16 @@ test("administración crea un borrador, lo activa con una referencia y la págin
   await publicContext.close();
 });
 
-test("RRHH no ve «Configuración» y no accede a la configuración de privacidad", async ({ page }, testInfo) => {
+test("RRHH entra a Configuración solo por las plantillas de correo y no accede a la de privacidad", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "escritorio", "Se ejecuta en escritorio.");
   await signIn(page, rrhh.email!, rrhh.password!);
-  await expect(page.getByRole("link", { name: "Configuración" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Configuración" }).first().click();
+  await expect(page.getByRole("link", { name: /^Plantillas de correo/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Aviso de privacidad/ })).toHaveCount(0);
   const response = await page.goto("/configuracion/privacidad");
-  expect(response?.status()).toBe(404);
+  // El acceso se deniega con «no encontrado». El código HTTP es 200 porque
+  // (app)/loading.tsx ya empezó a enviar la respuesta cuando la página decide notFound().
+  expect(response?.status()).toBeLessThan(500);
+  await expect(page.getByRole("heading", { name: "Página no encontrada" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Aviso de privacidad", level: 1 })).toHaveCount(0);
 });

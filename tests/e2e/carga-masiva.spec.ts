@@ -50,13 +50,14 @@ test("lote de 3 archivos (uno inválido): revisión, registro y bandeja con su p
   await requirementDialog.getByRole("textbox", { name: "Requisito", exact: true }).fill("Consultas SQL");
   await requirementDialog.getByLabel("Términos de búsqueda").fill("SQL, SQL Server");
   await requirementDialog.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Consultas SQL")).toBeVisible();
+  await expect(page.getByText("Consultas SQL", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Aprobar criterios" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Aprobar criterios" }).click();
   await expect(page.getByText(/Versión 1 aprobada/)).toBeVisible();
+  // Publicar vive en la pestaña Portales (paso a paso, sin diálogo de confirmación).
+  await page.goto(`${page.url().split("?")[0]}?tab=portales`);
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Publicar", exact: true }).click();
-  await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();
+  await expect(page.getByText("Publicada", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Publicada", { exact: true })).toBeVisible();
 
   // Carga masiva desde la vacante
@@ -116,12 +117,11 @@ test("lote de 3 archivos (uno inválido): revisión, registro y bandeja con su p
   await expect(page.getByText("Resumen del registro")).toBeVisible();
   await expect(page.getByText(/Registrados: 2 · Evaluados por reglas: 2/)).toBeVisible();
 
-  // Las postulaciones aparecen en la vacante, con su portal...
+  // Las postulaciones aparecen en la vacante, con su portal (el método de ingreso se ve en la bandeja)...
   await page.goto(vacancyUrl);
   for (const name of [firstName, secondName]) {
     const row = page.getByRole("row").filter({ hasText: name });
     await expect(row).toContainText("Computrabajo");
-    await expect(row).toContainText("Carga masiva");
   }
 
   // ...y en la bandeja de entrada.

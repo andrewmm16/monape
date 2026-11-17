@@ -108,6 +108,8 @@ test.describe("formularios públicos", () => {
   });
 
   test("si el servicio de autenticación no responde, lo informa sin aparentar éxito", async ({ page }) => {
+    // Necesita un Supabase caído: con backend real la autenticación sí responde.
+    test.skip(Boolean(process.env.E2E_RRHH_EMAIL), "Solo en el modo sin backend.");
     await page.goto("/ingresar");
     await page.getByLabel("Correo corporativo").fill("persona.ficticia@ejemplo.test");
     await page.getByLabel("Contraseña").fill("ContraseñaFicticia123");

@@ -109,7 +109,8 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
       buffer: Buffer.from(files[key]),
     })),
   );
-  await expect(page.getByTestId("batch-item")).toHaveCount(3);
+  // Tres PDF se leen y procesan en el servidor: puede tardar más que la espera por defecto.
+  await expect(page.getByTestId("batch-item")).toHaveCount(3, { timeout: 30_000 });
   await page.getByRole("button", { name: "Registrar seleccionados (3)" }).click();
   await expect(page.getByText(/Registrados: 3 · Evaluados por reglas: 3/)).toBeVisible();
 
@@ -178,9 +179,9 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
 
   await page.goto(`/postulaciones/${ids.pass}`);
   await expect(page.getByText("Evaluación post-entrevista", { exact: true }).first()).toBeVisible();
-  const englishItem = page.getByRole("listitem").filter({ hasText: "Inglés intermedio" }).filter({ hasText: "Peso" });
+  const englishItem = page.getByRole("heading", { name: "Detalle por requisito" }).locator("..").getByRole("listitem").filter({ hasText: "Inglés intermedio" });
   await expect(englishItem).toContainText("Verificado · Entrevista");
-  await expect(englishItem).toContainText(/Comprobado en la entrevista del \d{2}\/\d{2}\/\d{4}/);
+  await expect(englishItem).toContainText(/Verificado en entrevista el \d{2}\/\d{2}\/\d{4}/);
   await expect(page.locator("#entrevistas").getByText("Pasó", { exact: true })).toBeVisible();
   await expect(page.locator("#entrevistas").getByRole("button", { name: "Registrar resultado" })).toHaveCount(0);
   await expect(page.getByText("Resultado de la entrevista").first()).toBeVisible();
@@ -247,6 +248,9 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   await page.goto(`/postulaciones/${ids.absent}?programar=1`);
   await page.getByRole("dialog", { name: "Programar entrevista" }).getByLabel("Fecha").fill(limaDate(-2));
   await page.getByRole("dialog", { name: "Programar entrevista" }).getByLabel("Hora").fill("09:00");
+  // Presencial (por defecto) exige dirección: se agenda virtual con su enlace.
+  await page.getByRole("dialog", { name: "Programar entrevista" }).getByLabel("Modalidad").selectOption({ label: "Virtual" });
+  await page.getByRole("dialog", { name: "Programar entrevista" }).getByLabel("Enlace de la reunión").fill("https://meet.ejemplo.test/sala-ausente");
   await page.getByRole("dialog", { name: "Programar entrevista" }).getByRole("button", { name: "Programar", exact: true }).click();
   await expect(page.getByText(/Entrevista programada\. La postulación quedó/)).toBeVisible();
 

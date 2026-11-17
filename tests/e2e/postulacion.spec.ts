@@ -81,13 +81,14 @@ async function createPublishedVacancy(page: Page, title: string): Promise<{ vaca
   await requirementDialog.getByRole("textbox", { name: "Requisito", exact: true }).fill("Consultas SQL");
   await requirementDialog.getByLabel("Términos de búsqueda").fill("SQL, SQL Server");
   await requirementDialog.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Consultas SQL")).toBeVisible();
+  await expect(page.getByText("Consultas SQL", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Aprobar criterios" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Aprobar criterios" }).click();
   await expect(page.getByText(/Versión 1 aprobada/)).toBeVisible();
+  // Publicar vive en la pestaña Portales (paso a paso, sin diálogo de confirmación).
+  await page.goto(`${page.url().split("?")[0]}?tab=portales`);
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Publicar", exact: true }).click();
-  await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();
+  await expect(page.getByText("Publicada", { exact: true }).first()).toBeVisible();
 
   await page.goto(vacancyUrl);
   const publicLink = page.getByRole("link", { name: /\/empleos\/analista-postulacion-/ });
@@ -270,7 +271,8 @@ test("postulación pública: envío sin sesión, bandeja, repetición con el mis
   // También en la tabla de la vacante.
   await page.goto(vacancyUrl);
   const vacancyRow = page.getByRole("row").filter({ hasText: secondName });
-  await expect(vacancyRow).toContainText("Formulario en línea");
+  // La tabla de la vacante muestra el origen; el método de ingreso se ve en la bandeja (arriba).
+  await expect(vacancyRow).toContainText("Página de empleos");
   await expect(vacancyRow).toContainText("Posible duplicado");
 
   await page.goto("/postulaciones");

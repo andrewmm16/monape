@@ -58,13 +58,14 @@ test("Talent Apply: feed con talent-apply-data, postulación evaluada en la band
   await requirementDialog.getByRole("textbox", { name: "Requisito", exact: true }).fill("Consultas SQL");
   await requirementDialog.getByLabel("Términos de búsqueda").fill("SQL, SQL Server");
   await requirementDialog.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Consultas SQL")).toBeVisible();
+  await expect(page.getByText("Consultas SQL", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Aprobar criterios" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Aprobar criterios" }).click();
   await expect(page.getByText(/Versión 1 aprobada/)).toBeVisible();
+  // Publicar vive en la pestaña Portales (paso a paso, sin diálogo de confirmación).
+  await page.goto(`${page.url().split("?")[0]}?tab=portales`);
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Publicar", exact: true }).click();
-  await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();
+  await expect(page.getByText("Publicada", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Publicada", { exact: true })).toBeVisible();
 
   // Feed con el token correcto: trae el <talent-apply-data> de la vacante.

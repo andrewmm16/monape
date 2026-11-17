@@ -60,14 +60,15 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   await expect(keywordsField).toHaveValue("SQL, SQL Server");
   await expect(requirementDialog.getByRole("button", { name: "SQL Server", exact: true })).toHaveCount(0);
   await requirementDialog.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Consultas SQL")).toBeVisible();
+  await expect(page.getByText("Consultas SQL", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Términos: SQL, SQL Server")).toBeVisible();
   await page.getByRole("button", { name: "Aprobar criterios" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Aprobar criterios" }).click();
   await expect(page.getByText(/Versión 1 aprobada/)).toBeVisible();
+  // Publicar vive en la pestaña Portales (paso a paso, sin diálogo de confirmación).
+  await page.goto(`${page.url().split("?")[0]}?tab=portales`);
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Publicar", exact: true }).click();
-  await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();
+  await expect(page.getByText("Publicada", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Publicada", { exact: true })).toBeVisible();
 
   // Candidato
@@ -93,14 +94,18 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   await page.getByRole("link", { name: `Analista E2E ${suffix}` }).click();
   await page.getByRole("button", { name: "Evaluar con motor de reglas" }).click();
   await expect(page.getByText("Detalle por requisito")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("Evidencia en el CV:")).toBeVisible();
-  await expect(page.getByText("Limitaciones de esta evaluación")).toBeVisible();
+  // Cada requisito muestra lo que busca el puesto frente a lo que dice el CV, con la cita como evidencia.
+  await expect(page.getByText("Lo que dice el CV").first()).toBeVisible();
+  await expect(page.locator("blockquote").filter({ hasText: "SQL Server" }).first()).toBeVisible();
   await expect(page.getByText("Nuevo").first()).toBeVisible();
 
   // Estado sugerido por la evaluación, con su motivo; nada se guarda solo.
   await expect(page.getByLabel("Nuevo estado")).toHaveValue("entrevista_programada");
-  await expect(page.getByLabel(/^Motivo/)).toHaveValue(/^Se preselecciona porque el CV acredita 1 de 1 requisitos obligatorios/);
-  await expect(page.getByLabel("Observación interna (opcional)")).toHaveValue(/Siguiente paso: programar la entrevista/);
+  await expect(page.getByLabel(/^Motivo/)).toHaveValue(
+    /^Se programa una entrevista\. Según la evaluación, el CV acredita 1 de 1 requisitos obligatorios/,
+  );
+  // Con todo acreditado no queda nada por confirmar en la entrevista: la observación es el resumen, sin «Siguiente paso».
+  await expect(page.getByLabel("Observación interna (opcional)")).toHaveValue(/^Resumen de la evaluación del .+Cumple los requisitos/);
   // Las sugerencias no se insertan dos veces.
   await expect(page.getByRole("button", { name: "Sugerencia insertada" })).toBeDisabled();
   await page.getByRole("button", { name: "Sugerir a partir de la evaluación" }).click();

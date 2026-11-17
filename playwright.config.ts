@@ -46,6 +46,8 @@ export default defineConfig({
     timeout: 120_000,
     env: usesRealBackend
       ? {
+          // Las pruebas nunca envían correos reales, aunque .env.local esté en modo live.
+          EMAIL_DELIVERY_MODE: "test",
           // Parte pública (2.9) encendida con valores ficticios para empleos.spec.ts.
           PUBLIC_JOBS_ENABLED: "true",
           PUBLIC_SITE_URL: `http://localhost:${PORT}`,

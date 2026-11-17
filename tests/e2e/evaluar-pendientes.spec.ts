@@ -101,7 +101,7 @@ test("evalúa de una vez las postulaciones pendientes y ordena la lista por comp
   await page.goto(`${vacancyUrl}?tab=candidatos&sort=nombre`);
   await page.getByRole("button", { name: "Evaluar pendientes (3)" }).click();
   const summary = page.getByTestId("evaluate-pending-summary");
-  await expect(summary).toContainText("Se evaluaron 3 postulaciones; la lista está ordenada por compatibilidad.");
+  await expect(summary).toContainText("Se evaluaron 3 postulaciones; la lista está ordenada por puntuación.");
   await expect(page).toHaveURL(/tab=candidatos/);
   await expect(page).not.toHaveURL(/sort=nombre/);
 
@@ -112,7 +112,8 @@ test("evalúa de una vez las postulaciones pendientes y ordena la lista por comp
   const rowTexts = await page.getByRole("row").filter({ hasText: tag }).allInnerTexts();
   expect(rowTexts).toHaveLength(3);
   order.forEach((name, index) => expect(rowTexts[index]).toContain(name));
-  for (const text of rowTexts) expect(text).toMatch(/\d+ ?% acreditado/);
+  // Cada fila muestra su puntuación («67 %» y el nivel de cumplimiento).
+  for (const text of rowTexts) expect(text).toMatch(/\d+ ?%/);
 
   // Ya no quedan pendientes: el botón no aparece.
   await expect(page.getByRole("button", { name: /Evaluar pendientes/ })).toHaveCount(0);
