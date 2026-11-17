@@ -22,6 +22,16 @@ export async function listEditedTemplates(
 }
 
 /**
+ * Dirección a la que llegan las respuestas de los candidatos (Reply-To), o
+ * `null` si RRHH aún no la configuró.
+ */
+export async function getEmailReplyTo(supabase: AppSupabaseClient): Promise<string | null> {
+  const { data, error } = await supabase.from("email_settings").select("reply_to").maybeSingle();
+  if (error) throw toAppError(error);
+  return data?.reply_to?.trim() || null;
+}
+
+/**
  * Plantilla editada de una clave, o `null` si no hay (se usa la del código).
  * Nunca lanza: un problema al leerla no debe impedir el envío con el texto base.
  */

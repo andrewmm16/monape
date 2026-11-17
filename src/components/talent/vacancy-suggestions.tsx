@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -12,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,7 +41,16 @@ function inviteSummary(result: BatchInviteResult): string {
 }
 
 /** Candidatos de la base que encajan con la vacante, con acciones en lote (invitar o añadir al proceso). */
-export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: string; candidates: SuggestedCandidate[] }) {
+export function VacancySuggestions({
+  vacancyId,
+  candidates,
+  replyToConfigured,
+}: {
+  vacancyId: string;
+  candidates: SuggestedCandidate[];
+  /** Si RRHH configuró adónde llegan las respuestas; sin eso no se puede invitar. */
+  replyToConfigured: boolean;
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<BatchAction | null>(null);
@@ -98,8 +109,27 @@ export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: strin
 
   return (
     <div className="space-y-3">
+      {replyToConfigured ? null : (
+        <Alert>
+          <AlertTitle>Falta el correo de respuestas</AlertTitle>
+          <AlertDescription>
+            <p>
+              Para invitar por correo, configure primero a qué dirección llegan las respuestas de los candidatos en{" "}
+              <Link href="/configuracion/plantillas-correo" className="underline underline-offset-2">
+                Configuración → Plantillas de correo
+              </Link>
+              . Mientras tanto puede añadirlos al proceso.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" disabled={count === 0 || pending} onClick={() => setConfirming("invite")}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={count === 0 || pending || !replyToConfigured}
+          onClick={() => setConfirming("invite")}
+        >
           Invitar por correo
         </Button>
         <Button type="button" variant="outline" disabled={count === 0 || pending} onClick={() => setConfirming("add")}>

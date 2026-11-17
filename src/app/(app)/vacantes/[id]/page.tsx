@@ -39,6 +39,7 @@ import {
   rankVacancyApplications,
 } from "@/modules/applications/queries";
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
+import { getEmailReplyTo } from "@/modules/email-templates/queries";
 import { suggestCandidatesForVacancy } from "@/modules/talent-pool/matching";
 import { portalLogo } from "@/modules/portals/logos";
 import { listPortalPublications } from "@/modules/portals/queries";
@@ -172,10 +173,15 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     const pending = canRun ? await countPendingEvaluations(supabase, vacancy.id) : 0;
     const comparable = await countComparable(supabase, vacancy.id);
     // Sugerencias de la base de talento: solo si RRHH puede gestionar candidatos y la vacante admite postulaciones.
-    const suggestedCandidates =
-      can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada")
-        ? await suggestCandidatesForVacancy(supabase, vacancy.id)
-        : null;
+    const showSuggestions =
+      can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada");
+    const [suggestedCandidates, replyTo] = showSuggestions
+      ? await Promise.all([
+          suggestCandidatesForVacancy(supabase, vacancy.id),
+          // Un fallo al leerlo solo deja el botón de invitar bloqueado, no rompe la página.
+          getEmailReplyTo(supabase).catch(() => null),
+        ])
+      : [null, null];
     const suggestions =
       suggestedCandidates === null ? null : (
         <Card>
@@ -186,7 +192,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <VacancySuggestions vacancyId={vacancy.id} candidates={suggestedCandidates} />
+            <VacancySuggestions vacancyId={vacancy.id} candidates={suggestedCandidates} replyToConfigured={Boolean(replyTo)} />
           </CardContent>
         </Card>
       );

@@ -7,7 +7,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { toAppError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EMAIL_TEMPLATE_KEYS } from "./defaults";
-import { saveTemplateSchema, type SaveTemplateInput } from "./schemas";
+import { replyToSchema, saveTemplateSchema, type ReplyToInput, type SaveTemplateInput } from "./schemas";
 
 const CONFIG_PATH = "/configuracion/plantillas-correo";
 
@@ -33,6 +33,28 @@ export async function saveEmailTemplate(input: SaveTemplateInput): Promise<Actio
       return null;
     },
     "Plantilla guardada. Se usará en los próximos envíos.",
+  );
+}
+
+/** Guarda (o quita, si llega vacío) la dirección a la que llegan las respuestas de los candidatos. */
+export async function saveEmailReplyTo(input: ReplyToInput): Promise<ActionResult> {
+  return runAction(
+    "email_settings.save_reply_to",
+    async () => {
+      await requirePermission("email_templates:manage");
+      const values = parseInput(replyToSchema, input);
+      const replyTo = values.replyTo || null;
+      const supabase = await createSupabaseServerClient();
+      const { data: existing, error: lookupError } = await supabase.from("email_settings").select("id").maybeSingle();
+      if (lookupError) throw toAppError(lookupError);
+      const { error } = existing
+        ? await supabase.from("email_settings").update({ reply_to: replyTo }).eq("id", true)
+        : await supabase.from("email_settings").insert({ reply_to: replyTo });
+      if (error) throw toAppError(error);
+      revalidatePath(CONFIG_PATH);
+      return null;
+    },
+    "Correo de respuestas guardado.",
   );
 }
 

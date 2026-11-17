@@ -25,12 +25,15 @@ export function TemplateEditor({
   when,
   defaults,
   edited,
+  extras,
 }: {
   templateKey: EmailTemplateKey;
   label: string;
   when: string;
   defaults: EmailTemplateContent;
   edited: (EmailTemplateContent & { updatedAt: string | null }) | undefined;
+  /** Partes que agrega el sistema (no editables), para mostrarlas en la vista previa. */
+  extras?: { button: string; buttonNote: string; footer: string };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -150,11 +153,20 @@ export function TemplateEditor({
             {previewParagraphs.map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
+            {extras ? (
+              <p className="flex flex-wrap items-center gap-2">
+                <span className="inline-block rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-background">
+                  {extras.button}
+                </span>
+                <span className="text-xs text-muted-foreground">{extras.buttonNote}</span>
+              </p>
+            ) : null}
             <p>
               Saludos cordiales,
               <br />
               Recursos Humanos
             </p>
+            {extras ? <p className="border-t pt-2 text-xs text-muted-foreground">{extras.footer}</p> : null}
           </div>
         </div>
 

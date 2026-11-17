@@ -251,3 +251,26 @@ pantalla de Auditoría resuelve al mostrar.
 de solo avisar; el historial de la tarjeta de sugeridos se limita a la vacante
 actual (la ficha muestra todo); el contacto por otros canales (teléfono,
 LinkedIn) queda fuera por ahora.
+
+## Ampliación (2026-11-17): correo de invitación
+
+**Problema detectado.** La invitación pedía "responde a este correo", pero el
+remitente técnico no recibe mensajes y no había dirección de respuesta: la
+respuesta del candidato no llegaba a nadie. Además el texto era fijo, no decía el
+nombre de la empresa ni enlazaba la vacante.
+
+**Cambios.**
+- `email_settings` (una fila, RLS de personal): dirección de respuestas
+  (Reply-To), editable en Configuración → Plantillas de correo. Sin ella, el botón
+  "Invitar por correo" queda bloqueado con un aviso y la acción lo rechaza.
+- La invitación es una plantilla editable más (`invitacion_cartera` en
+  `email_templates`), con `{{nombre}}`, `{{vacante}}` y `{{empresa}}`.
+- El sistema agrega siempre: saludo, botón "Ver la vacante" (solo si tiene página
+  pública, con las mismas reglas que la ficha de la vacante), firma con la empresa
+  y una nota final con por qué recibe el correo y cómo pedir la baja. La nota no
+  afirma consentimiento, porque se invita también a quien no tiene constancia.
+
+**Decisiones mías:** Reply-To configurable en la BD (y no variable de entorno)
+para que RRHH lo cambie sin redesplegar; por ahora solo lo usa la invitación (los
+avisos de estado no piden responder). Queda para después un enlace de "darme de
+baja" de un clic.

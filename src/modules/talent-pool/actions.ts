@@ -3,17 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
+import { getServerEnv } from "@/lib/env";
 import { AppError, toAppError } from "@/lib/errors";
 import { createSupabaseServerClient, type AppSupabaseClient } from "@/lib/supabase/server";
+import { getEditedTemplate, getEmailReplyTo } from "@/modules/email-templates/queries";
 import { sendEmail } from "@/modules/notifications/email/client";
 import { getEmailAvailability } from "@/modules/notifications/email/config";
 import { buildTalentInvitationEmail } from "@/modules/notifications/email/templates/talent-invitation";
+import { getPublicJobsConfig } from "@/modules/public-jobs/config";
+import { publicVacancyUrl } from "@/modules/public-jobs/link";
 import { consentByCandidate } from "./queries";
 import {
   batchCandidateVacancySchema,
   candidateTagSchema,
   createTalentTagSchema,
   reactivateCandidateSchema,
+  REPLY_TO_MISSING_MESSAGE,
   type BatchCandidateVacancyInput,
   type CandidateTagInput,
   type CreateTalentTagInput,
@@ -151,14 +156,22 @@ export async function inviteCandidatesToVacancy(
       throw new AppError(`No se pueden enviar invitaciones: ${availability.reason}.`, "unavailable");
     }
     const supabase = await createSupabaseServerClient();
+    // La invitación pide responder: sin dirección de respuestas, nadie la recibiría.
+    const replyTo = await getEmailReplyTo(supabase);
+    if (!replyTo) throw new AppError(REPLY_TO_MISSING_MESSAGE, "conflict");
 
     const { data: vacancy, error: vacancyError } = await supabase
       .from("vacancies")
-      .select("title")
+      .select("title, status, is_confidential, public_code, description, employment_type, modality, city, region, closing_date")
       .eq("id", values.vacancyId)
       .maybeSingle();
     if (vacancyError) throw toAppError(vacancyError);
     if (!vacancy) throw new AppError("La vacante no existe.", "not_found");
+
+    const publicJobs = getPublicJobsConfig();
+    const vacancyUrl = publicVacancyUrl(vacancy, publicJobs.enabled ? publicJobs.siteUrl : null);
+    const template = await getEditedTemplate(supabase, "invitacion_cartera");
+    const companyName = getServerEnv().PUBLIC_COMPANY_NAME;
 
     const [{ data: candidates, error: candError }, consent, alreadyInvited] = await Promise.all([
       supabase.from("candidates").select("id, full_name, email").in("id", values.candidateIds),
@@ -191,13 +204,20 @@ export async function inviteCandidatesToVacancy(
         items.push({ candidate_id: candidate.id, outcome: "sin_correo" });
         continue;
       }
-      const content = buildTalentInvitationEmail({ fullName: candidate.full_name, vacancyTitle: vacancy.title });
+      const content = buildTalentInvitationEmail({
+        fullName: candidate.full_name,
+        vacancyTitle: vacancy.title,
+        companyName,
+        vacancyUrl,
+        template,
+      });
       const sent = await sendEmail({
         to: email,
         subject: content.subject,
         html: content.html,
         text: content.text,
         tags: [{ name: "type", value: "talent_invitation" }],
+        replyTo,
       });
       if (sent.sent) result.invited += 1;
       else result.failed += 1;

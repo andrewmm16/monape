@@ -9,6 +9,8 @@ export type SendEmailInput = {
   html: string;
   text: string;
   tags?: { name: string; value: string }[];
+  /** Adónde llegan las respuestas (el remitente técnico puede no recibir correo). */
+  replyTo?: string;
 };
 
 export type SendEmailResult = { sent: true } | { sent: false; reason?: string };
@@ -43,6 +45,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       html: input.html,
       text: input.text,
       tags: input.tags,
+      ...(input.replyTo ? { replyTo: input.replyTo } : {}),
     });
     if (error) {
       logServerError("email.send", { code: error.name });

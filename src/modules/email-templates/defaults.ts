@@ -5,7 +5,7 @@
  * si una clave no tiene versión editada en la base de datos, se usa este texto.
  */
 
-export const EMAIL_TEMPLATE_KEYS = ["entrevista_programada", "seleccionado", "no_seleccionado"] as const;
+export const EMAIL_TEMPLATE_KEYS = ["entrevista_programada", "seleccionado", "no_seleccionado", "invitacion_cartera"] as const;
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[number];
 
 export type EmailTemplateContent = { subject: string; body: string };
@@ -52,7 +52,17 @@ export const EMAIL_TEMPLATE_META: Record<EmailTemplateKey, { label: string; when
     label: "No seleccionado",
     when: "Se puede enviar al pasar a «No seleccionado» (casilla «Avisar al candidato»).",
   },
+  invitacion_cartera: {
+    label: "Invitación desde la base de talentos",
+    when:
+      "Se envía con «Invitar por correo» en los candidatos sugeridos de una vacante. Se agregan solos el botón «Ver la vacante» (si tiene página pública) y una nota final con por qué recibe el correo y cómo dejar de recibirlos.",
+  },
 };
+
+/** Nota final fija de la invitación (no editable): transparencia y cómo pedir la baja. */
+export function talentInvitationFooter(company: string): string {
+  return `Te escribimos porque participaste en un proceso de selección con ${company} y tus datos están en su base de talentos. Si no quieres recibir más avisos como este, responde a este correo indicándolo y te retiraremos de la base.`;
+}
 
 export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateContent> = {
   entrevista_programada: {
@@ -76,6 +86,14 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateCont
       "Gracias por tu interés en {{vacante}} y por el tiempo dedicado a participar en el proceso de {{empresa}}.",
       "Tras revisar las postulaciones, hemos decidido continuar con otros perfiles y tu candidatura no seguirá en este proceso.",
       "Valoramos que nos hayas considerado y te deseamos éxito en tu búsqueda profesional.",
+    ].join("\n\n"),
+  },
+  invitacion_cartera: {
+    subject: "Una nueva oportunidad que encaja con tu perfil",
+    body: [
+      "Participaste en un proceso anterior con {{empresa}} y se abrió {{vacante}}, que encaja con tu perfil.",
+      "Si te interesa que te consideremos, responde a este correo y te contactaremos con los detalles.",
+      "Si prefieres no participar en este proceso, puedes ignorar este mensaje.",
     ].join("\n\n"),
   },
 };

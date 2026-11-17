@@ -52,6 +52,10 @@ export const reactivateCandidateSchema = z.object({
 });
 export type ReactivateCandidateInput = z.input<typeof reactivateCandidateSchema>;
 
+/** Aviso cuando falta configurar a qué dirección llegan las respuestas de los candidatos. */
+export const REPLY_TO_MISSING_MESSAGE =
+  "Antes de invitar, configure en Configuración → Plantillas de correo a qué dirección llegan las respuestas de los candidatos.";
+
 /** Acción en lote (invitar o añadir) sobre varios candidatos sugeridos de una vacante. */
 export const batchCandidateVacancySchema = z.object({
   vacancyId: z.uuid(),

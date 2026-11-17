@@ -14,3 +14,13 @@ export const saveTemplateSchema = z.object({
     .max(TEMPLATE_BODY_MAX, `Máximo ${TEMPLATE_BODY_MAX} caracteres`),
 });
 export type SaveTemplateInput = z.input<typeof saveTemplateSchema>;
+
+/** Correo de respuestas: una dirección válida, o vacío para quitarla. */
+export const replyToSchema = z.object({
+  replyTo: z
+    .string()
+    .trim()
+    .max(254, "Máximo 254 caracteres")
+    .refine((value) => value === "" || z.email().safeParse(value).success, "Escriba un correo válido"),
+});
+export type ReplyToInput = z.input<typeof replyToSchema>;
