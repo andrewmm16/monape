@@ -198,3 +198,56 @@ el contacto directo desde el pool y el matching con motor quedan para después.
   componentes existentes.
 - Pruebas: RLS de las tablas nuevas, no-duplicado del RPC, filtro por etiqueta, y el
   camino de reactivación.
+
+## Ampliación (2026-11-17): historial de contacto y auditoría de la base
+
+**Intención.** Dejar constancia de quién trajo de vuelta o contactó a candidatos de
+la base, cuándo, para qué vacante y con qué resultado. Sirve para responder
+("¿por qué me escribieron?", "¿quién lo metió al proceso?"), para demostrar que se
+respetó a quien revocó su consentimiento y para medir si la base sirve. Como la
+Auditoría solo la ven administradores, RRHH necesita además ver ese historial en
+su trabajo diario, para no escribirle dos veces a la misma persona.
+
+**Huecos que cubre** (lo que ya existía: el trigger de `applications` registra la
+reactivación como alta genérica con `intake_method = cartera`, y las etiquetas se
+registraban sin datos):
+
+1. **Invitaciones registradas.** Tabla `talent_invitations` (candidato, vacante,
+   lote, resultado, quién la envió, cuándo). Resultado: `enviada`, `sin_correo`,
+   `consentimiento_revocado` o `error`. No guarda el contenido del correo. Se
+   escribe solo con `record_talent_invitations` (SECURITY DEFINER, solo
+   personal): no hay permisos directos de escritura, queda como registro
+   inmutable. Cada invitación deja una línea `invitacion_cartera` en la auditoría
+   y el lote una de resumen `invitacion_cartera_lote`.
+2. **No escribir dos veces.** Antes de enviar, se omite a quien ya tiene una
+   invitación `enviada` para la **misma vacante** (se informa como "ya invitados").
+   Si el correo no está configurado, la acción falla antes de enviar o registrar.
+3. **Reactivación con nombre propio.** El alta de postulación con origen `cartera`
+   se describe como "Reactivó desde la base de talentos a X en «Vacante»" (solo
+   textos; el dato ya se guardaba).
+4. **Resumen del lote.** `add_candidates_to_vacancy` reactiva varios candidatos en
+   una llamada (cada uno en su propia subtransacción: un fallo no corta el resto)
+   y deja una línea `reactivacion_cartera_lote` con los ids añadidos y fallidos.
+   Los motivos de negocio (`RH4xx`) se devuelven tal cual; otros errores, como
+   motivo genérico.
+5. **Etiquetas legibles.** Disparadores propios para `talent_tags` y
+   `candidate_tags` que registran el nombre de la etiqueta (no es dato personal):
+   `etiqueta_creada`, `etiqueta_modificada`, `etiqueta_eliminada`,
+   `etiqueta_asignada`, `etiqueta_quitada`.
+6. **Grupo "Base de talentos"** en el filtro de Auditoría (`talent_tags`,
+   `candidate_tags`, `talent_invitations`, `talent_pool`).
+
+La auditoría sigue sin guardar nombres ni correos de candidatos: solo ids, que la
+pantalla de Auditoría resuelve al mostrar.
+
+**Historial de contacto visible para RRHH.**
+- **Ficha del candidato:** tarjeta "Historial de contacto" con invitaciones (con su
+  resultado) y reactivaciones desde la base, con vacante, fecha y quién.
+- **Sugeridos de la vacante:** bajo el nombre, "Invitado el 17 nov. por Ana" si ya
+  se le invitó a esa vacante. Sigue seleccionable (el flujo normal es invitar y,
+  si responde, añadirlo al proceso).
+
+**Decisiones mías (revisables):** se omite automáticamente al ya invitado en vez
+de solo avisar; el historial de la tarjeta de sugeridos se limita a la vacante
+actual (la ficha muestra todo); el contacto por otros canales (teléfono,
+LinkedIn) queda fuera por ahora.

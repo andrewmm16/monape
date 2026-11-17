@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
 import { AppError, toAppError } from "@/lib/errors";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, type AppSupabaseClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/modules/notifications/email/client";
+import { getEmailAvailability } from "@/modules/notifications/email/config";
 import { buildTalentInvitationEmail } from "@/modules/notifications/email/templates/talent-invitation";
 import { consentByCandidate } from "./queries";
 import {
@@ -92,9 +93,12 @@ export async function reactivateCandidate(
 
 export type BatchAddResult = { added: number; failed: { candidateId: string; reason: string }[] };
 
+type BatchAddRpcResult = { added?: string[]; failed?: { candidate_id: string; reason: string }[] };
+
 /**
- * Reactiva en lote varios candidatos sugeridos a una vacante. Procesa uno por uno
- * y acumula los que no se pudieron (p. ej. "ya en proceso"), sin abortar el resto.
+ * Reactiva en lote varios candidatos sugeridos a una vacante. La BD procesa cada
+ * uno por separado (un fallo, p. ej. "ya en proceso", no corta el resto) y deja
+ * una línea de resumen del lote en la auditoría.
  */
 export async function addCandidatesToVacancy(
   input: BatchCandidateVacancyInput,
@@ -103,18 +107,17 @@ export async function addCandidatesToVacancy(
     await requirePermission("candidates:manage");
     const values = parseInput(batchCandidateVacancySchema, input);
     const supabase = await createSupabaseServerClient();
-    let added = 0;
-    const failed: { candidateId: string; reason: string }[] = [];
-    for (const candidateId of values.candidateIds) {
-      const { error } = await supabase.rpc("add_candidate_to_vacancy", {
-        p_candidate_id: candidateId,
-        p_vacancy_id: values.vacancyId,
-      });
-      if (error) failed.push({ candidateId, reason: toAppError(error).message });
-      else added += 1;
-    }
+    const { data, error } = await supabase.rpc("add_candidates_to_vacancy", {
+      p_vacancy_id: values.vacancyId,
+      p_candidate_ids: values.candidateIds,
+    });
+    if (error) throw toAppError(error);
+    const result = (data ?? {}) as BatchAddRpcResult;
     revalidatePath(`/vacantes/${values.vacancyId}`);
-    return { added, failed };
+    return {
+      added: result.added?.length ?? 0,
+      failed: (result.failed ?? []).map((item) => ({ candidateId: item.candidate_id, reason: item.reason })),
+    };
   });
 }
 
@@ -122,14 +125,18 @@ export type BatchInviteResult = {
   invited: number;
   skippedNoEmail: number;
   skippedRevoked: number;
+  skippedAlreadyInvited: number;
   failed: number;
 };
 
+type InvitationOutcome = "enviada" | "sin_correo" | "consentimiento_revocado" | "error";
+
 /**
  * Envía la invitación a una vacante a varios candidatos del pool (contacto previo,
- * antes de reactivarlos). Respeta el consentimiento de cartera (omite a quien lo
- * revocó) y a quien no tiene correo. El envío es real (Resend) y nunca aborta el
- * lote: los fallos de envío se cuentan.
+ * antes de reactivarlos) y registra cada resultado en el historial de contacto.
+ * Omite a quien ya fue invitado a esta misma vacante, a quien revocó el
+ * consentimiento de cartera y a quien no tiene correo. El envío es real (Resend)
+ * y nunca aborta el lote: los fallos de envío se registran como tales.
  */
 export async function inviteCandidatesToVacancy(
   input: BatchCandidateVacancyInput,
@@ -137,6 +144,12 @@ export async function inviteCandidatesToVacancy(
   return runAction("talent.inviteBatch", async () => {
     await requirePermission("candidates:manage");
     const values = parseInput(batchCandidateVacancySchema, input);
+    // Si el correo está desactivado (modo de prueba o sin configurar) no se envía
+    // ni se registra nada: el historial no se llena de falsos «falló el envío».
+    const availability = getEmailAvailability();
+    if (!availability.available) {
+      throw new AppError(`No se pueden enviar invitaciones: ${availability.reason}.`, "unavailable");
+    }
     const supabase = await createSupabaseServerClient();
 
     const { data: vacancy, error: vacancyError } = await supabase
@@ -147,22 +160,35 @@ export async function inviteCandidatesToVacancy(
     if (vacancyError) throw toAppError(vacancyError);
     if (!vacancy) throw new AppError("La vacante no existe.", "not_found");
 
-    const { data: candidates, error: candError } = await supabase
-      .from("candidates")
-      .select("id, full_name, email")
-      .in("id", values.candidateIds);
+    const [{ data: candidates, error: candError }, consent, alreadyInvited] = await Promise.all([
+      supabase.from("candidates").select("id, full_name, email").in("id", values.candidateIds),
+      consentByCandidate(supabase, values.candidateIds),
+      invitedCandidateIds(supabase, values.vacancyId, values.candidateIds),
+    ]);
     if (candError) throw toAppError(candError);
-    const consent = await consentByCandidate(supabase, values.candidateIds);
 
-    const result: BatchInviteResult = { invited: 0, skippedNoEmail: 0, skippedRevoked: 0, failed: 0 };
+    const result: BatchInviteResult = {
+      invited: 0,
+      skippedNoEmail: 0,
+      skippedRevoked: 0,
+      skippedAlreadyInvited: 0,
+      failed: 0,
+    };
+    const items: { candidate_id: string; outcome: InvitationOutcome }[] = [];
     for (const candidate of candidates ?? []) {
+      if (alreadyInvited.has(candidate.id)) {
+        result.skippedAlreadyInvited += 1;
+        continue;
+      }
       if (consent.get(candidate.id) === "revocado") {
         result.skippedRevoked += 1;
+        items.push({ candidate_id: candidate.id, outcome: "consentimiento_revocado" });
         continue;
       }
       const email = candidate.email?.trim();
       if (!email) {
         result.skippedNoEmail += 1;
+        items.push({ candidate_id: candidate.id, outcome: "sin_correo" });
         continue;
       }
       const content = buildTalentInvitationEmail({ fullName: candidate.full_name, vacancyTitle: vacancy.title });
@@ -175,7 +201,40 @@ export async function inviteCandidatesToVacancy(
       });
       if (sent.sent) result.invited += 1;
       else result.failed += 1;
+      items.push({ candidate_id: candidate.id, outcome: sent.sent ? "enviada" : "error" });
     }
+
+    if (items.length > 0) {
+      const { error } = await supabase.rpc("record_talent_invitations", {
+        p_vacancy_id: values.vacancyId,
+        p_items: items,
+        p_already_invited: result.skippedAlreadyInvited,
+      });
+      if (error) {
+        console.error("[talent.inviteBatch] no se pudo registrar el historial", error.code);
+        throw new AppError(
+          "Las invitaciones se procesaron, pero no se pudo guardar el historial de contacto. Avise al administrador.",
+          "internal",
+        );
+      }
+    }
+    revalidatePath(`/vacantes/${values.vacancyId}`);
     return result;
   });
+}
+
+/** Candidatos que ya recibieron una invitación enviada para esta vacante. */
+async function invitedCandidateIds(
+  supabase: AppSupabaseClient,
+  vacancyId: string,
+  candidateIds: string[],
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("talent_invitations")
+    .select("candidate_id")
+    .eq("vacancy_id", vacancyId)
+    .eq("outcome", "enviada")
+    .in("candidate_id", candidateIds);
+  if (error) throw toAppError(error);
+  return new Set((data ?? []).map((row) => row.candidate_id));
 }

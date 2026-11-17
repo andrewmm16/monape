@@ -214,6 +214,14 @@ export const INTAKE_METHOD_LABELS: Record<Enums<"application_intake_method">, st
   integracion: "Integración",
 };
 
+/** Resultado de una invitación por correo a un candidato de la base de talentos. */
+export const TALENT_INVITATION_OUTCOME_LABELS: Record<Enums<"talent_invitation_outcome">, string> = {
+  enviada: "Enviada",
+  sin_correo: "No enviada: sin correo",
+  consentimiento_revocado: "No enviada: consentimiento revocado",
+  error: "Falló el envío",
+};
+
 /** Autor de eventos y evaluaciones sin usuario (integraciones). */
 export const SYSTEM_ACTOR_LABEL = "Sistema (integración)";
 

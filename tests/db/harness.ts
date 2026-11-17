@@ -46,7 +46,7 @@ export async function asActor<T>(db: PGlite, actor: Actor, fn: () => Promise<T>)
 export const user = (id: string): Actor => ({ kind: "user", id });
 export const anon: Actor = { kind: "anon" };
 
-type Role = "admin" | "rrhh";
+type Role = "admin" | "rrhh" | "reclutador_caleta";
 
 export async function createUser(
   db: PGlite,

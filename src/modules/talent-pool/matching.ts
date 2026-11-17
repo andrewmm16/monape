@@ -6,6 +6,8 @@ import {
   candidateIdsByResumeText,
   candidateIdsBySkill,
   consentByCandidate,
+  sentInvitationsForVacancy,
+  type SentInvitation,
   type TalentConsentState,
 } from "./queries";
 import { accentInsensitivePattern } from "./text";
@@ -45,6 +47,8 @@ export type SuggestedCandidate = {
   matchCount: number;
   matchedTerms: string[];
   consent: TalentConsentState;
+  /** Invitación ya enviada para ESTA vacante (si la hay). */
+  invitation: SentInvitation | null;
 };
 
 /**
@@ -99,10 +103,11 @@ export async function suggestCandidatesForVacancy(
   const availableIds = matchedIds.filter((id) => !blocked.has(id));
   if (availableIds.length === 0) return [];
 
-  // 4. Datos de los candidatos + consentimiento de cartera.
-  const [{ data: candidates, error: candError }, consent] = await Promise.all([
+  // 4. Datos de los candidatos + consentimiento de cartera + invitaciones ya enviadas.
+  const [{ data: candidates, error: candError }, consent, invitations] = await Promise.all([
     supabase.from("candidates").select("id, full_name, email, location").in("id", availableIds),
     consentByCandidate(supabase, availableIds),
+    sentInvitationsForVacancy(supabase, vacancyId, availableIds),
   ]);
   if (candError) throw toAppError(candError);
 
@@ -116,6 +121,7 @@ export async function suggestCandidatesForVacancy(
       matchCount: matchedTerms.length,
       matchedTerms,
       consent: consent.get(candidate.id) ?? "sin",
+      invitation: invitations.get(candidate.id) ?? null,
     };
   });
   rows.sort((a, b) => b.matchCount - a.matchCount || a.full_name.localeCompare(b.full_name));

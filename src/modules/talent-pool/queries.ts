@@ -1,6 +1,7 @@
 import "server-only";
 import { toAppError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
+import type { Enums } from "@/types/database";
 import type { TalentFilters } from "./schema";
 import { accentInsensitivePattern, normalizeName, splitSkills } from "./text";
 
@@ -123,6 +124,122 @@ export async function getCandidateConsent(
   candidateId: string,
 ): Promise<TalentConsentState> {
   return (await consentByCandidate(supabase, [candidateId])).get(candidateId) ?? "sin";
+}
+
+/** Nombres de usuarios internos (quién invitó o reactivó). */
+async function profileNames(supabase: AppSupabaseClient, ids: (string | null)[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter((id): id is string => !!id))];
+  const map = new Map<string, string>();
+  if (unique.length === 0) return map;
+  const { data, error } = await supabase.from("profiles").select("id, full_name, email").in("id", unique);
+  if (error) throw toAppError(error);
+  for (const row of data ?? []) map.set(row.id, row.full_name || row.email || "Usuario");
+  return map;
+}
+
+export type TalentInvitationOutcome = Enums<"talent_invitation_outcome">;
+
+/** Un contacto desde la base de talentos: una invitación por correo o una reactivación. */
+export type ContactEvent =
+  | {
+      kind: "invitacion";
+      id: string;
+      at: string;
+      vacancyId: string;
+      vacancyTitle: string | null;
+      byName: string | null;
+      outcome: TalentInvitationOutcome;
+    }
+  | {
+      kind: "reactivacion";
+      id: string;
+      at: string;
+      vacancyId: string;
+      vacancyTitle: string | null;
+      byName: string | null;
+    };
+
+const vacancyTitleOf = (value: unknown): string | null => {
+  const row = Array.isArray(value) ? value[0] : value;
+  return row && typeof row === "object" && "title" in row && typeof row.title === "string" ? row.title : null;
+};
+
+/**
+ * Historial de contacto de un candidato desde la base de talentos: invitaciones
+ * (con su resultado) y reactivaciones en vacantes, de la más reciente a la más antigua.
+ */
+export async function listCandidateContactHistory(
+  supabase: AppSupabaseClient,
+  candidateId: string,
+): Promise<ContactEvent[]> {
+  const [invitations, reactivations] = await Promise.all([
+    supabase
+      .from("talent_invitations")
+      .select("id, vacancy_id, outcome, sent_by, created_at, vacancies(title)")
+      .eq("candidate_id", candidateId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("applications")
+      .select("id, vacancy_id, created_by, created_at, vacancies(title)")
+      .eq("candidate_id", candidateId)
+      .eq("intake_method", "cartera")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+  if (invitations.error) throw toAppError(invitations.error);
+  if (reactivations.error) throw toAppError(reactivations.error);
+
+  const names = await profileNames(supabase, [
+    ...(invitations.data ?? []).map((row) => row.sent_by),
+    ...(reactivations.data ?? []).map((row) => row.created_by),
+  ]);
+  const events: ContactEvent[] = [
+    ...(invitations.data ?? []).map((row) => ({
+      kind: "invitacion" as const,
+      id: row.id,
+      at: row.created_at,
+      vacancyId: row.vacancy_id,
+      vacancyTitle: vacancyTitleOf(row.vacancies),
+      byName: row.sent_by ? (names.get(row.sent_by) ?? null) : null,
+      outcome: row.outcome,
+    })),
+    ...(reactivations.data ?? []).map((row) => ({
+      kind: "reactivacion" as const,
+      id: row.id,
+      at: row.created_at,
+      vacancyId: row.vacancy_id,
+      vacancyTitle: vacancyTitleOf(row.vacancies),
+      byName: row.created_by ? (names.get(row.created_by) ?? null) : null,
+    })),
+  ];
+  return events.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+export type SentInvitation = { at: string; byName: string | null };
+
+/** Última invitación ENVIADA a cada candidato para una vacante (para no escribirle dos veces). */
+export async function sentInvitationsForVacancy(
+  supabase: AppSupabaseClient,
+  vacancyId: string,
+  candidateIds: string[],
+): Promise<Map<string, SentInvitation>> {
+  const map = new Map<string, SentInvitation>();
+  if (candidateIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from("talent_invitations")
+    .select("candidate_id, sent_by, created_at")
+    .eq("vacancy_id", vacancyId)
+    .eq("outcome", "enviada")
+    .in("candidate_id", candidateIds)
+    .order("created_at", { ascending: false });
+  if (error) throw toAppError(error);
+  const names = await profileNames(supabase, (data ?? []).map((row) => row.sent_by));
+  for (const row of data ?? []) {
+    if (map.has(row.candidate_id)) continue; // la primera es la más reciente
+    map.set(row.candidate_id, { at: row.created_at, byName: row.sent_by ? (names.get(row.sent_by) ?? null) : null });
+  }
+  return map;
 }
 
 export type TalentRow = {

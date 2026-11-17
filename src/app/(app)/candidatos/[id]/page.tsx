@@ -8,6 +8,7 @@ import { PrivacySection } from "@/components/candidates/privacy-section";
 import { ProfileItemsSection } from "@/components/candidates/profile-items-section";
 import { ResumesSection } from "@/components/candidates/resumes-section";
 import { PageHeader } from "@/components/common/page-header";
+import { ContactHistory } from "@/components/talent/contact-history";
 import { ReactivateCandidateDialog } from "@/components/talent/reactivate-candidate-dialog";
 import { TalentConsentBadge } from "@/components/talent/talent-consent-badge";
 import { TalentTagsManager } from "@/components/talent/talent-tags-manager";
@@ -26,7 +27,13 @@ import {
   listResumes,
 } from "@/modules/candidates/queries";
 import { listCandidateConsents } from "@/modules/privacy/queries";
-import { getCandidateConsent, getCandidateTags, listReactivableVacancies, listTalentTags } from "@/modules/talent-pool/queries";
+import {
+  getCandidateConsent,
+  getCandidateTags,
+  listCandidateContactHistory,
+  listReactivableVacancies,
+  listTalentTags,
+} from "@/modules/talent-pool/queries";
 import { listOpenVacancies } from "@/modules/vacancies/queries";
 
 export const metadata: Metadata = { title: "Ficha del candidato" };
@@ -43,7 +50,19 @@ export default async function CandidatePage({ params }: PageProps<"/candidatos/[
   });
   const canManage = can(user.role, "candidates:manage");
 
-  const [resumes, items, applications, consents, duplicates, openVacancies, candidateTags, allTags, talentConsent, reactivableVacancies] = await Promise.all([
+  const [
+    resumes,
+    items,
+    applications,
+    consents,
+    duplicates,
+    openVacancies,
+    candidateTags,
+    allTags,
+    talentConsent,
+    reactivableVacancies,
+    contactHistory,
+  ] = await Promise.all([
     listResumes(supabase, candidate.id),
     listProfileItems(supabase, candidate.id),
     listCandidateApplications(supabase, candidate.id),
@@ -56,6 +75,7 @@ export default async function CandidatePage({ params }: PageProps<"/candidatos/[
     canManage ? listTalentTags(supabase) : Promise.resolve([]),
     canManage ? getCandidateConsent(supabase, candidate.id) : Promise.resolve(null),
     canManage ? listReactivableVacancies(supabase) : Promise.resolve([]),
+    canManage ? listCandidateContactHistory(supabase, candidate.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -104,6 +124,17 @@ export default async function CandidatePage({ params }: PageProps<"/candidatos/[
                   <ReactivateCandidateDialog candidateId={candidate.id} vacancies={reactivableVacancies} />
                 </div>
                 <TalentTagsManager candidateId={candidate.id} tags={candidateTags} allTags={allTags} />
+              </CardContent>
+            </Card>
+          ) : null}
+          {canManage ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Historial de contacto</CardTitle>
+                <CardDescription>Invitaciones por correo y reactivaciones desde la base de talentos.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ContactHistory events={contactHistory} />
               </CardContent>
             </Card>
           ) : null}

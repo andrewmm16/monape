@@ -972,6 +972,35 @@ export type Database = {
           },
         ]
       }
+      email_settings: {
+        Row: {
+          id: boolean
+          reply_to: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          reply_to?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          reply_to?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           body: string
@@ -1804,6 +1833,58 @@ export type Database = {
           },
         ]
       }
+      talent_invitations: {
+        Row: {
+          batch_id: string
+          candidate_id: string
+          created_at: string
+          id: string
+          outcome: Database["public"]["Enums"]["talent_invitation_outcome"]
+          sent_by: string | null
+          vacancy_id: string
+        }
+        Insert: {
+          batch_id: string
+          candidate_id: string
+          created_at?: string
+          id?: string
+          outcome: Database["public"]["Enums"]["talent_invitation_outcome"]
+          sent_by?: string | null
+          vacancy_id: string
+        }
+        Update: {
+          batch_id?: string
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["talent_invitation_outcome"]
+          sent_by?: string | null
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_invitations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_invitations_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_invitations_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_tags: {
         Row: {
           color: string | null
@@ -2131,6 +2212,13 @@ export type Database = {
           p_vacancy_id: string | null
         }
         Returns: string
+      }
+      add_candidates_to_vacancy: {
+        Args: {
+          p_vacancy_id: string | null
+          p_candidate_ids: string[] | null
+        }
+        Returns: Json
       }
       ai_claim_job: {
         Args: never
@@ -2508,6 +2596,14 @@ export type Database = {
         }
         Returns: string
       }
+      record_talent_invitations: {
+        Args: {
+          p_vacancy_id: string | null
+          p_items: Json | null
+          p_already_invited?: number | null
+        }
+        Returns: string
+      }
       register_batch_item: {
         Args: {
           p_item_id: string | null
@@ -2759,6 +2855,7 @@ export type Database = {
       requirement_priority: "obligatorio" | "deseable"
       salary_period: "hora" | "dia" | "semana" | "mes" | "anio"
       scorecard_recommendation: "avanza" | "duda" | "no_avanza"
+      talent_invitation_outcome: "enviada" | "sin_correo" | "consentimiento_revocado" | "error"
       vacancy_status: "borrador" | "publicada" | "cerrada" | "archivada"
       verification_source: "entrevista" | "documento" | "referencia" | "prueba_tecnica" | "otro"
       work_modality: "presencial" | "remoto" | "hibrido"
@@ -2816,6 +2913,7 @@ export const Constants = {
       requirement_priority: ["obligatorio", "deseable"],
       salary_period: ["hora", "dia", "semana", "mes", "anio"],
       scorecard_recommendation: ["avanza", "duda", "no_avanza"],
+      talent_invitation_outcome: ["enviada", "sin_correo", "consentimiento_revocado", "error"],
       vacancy_status: ["borrador", "publicada", "cerrada", "archivada"],
       verification_source: ["entrevista", "documento", "referencia", "prueba_tecnica", "otro"],
       work_modality: ["presencial", "remoto", "hibrido"],

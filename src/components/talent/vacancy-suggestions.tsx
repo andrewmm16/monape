@@ -17,10 +17,26 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TalentConsentBadge } from "@/components/talent/talent-consent-badge";
-import { addCandidatesToVacancy, inviteCandidatesToVacancy } from "@/modules/talent-pool/actions";
+import { formatDate } from "@/lib/format";
+import { addCandidatesToVacancy, inviteCandidatesToVacancy, type BatchInviteResult } from "@/modules/talent-pool/actions";
 import type { SuggestedCandidate } from "@/modules/talent-pool/matching";
 
 type BatchAction = "invite" | "add";
+
+/** Resumen del lote de invitaciones: solo las cifras que no son cero. */
+function inviteSummary(result: BatchInviteResult): string {
+  const parts = [
+    [result.invited, "invitado", "invitados"],
+    [result.skippedAlreadyInvited, "ya estaba invitado", "ya estaban invitados"],
+    [result.skippedNoEmail, "sin correo", "sin correo"],
+    [result.skippedRevoked, "sin consentimiento", "sin consentimiento"],
+    [result.failed, "con error de envío", "con error de envío"],
+  ] as const;
+  const text = parts
+    .filter(([count]) => count > 0)
+    .map(([count, one, many]) => `${count} ${count === 1 ? one : many}`);
+  return text.length > 0 ? text.join(" · ") : "No se envió ninguna invitación.";
+}
 
 /** Candidatos de la base que encajan con la vacante, con acciones en lote (invitar o añadir al proceso). */
 export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: string; candidates: SuggestedCandidate[] }) {
@@ -57,10 +73,7 @@ export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: strin
         if (!result.ok) {
           toast.error(result.error);
         } else {
-          const { invited, skippedNoEmail, skippedRevoked, failed } = result.data;
-          toast.success(
-            `${invited} invitados · ${skippedNoEmail} sin correo · ${skippedRevoked} sin consentimiento · ${failed} con error`,
-          );
+          toast.success(inviteSummary(result.data));
           setSelected(new Set());
           router.refresh();
         }
@@ -71,7 +84,8 @@ export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: strin
         } else {
           const { added, failed } = result.data;
           toast.success(
-            `${added} añadidos` + (failed.length > 0 ? ` · ${failed.length} no se pudieron (${failed[0].reason})` : ""),
+            `${added} ${added === 1 ? "añadido" : "añadidos"}` +
+              (failed.length > 0 ? ` · ${failed.length} no se ${failed.length === 1 ? "pudo" : "pudieron"} (${failed[0].reason})` : ""),
           );
           setSelected(new Set());
           router.refresh();
@@ -125,6 +139,12 @@ export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: strin
               <TableCell>
                 <div className="font-medium">{candidate.full_name}</div>
                 {candidate.email === null ? <div className="text-xs text-muted-foreground">sin correo</div> : null}
+                {candidate.invitation ? (
+                  <div className="text-xs text-muted-foreground">
+                    Invitado el {formatDate(candidate.invitation.at)}
+                    {candidate.invitation.byName ? ` por ${candidate.invitation.byName}` : ""}
+                  </div>
+                ) : null}
               </TableCell>
               <TableCell>{candidate.location || "—"}</TableCell>
               <TableCell>
@@ -154,7 +174,7 @@ export function VacancySuggestions({ vacancyId, candidates }: { vacancyId: strin
             <AlertDialogTitle>{confirming === "invite" ? "Invitar por correo" : "Añadir al proceso"}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirming === "invite"
-                ? `Se enviará un correo real a los ${count} candidatos seleccionados que tengan correo y consentimiento vigente.`
+                ? `Se enviará un correo real a los ${count} candidatos seleccionados que tengan correo y consentimiento vigente. Quienes ya fueron invitados a esta vacante se omiten, y cada envío queda en su historial de contacto.`
                 : `Se añadirán ${count} candidatos seleccionados al proceso de esta vacante.`}
             </AlertDialogDescription>
           </AlertDialogHeader>

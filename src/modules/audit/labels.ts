@@ -3,6 +3,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import {
   APPLICATION_STATUS_LABELS,
   EMPLOYMENT_TYPE_LABELS,
+  INTAKE_METHOD_LABELS,
   INTERVIEW_MODALITY_LABELS,
   INTERVIEW_RESULT_LABELS,
   INTERVIEW_STATUS_LABELS,
@@ -11,6 +12,7 @@ import {
   PORTAL_ERROR_LABELS,
   REQUIREMENT_CATEGORY_LABELS,
   REQUIREMENT_PRIORITY_LABELS,
+  TALENT_INVITATION_OUTCOME_LABELS,
   VACANCY_STATUS_LABELS,
 } from "@/lib/labels";
 
@@ -22,6 +24,10 @@ export const AUDIT_GROUPS = {
     entities: ["applications", "candidate_evaluations", "requirement_verifications"],
   },
   candidatos: { label: "Candidatos", entities: ["candidates", "candidate_profile_items"] },
+  talento: {
+    label: "Base de talentos",
+    entities: ["talent_tags", "candidate_tags", "talent_invitations", "talent_pool"],
+  },
   cv: { label: "CV", entities: ["resumes", "resume_extractions"] },
   entrevistas: { label: "Entrevistas", entities: ["interviews"] },
   usuarios: { label: "Usuarios", entities: ["profiles"] },
@@ -48,6 +54,9 @@ const ENTITY_NOUNS: Record<string, string> = {
   privacy_notices: "un aviso de privacidad",
   consent_records: "una constancia de consentimiento",
   portal_publications: "una publicación en un portal",
+  talent_tags: "una etiqueta de la base de talentos",
+  candidate_tags: "una etiqueta de un candidato",
+  talent_invitations: "una invitación de la base de talentos",
 };
 
 const ROW_VERBS: Record<string, string> = { insert: "Creó", update: "Modificó", delete: "Eliminó" };
@@ -106,7 +115,11 @@ const FIELD_LABELS: Record<string, string> = {
   review_outcome: "resultado de revisión", review_notes: "notas de revisión", is_current: "versión vigente", body: "texto",
   effective_from: "vigente desde", approval_reference: "referencia de aprobación", granted: "consentimiento otorgado",
   revoked_at: "fecha de revocación", note: "nota", error_code: "código de error", external_id: "código en el portal",
-  external_url: "enlace en el portal",
+  external_url: "enlace en el portal", intake_method: "origen", name: "nombre", color: "color",
+};
+
+const TAG_COLOR_LABELS: Record<string, string> = {
+  slate: "gris", green: "verde", blue: "azul", amber: "ámbar", red: "rojo", orange: "naranja",
 };
 
 /** Ids que hay que resolver a nombres, agrupados por tabla. */
@@ -122,6 +135,11 @@ export function collectIds(entries: readonly AuditEntry[]) {
     add("vacancies", meta.vacancy_id);
     add("portals", meta.portal_id);
     add("candidates", meta.candidate_id);
+    // Lotes de la base de talentos: listas de candidatos añadidos y fallidos.
+    for (const key of ["candidate_ids", "failed_ids"]) {
+      const list = meta[key];
+      if (Array.isArray(list)) for (const id of list) add("candidates", id);
+    }
     add("applications", meta.application_id);
     add("portal_publications", meta.publication_id);
   }
@@ -158,10 +176,40 @@ function linkFor(entry: AuditEntry, metadata: Record<string, unknown>): string |
     if (entry.entity_type === "candidates" && id) return `/candidatos/${id}`;
   }
   const vacancyId = uuidOf(metadata.vacancy_id);
-  if (entry.entity_type === "portal_publications" && vacancyId) return `/vacantes/${vacancyId}`;
+  if ((entry.entity_type === "portal_publications" || entry.entity_type === "talent_pool") && vacancyId) {
+    return `/vacantes/${vacancyId}`;
+  }
   const candidateId = uuidOf(metadata.candidate_id);
-  if (entry.entity_type === "resumes" && candidateId) return `/candidatos/${candidateId}`;
+  if (
+    (entry.entity_type === "resumes" || entry.entity_type === "talent_invitations" || entry.entity_type === "candidate_tags") &&
+    candidateId
+  ) {
+    return `/candidatos/${candidateId}`;
+  }
   return null;
+}
+
+const countOf = (value: unknown): number => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+const tagOf = (metadata: Record<string, unknown>) => (typeof metadata.tag === "string" && metadata.tag ? `«${metadata.tag}»` : null);
+const isReactivation = (metadata: Record<string, unknown>) => asRecord(metadata.values).intake_method === "cartera";
+
+/** «N de M enviadas» de un lote de invitaciones (M = total del lote). */
+function invitationBatchCount(metadata: Record<string, unknown>): string {
+  const sent = countOf(metadata.enviada);
+  const total =
+    countOf(metadata.total) ||
+    sent + countOf(metadata.sin_correo) + countOf(metadata.consentimiento_revocado) + countOf(metadata.error);
+  return `${sent} de ${total} ${total === 1 ? "enviada" : "enviadas"}`;
+}
+
+/** Frase de una invitación de la base según su resultado; `who` y `forVacancy` se omiten si no se conocen. */
+function invitationPhrase(outcome: unknown, who: string, forVacancy: string): string {
+  if (outcome === "enviada") return `Invitó por correo a ${who} a postular${forVacancy}`;
+  if (outcome === "sin_correo") return `No pudo invitar a ${who}${forVacancy}: no tiene correo`;
+  if (outcome === "consentimiento_revocado") return `No invitó a ${who}${forVacancy} porque revocó su consentimiento`;
+  if (outcome === "error") return `Falló el envío de la invitación a ${who}${forVacancy}`;
+  return `Registró una invitación a ${who}${forVacancy}`;
 }
 
 type Resolved = {
@@ -221,8 +269,18 @@ function describeNamed(entry: AuditEntry, metadata: Record<string, unknown>, r: 
   if (action === "publicacion_portal_retirada" && v) return `El robot retiró la vacante ${v} de ${portal ?? "un portal"}`;
   if (action === "publicacion_portal_error" && v) return `El robot falló al trabajar la vacante ${v}${portal ? ` en ${portal}` : ""}`;
   if (action === "reporte_exportado" && v) return `Exportó a CSV el reporte de postulaciones de ${v}`;
+  if (action === "reactivacion_cartera_lote" && v) {
+    return `Añadió ${plural(countOf(metadata.added), "candidato", "candidatos")} de la base de talentos a la vacante ${v}`;
+  }
+  if (action === "invitacion_cartera_lote" && v) {
+    return `Invitó a candidatos de la base para la vacante ${v}: ${invitationBatchCount(metadata)}`;
+  }
   const to = v ? ` a ${v}` : "";
   if (r.candidate) {
+    if (action === "invitacion_cartera") return invitationPhrase(metadata.outcome, r.candidate, v ? ` para la vacante ${v}` : "");
+    const tag = tagOf(metadata);
+    if (action === "etiqueta_asignada" && tag) return `Asignó la etiqueta ${tag} a ${r.candidate}`;
+    if (action === "etiqueta_quitada" && tag) return `Quitó la etiqueta ${tag} a ${r.candidate}`;
     if (action === "cv_descargado") return `Descargó el CV de ${r.candidate}`;
     if (action === "carga_masiva") return `Cargó en lote la postulación de ${r.candidate}${to}`;
     if (action === "integracion_postulacion") return `Recibió por una integración la postulación de ${r.candidate}${to}`;
@@ -254,6 +312,9 @@ function describeNamed(entry: AuditEntry, metadata: Record<string, unknown>, r: 
     if (verb) return `${verb} un requisito de la vacante ${v}`;
   }
   if (entity === "applications" && r.candidate) {
+    if (action === "insert" && isReactivation(metadata)) {
+      return `Reactivó desde la base de talentos a ${r.candidate}${v ? ` en la vacante ${v}` : ""}`;
+    }
     if (action === "insert") return `Registró la postulación de ${r.candidate}${to}`;
     const status = change(metadata, "status");
     if (action === "update" && status) {
@@ -275,6 +336,8 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   "vacancy_requirements.category": REQUIREMENT_CATEGORY_LABELS,
   "vacancy_requirements.priority": REQUIREMENT_PRIORITY_LABELS,
   "profiles.role": ROLE_LABELS,
+  "applications.intake_method": INTAKE_METHOD_LABELS,
+  "talent_tags.color": TAG_COLOR_LABELS,
 };
 
 /** Valor guardado en el registro, escrito para una persona (Sí/No, fechas y etiquetas en español). */
@@ -295,8 +358,46 @@ function formatValue(entity: string, field: string, value: unknown): string {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/** Nombres de una lista de candidatos (lotes de la base); a lo sumo 10 y «y N más». */
+function candidateNames(value: unknown, ctx: AuditContext | undefined): string | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const names = value.flatMap((id) => {
+    const uuid = uuidOf(id);
+    return uuid ? [ctx?.candidates[uuid] ?? "candidato ya eliminado"] : [];
+  });
+  if (names.length === 0) return null;
+  const shown = names.slice(0, 10).join(", ");
+  return names.length > 10 ? `${shown} y ${names.length - 10} más` : shown;
+}
+
+/** Líneas propias de la base de talentos: resultado de cada invitación y cifras de los lotes. */
+function talentDetails(entry: AuditEntry, metadata: Record<string, unknown>, ctx: AuditContext | undefined): string[] {
+  const lines: string[] = [];
+  if (entry.action === "invitacion_cartera" && typeof metadata.outcome === "string") {
+    lines.push(`Resultado: ${labelOf(TALENT_INVITATION_OUTCOME_LABELS, metadata.outcome)}`);
+  }
+  if (entry.action === "invitacion_cartera_lote") {
+    const parts = [
+      `Enviadas: ${countOf(metadata.enviada)}`,
+      `Sin correo: ${countOf(metadata.sin_correo)}`,
+      `Consentimiento revocado: ${countOf(metadata.consentimiento_revocado)}`,
+      `Con error: ${countOf(metadata.error)}`,
+    ];
+    if (countOf(metadata.already_invited) > 0) parts.push(`Ya invitados antes: ${countOf(metadata.already_invited)}`);
+    lines.push(parts.join(" · "));
+  }
+  if (entry.action === "reactivacion_cartera_lote") {
+    lines.push(`Añadidos: ${countOf(metadata.added)} · No se pudieron: ${countOf(metadata.failed)}`);
+    const added = candidateNames(metadata.candidate_ids, ctx);
+    if (added) lines.push(`Candidatos añadidos: ${added}`);
+    const failed = candidateNames(metadata.failed_ids, ctx);
+    if (failed) lines.push(`No se pudieron añadir: ${failed}`);
+  }
+  return lines;
+}
+
 /** Líneas bajo la frase: vacante, portal, candidato, usuario, requisito, campos cambiados y motivo de error. */
-function describeDetails(entry: AuditEntry, metadata: Record<string, unknown>, r: Resolved): string[] {
+function describeDetails(entry: AuditEntry, metadata: Record<string, unknown>, r: Resolved, ctx?: AuditContext): string[] {
   const lines: string[] = [];
   if (r.vacancy) lines.push(`Vacante: ${quoted(r.vacancy)}${r.vacancyCode ? ` (código ${r.vacancyCode})` : ""}`);
   if (r.portal) lines.push(`Portal: ${r.portal}`);
@@ -331,6 +432,7 @@ function describeDetails(entry: AuditEntry, metadata: Record<string, unknown>, r
   if (typeof metadata.error_code === "string" && metadata.error_code) {
     lines.push(`Motivo del error: ${PORTAL_ERROR_LABELS[metadata.error_code] ?? metadata.error_code}`);
   }
+  lines.push(...talentDetails(entry, metadata, ctx));
   if (entry.entity_id) lines.push(`Registro: ${entry.entity_type} · ${entry.entity_id.slice(0, 8)}`);
   return lines;
 }
@@ -355,6 +457,24 @@ function describeText(entry: AuditEntry, metadata: Record<string, unknown>): str
   if (action === "publicacion_portal_publicada") return "El robot publicó una oferta en un portal";
   if (action === "publicacion_portal_retirada") return "El robot retiró una oferta de un portal";
   if (action === "publicacion_portal_error") return "El robot informó un error al trabajar en un portal";
+
+  const tag = tagOf(metadata);
+  if (action === "etiqueta_creada") return tag ? `Creó la etiqueta ${tag} en la base de talentos` : "Creó una etiqueta en la base de talentos";
+  if (action === "etiqueta_modificada") return tag ? `Modificó la etiqueta ${tag}` : "Modificó una etiqueta de la base de talentos";
+  if (action === "etiqueta_eliminada") return tag ? `Eliminó la etiqueta ${tag}` : "Eliminó una etiqueta de la base de talentos";
+  if (action === "etiqueta_asignada") return tag ? `Asignó la etiqueta ${tag} a un candidato` : "Asignó una etiqueta a un candidato";
+  if (action === "etiqueta_quitada") return tag ? `Quitó la etiqueta ${tag} a un candidato` : "Quitó una etiqueta a un candidato";
+  if (action === "invitacion_cartera") return invitationPhrase(metadata.outcome, "un candidato de la base", "");
+  if (action === "invitacion_cartera_lote") return `Invitó a candidatos de la base: ${invitationBatchCount(metadata)}`;
+  // Registros antiguos del disparador genérico sobre candidate_tags.
+  if (entity === "candidate_tags" && action === "insert") return "Asignó una etiqueta a un candidato";
+  if (entity === "candidate_tags" && action === "delete") return "Quitó una etiqueta a un candidato";
+  if (action === "reactivacion_cartera_lote") {
+    return `Añadió ${plural(countOf(metadata.added), "candidato", "candidatos")} de la base de talentos a una vacante`;
+  }
+  if (entity === "applications" && action === "insert" && isReactivation(metadata)) {
+    return "Reactivó a un candidato desde la base de talentos";
+  }
 
   const noun = ENTITY_NOUNS[entity];
   const verb = ROW_VERBS[action];
@@ -385,6 +505,6 @@ export function describeAuditEntry(entry: AuditEntry, ctx?: AuditContext): Audit
     // Sin frase conocida se muestra el nombre técnico: nada queda oculto.
     text: (ctx ? describeNamed(entry, metadata, resolved) : null) ?? describeText(entry, metadata) ?? `${entry.action} · ${entry.entity_type}`,
     href: linkFor(entry, metadata),
-    details: ctx ? describeDetails(entry, metadata, resolved) : [],
+    details: ctx ? describeDetails(entry, metadata, resolved, ctx) : [],
   };
 }

@@ -177,3 +177,112 @@ describe("describeAuditEntry con valor anterior y nuevo", () => {
     expect(details).toContain("Datos: descripción: Excel avanzado · prioridad: Obligatorio");
   });
 });
+
+describe("describeAuditEntry de la base de talentos", () => {
+  const VAC = "11111111-1111-4111-8111-111111111111";
+  const CAND = "33333333-3333-4333-8333-333333333333";
+  const CAND2 = "66666666-6666-4666-8666-666666666666";
+  const APP = "44444444-4444-4444-8444-444444444444";
+  const ctx = {
+    vacancies: { [VAC]: { title: "Desarrollador Full Stack", code: null } },
+    portals: {},
+    candidates: { [CAND]: "Valeria Ríos", [CAND2]: "Andrés Paredes" },
+    profiles: {},
+    requirements: {},
+    links: { [`applications:${APP}`]: { candidateId: CAND, vacancyId: VAC } },
+  };
+
+  it("la reactivación desde la base tiene frase propia y muestra el origen en español", () => {
+    const result = describeAuditEntry(
+      { action: "insert", entity_type: "applications", entity_id: APP, metadata: { values: { status: "nuevo", intake_method: "cartera" } } },
+      ctx,
+    );
+    expect(result.text).toBe("Reactivó desde la base de talentos a Valeria Ríos en la vacante «Desarrollador Full Stack»");
+    expect(result.details).toContain("Datos: estado: Nuevo · origen: Base de talentos");
+    expect(
+      describeAuditEntry({ action: "insert", entity_type: "applications", entity_id: APP, metadata: { values: { intake_method: "cartera" } } }).text,
+    ).toBe("Reactivó a un candidato desde la base de talentos");
+  });
+
+  it("cada invitación dice a quién, para qué vacante y su resultado, y enlaza al candidato", () => {
+    const meta = (outcome: string) => ({ candidate_id: CAND, vacancy_id: VAC, outcome });
+    const entry = (outcome: string) => ({ action: "invitacion_cartera", entity_type: "talent_invitations", entity_id: ID, metadata: meta(outcome) });
+    expect(describeAuditEntry(entry("enviada"), ctx).text).toBe(
+      "Invitó por correo a Valeria Ríos a postular para la vacante «Desarrollador Full Stack»",
+    );
+    expect(describeAuditEntry(entry("consentimiento_revocado"), ctx).text).toBe(
+      "No invitó a Valeria Ríos para la vacante «Desarrollador Full Stack» porque revocó su consentimiento",
+    );
+    expect(describeAuditEntry(entry("sin_correo")).text).toBe("No pudo invitar a un candidato de la base: no tiene correo");
+    const sent = describeAuditEntry(entry("error"), ctx);
+    expect(sent.details).toContain("Resultado: Falló el envío");
+    expect(sent.href).toBe(`/candidatos/${CAND}`);
+  });
+
+  it("los lotes resumen cifras y nombran a los candidatos añadidos y fallidos", () => {
+    const added = describeAuditEntry(
+      {
+        action: "reactivacion_cartera_lote",
+        entity_type: "talent_pool",
+        entity_id: ID,
+        metadata: { vacancy_id: VAC, added: 1, failed: 1, candidate_ids: [CAND], failed_ids: [CAND2] },
+      },
+      ctx,
+    );
+    expect(added.text).toBe("Añadió 1 candidato de la base de talentos a la vacante «Desarrollador Full Stack»");
+    expect(added.href).toBe(`/vacantes/${VAC}`);
+    expect(added.details).toContain("Añadidos: 1 · No se pudieron: 1");
+    expect(added.details).toContain("Candidatos añadidos: Valeria Ríos");
+    expect(added.details).toContain("No se pudieron añadir: Andrés Paredes");
+
+    const invited = describeAuditEntry(
+      {
+        action: "invitacion_cartera_lote",
+        entity_type: "talent_pool",
+        entity_id: ID,
+        metadata: { vacancy_id: VAC, total: 4, enviada: 3, sin_correo: 1, consentimiento_revocado: 0, error: 0, already_invited: 2 },
+      },
+      ctx,
+    );
+    expect(invited.text).toBe("Invitó a candidatos de la base para la vacante «Desarrollador Full Stack»: 3 de 4 enviadas");
+    expect(
+      describeAuditEntry({ action: "invitacion_cartera_lote", entity_type: "talent_pool", entity_id: ID, metadata: { total: 2, error: 2 } }).text,
+    ).toBe("Invitó a candidatos de la base: 0 de 2 enviadas");
+    expect(invited.details).toContain("Enviadas: 3 · Sin correo: 1 · Consentimiento revocado: 0 · Con error: 0 · Ya invitados antes: 2");
+  });
+
+  it("las etiquetas se describen con su nombre", () => {
+    expect(
+      describeAuditEntry({ action: "etiqueta_creada", entity_type: "talent_tags", entity_id: ID, metadata: { tag: "Finalista", color: "orange" } }).text,
+    ).toBe("Creó la etiqueta «Finalista» en la base de talentos");
+    expect(
+      describeAuditEntry(
+        { action: "etiqueta_asignada", entity_type: "candidate_tags", entity_id: ID, metadata: { candidate_id: CAND, tag: "Finalista" } },
+        ctx,
+      ).text,
+    ).toBe("Asignó la etiqueta «Finalista» a Valeria Ríos");
+    const renamed = describeAuditEntry(
+      {
+        action: "etiqueta_modificada",
+        entity_type: "talent_tags",
+        entity_id: ID,
+        metadata: { tag: "Volver a llamar", changes: { name: { from: "Recontratar", to: "Volver a llamar" }, color: { from: "orange", to: "red" } } },
+      },
+      ctx,
+    );
+    expect(renamed.text).toBe("Modificó la etiqueta «Volver a llamar»");
+    expect(renamed.details).toContain("Nombre: Recontratar → Volver a llamar");
+    expect(renamed.details).toContain("Color: naranja → rojo");
+    // Registros antiguos (disparador genérico, sin datos) siguen siendo legibles.
+    expect(describeAuditEntry({ action: "insert", entity_type: "talent_tags", entity_id: ID, metadata: {} }).text).toBe(
+      "Creó una etiqueta de la base de talentos",
+    );
+    expect(describeAuditEntry({ action: "insert", entity_type: "candidate_tags", entity_id: ID, metadata: {} }).text).toBe(
+      "Asignó una etiqueta a un candidato",
+    );
+  });
+
+  it("el filtro acepta el grupo «talento»", () => {
+    expect(auditParamsSchema.parse({ group: "talento" }).group).toBe("talento");
+  });
+});
