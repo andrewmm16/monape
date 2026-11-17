@@ -481,8 +481,11 @@ describe("reglas-v3: formación y nivel", () => {
     const [basico] = evaluateWithRules("Manejo de Excel básico para reportes.", [excel]);
     expect(basico!.assessment).toBe("pendiente_verificacion");
     expect(basico!.rationale).toContain("nivel básico");
+    // reglas-v9: un rango que parte de básico y llega justo a lo pedido lo cumple a medias.
     const [intermedio] = evaluateWithRules("Excel básico-intermedio para reportes.", [excel]);
-    expect(intermedio!.assessment).toBe("acreditado");
+    expect(intermedio!.assessment).toBe("pendiente_verificacion");
+    const [intermedioPleno] = evaluateWithRules("Excel intermedio para reportes.", [excel]);
+    expect(intermedioPleno!.assessment).toBe("acreditado");
     const [avanzado] = evaluateWithRules("Excel avanzado con tablas dinámicas.", [excel]);
     expect(avanzado!.assessment).toBe("acreditado");
   });
@@ -542,8 +545,12 @@ describe("reglas-v4: huecos encontrados con el banco adversario", () => {
       "pendiente_verificacion",
     );
     expect(evaluateWithRules("Idiomas: inglés básico, francés avanzado.", [ingles])[0]!.assessment).toBe("pendiente_verificacion");
-    // Un rango declarado dentro del mismo ítem sí acredita.
-    expect(evaluateWithRules("Herramientas: Excel básico-intermedio, Word avanzado.", [excel])[0]!.assessment).toBe("acreditado");
+    // El rango se lee en su propio ítem: el «básico» de Word no arrastra al Excel...
+    expect(evaluateWithRules("Herramientas: Excel intermedio-avanzado, Word básico.", [excel])[0]!.assessment).toBe("acreditado");
+    // ...y el «avanzado» de Word tampoco eleva un Excel que parte de básico (reglas-v9).
+    expect(evaluateWithRules("Herramientas: Excel básico-intermedio, Word avanzado.", [excel])[0]!.assessment).toBe(
+      "pendiente_verificacion",
+    );
   });
 
   it("la sección de referencias no acredita nada: habla de otra persona", () => {
@@ -826,8 +833,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v8", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v8");
+  it("RULE_ENGINE_VERSION es reglas-v9", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v9");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {
@@ -842,5 +849,110 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.assessment).toBe("acreditado");
     expect(r.evidence).toHaveLength(1);
     expect(r.rationale).not.toContain("equivalencia");
+  });
+});
+
+describe("reglas-v7 a v9: conjuntos, nivel base, nivel no declarado, genéricos y rangos", () => {
+  const evalua = (texto: string, overrides: Partial<RequirementInput>) =>
+    evaluateWithRules(texto, [req("r", { category: "herramienta", ...overrides })])[0]!;
+
+  // v7 · requisitos conjuntivos
+  it("«S10 y MS Project» con solo uno queda pendiente y nombra lo que falta", () => {
+    const r = evalua("Manejo de S10 para presupuestos.", { description: "S10 y MS Project", keywords: ["S10", "MS Project"] });
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.rationale).toContain("no aparece: MS Project");
+  });
+
+  it("«S10 y MS Project» con ambos se acredita", () => {
+    const r = evalua("Manejo de S10 y MS Project en obra.", { description: "S10 y MS Project", keywords: ["S10", "MS Project"] });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  it("«o» es alternativa: con una de las dos basta", () => {
+    const r = evalua("Uso de SAP MM en almacén.", { description: "Manejo de WMS o SAP", keywords: ["WMS", "SAP"] });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  it("dos nombres comunes en minúscula unidos por «y» no se exigen a la vez", () => {
+    const r = evalua("Elaboración de planillas mensuales.", {
+      category: "habilidad_tecnica",
+      description: "Planillas y remuneraciones",
+      keywords: ["planillas", "remuneraciones"],
+    });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  // v7 · idioma buscado a secas aunque el término traiga el nivel
+  it("«Inglés básico (A2)» coincide con un término «Inglés intermedio» y queda pendiente", () => {
+    const r = evalua("Idiomas: Inglés básico (A2).", {
+      category: "idioma",
+      description: "Inglés intermedio o superior",
+      keywords: ["Inglés intermedio"],
+    });
+    expect(r.assessment).toBe("pendiente_verificacion");
+  });
+
+  it("«Inglés avanzado (C1)» acredita un «Inglés intermedio o superior»", () => {
+    const r = evalua("Idiomas: Inglés avanzado (C1).", {
+      category: "idioma",
+      description: "Inglés intermedio o superior",
+      keywords: ["Inglés intermedio"],
+    });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  // v8 · término base en habilidades
+  it("«Excel avanzado» como término encuentra «Excel básico» y lo deja pendiente", () => {
+    const r = evalua("Herramientas: Excel básico.", { description: "Excel avanzado", keywords: ["Excel avanzado"] });
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.rationale).toContain("nivel básico");
+  });
+
+  // v8 · nivel no declarado
+  it("herramienta sin nivel declarado y puesto que pide avanzado → pendiente", () => {
+    const r = evalua("Manejo de Excel para reportes.", { description: "Excel avanzado", keywords: ["Excel"] });
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.rationale).toContain("no declara el nivel");
+  });
+
+  it("si el puesto solo pide nivel usuario, mencionar la herramienta basta", () => {
+    const r = evalua("Manejo de Excel para reportes.", { description: "Excel a nivel usuario", keywords: ["Excel"] });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  // v8 · equivalencia en herramientas
+  it("«libros electrónicos» acredita PLE por equivalencia", () => {
+    const r = evalua("Elaboración de libros electrónicos.", { description: "Manejo de PLE", keywords: ["PLE"] });
+    expect(r.assessment).toBe("acreditado");
+    expect(r.rationale).toContain("equivalencia");
+  });
+
+  // v8 · categoría genérica vs concreta
+  it("solo «ERP» frente a un puesto que pide SAP → pendiente", () => {
+    const r = evalua("Manejo de ERP en compras.", { description: "Manejo de SAP", keywords: ["SAP"] });
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.rationale).toContain("categoría genérica");
+  });
+
+  it("con SAP concreto se acredita aunque también diga ERP", () => {
+    const r = evalua("Manejo del ERP SAP en compras.", { description: "Manejo de SAP", keywords: ["SAP"] });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  // v9 · rangos que parten de básico
+  it("«Excel básico-intermedio» frente a intermedio-avanzado → pendiente", () => {
+    const r = evalua("Herramientas: Excel básico-intermedio.", { description: "Excel intermedio-avanzado", keywords: ["Excel"] });
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.rationale).toContain("parte de básico");
+  });
+
+  it("«Excel intermedio-avanzado» cuenta como avanzado (decisión de RRHH)", () => {
+    const r = evalua("Herramientas: Excel intermedio-avanzado.", { description: "Excel avanzado", keywords: ["Excel"] });
+    expect(r.assessment).toBe("acreditado");
+  });
+
+  it("«Inglés básico-intermedio» frente a intermedio → pendiente", () => {
+    const r = evalua("Idiomas: Inglés básico-intermedio.", { category: "idioma", description: "Inglés intermedio", keywords: ["Inglés"] });
+    expect(r.assessment).toBe("pendiente_verificacion");
   });
 });

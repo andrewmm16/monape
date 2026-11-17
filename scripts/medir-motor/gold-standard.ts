@@ -10,6 +10,7 @@
 //   - acreditado           → cumple nivel y, si aplica, el mínimo de años.
 //   - pendiente (legal)     → requisito legal/esencial declarado (colegiaturas): RRHH verifica documento.
 //   - pendiente (parcial)   → hay evidencia pero por debajo de lo pedido (nivel/años/estudios en curso/"nociones").
+//   - pendiente (competencia) → competencia declarada en el CV: nunca se acredita por mención, se verifica en entrevista.
 //   - no_cumplido           → SOLO negación explícita ("no cuento con experiencia en X").
 //   - sin_evidencia         → no lo menciona.
 //
@@ -18,8 +19,8 @@
 
 import type { Assessment } from "../../src/modules/evaluation/types";
 
-/** Por qué un `pendiente_verificacion`: requisito legal, o cumplimiento parcial. */
-export type MotivoPendiente = "legal" | "parcial";
+/** Por qué un `pendiente_verificacion`: requisito legal, cumplimiento parcial o competencia declarada. */
+export type MotivoPendiente = "legal" | "parcial" | "competencia";
 
 export type GoldCell = {
   assessment: Assessment;
@@ -27,7 +28,7 @@ export type GoldCell = {
   nota: string;
   /** Matiz discutible: fuera de las métricas hasta el visto bueno de Omar. */
   revisar?: boolean;
-  /** Solo en pendiente_verificacion: distingue legal de parcial. */
+  /** Solo en pendiente_verificacion: distingue legal, parcial y competencia. */
   motivo?: MotivoPendiente;
 };
 
@@ -194,7 +195,7 @@ export const GOLD: Record<string, GoldCandidato> = {
     "p4-r5": { assessment: "sin_evidencia", nota: "Coordina transportistas, no lidera un equipo." },
     "p4-r6": { assessment: "pendiente_verificacion", motivo: "parcial", nota: "'ERP básico', no nombra WMS ni SAP." },
     "p4-r7": { assessment: "sin_evidencia", nota: "No menciona negociación con proveedores." },
-    "p4-r8": { assessment: "acreditado", nota: "Trabajo bajo presión." },
+    "p4-r8": { assessment: "pendiente_verificacion", motivo: "competencia", nota: "Declara trabajo bajo presión; una competencia se verifica en entrevista." },
     "p4-r9": { assessment: "pendiente_verificacion", motivo: "parcial", nota: "Inglés básico (A2), por debajo de B2." },
   },
   "CV_Moreno_Cesar.pdf": {
@@ -229,7 +230,7 @@ export const GOLD: Record<string, GoldCandidato> = {
     "p5-r5": { assessment: "acreditado", nota: "NPS, CSAT, TMO." },
     "p5-r6": { assessment: "acreditado", nota: "Capacitó a 18 asesores." },
     "p5-r7": { assessment: "acreditado", nota: "Inglés intermedio (B2)." },
-    "p5-r8": { assessment: "acreditado", nota: "Comunicación asertiva." },
+    "p5-r8": { assessment: "pendiente_verificacion", motivo: "competencia", nota: "Declara comunicación asertiva; una competencia se verifica en entrevista." },
     "p5-r9": { assessment: "acreditado", nota: ">80 llamadas diarias." },
   },
   "CV_Huertas_Marco.pdf": {

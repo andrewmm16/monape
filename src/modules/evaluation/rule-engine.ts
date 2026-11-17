@@ -107,8 +107,14 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *  - Equivalencias también en herramientas, y «libros electrónicos» ≈ «PLE».
  *  - Categoría genérica vs concreta: si el CV solo declara la categoría (ERP) y el
  *    puesto pide la herramienta concreta (SAP), queda pendiente a verificar.
+ *
+ * Novedades de reglas-v9:
+ *  - Rangos que parten de básico: «Excel básico-intermedio» frente a un puesto que
+ *    pide intermedio lo cumple solo en parte → pendiente. Un rango que parte de
+ *    intermedio («intermedio-avanzado») sigue contando como su extremo alto. Vale
+ *    igual para habilidades e idiomas.
  */
-export const RULE_ENGINE_VERSION = "reglas-v8";
+export const RULE_ENGINE_VERSION = "reglas-v9";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -325,6 +331,24 @@ function requiredSkillLevel(texto: string): number | null {
   for (const [nivel, patron] of LEVEL_WORDS) if (patron.test(texto) && (minimo === null || nivel < minimo)) minimo = nivel;
   if (USER_LEVEL.test(texto) && (minimo === null || minimo > 1)) minimo = 1;
   return minimo;
+}
+
+/** Nivel más bajo declarado en un texto, o null. Sirve para leer rangos («básico-intermedio»). */
+function lowestSkillLevel(texto: string): number | null {
+  let minimo: number | null = null;
+  for (const [nivel, patron] of LEVEL_WORDS) if (patron.test(texto) && (minimo === null || nivel < minimo)) minimo = nivel;
+  return minimo;
+}
+
+/**
+ * Rango declarado que parte de básico y solo llega JUSTO al nivel pedido
+ * («Excel básico-intermedio» frente a un puesto que pide intermedio): lo cumple a
+ * medias, así que queda pendiente. Un rango que parte de intermedio
+ * («intermedio-avanzado») sí cuenta como su extremo alto: es la forma habitual de
+ * declarar un buen dominio (decisión de RRHH).
+ */
+function straddlesFromBasic(texto: string, requerido: number): boolean {
+  return requerido > 1 && declaredSkillLevel(texto) === requerido && lowestSkillLevel(texto) === 1;
 }
 
 /**
@@ -601,7 +625,10 @@ function languageMeets(reqDesc: string, text: string): boolean {
   if (reqCefr !== null && cvCefr !== null) return cvCefr >= reqCefr;
   const reqTier = reqCefr !== null ? CEFR_TIER(reqCefr) : requiredSkillLevel(reqDesc);
   const cvTier = cvCefr !== null ? CEFR_TIER(cvCefr) : declaredSkillLevel(text);
-  return reqTier !== null && cvTier !== null ? cvTier >= reqTier : false;
+  if (reqTier === null || cvTier === null) return false;
+  // «Inglés básico-intermedio» frente a «intermedio»: lo cumple a medias (ver straddlesFromBasic).
+  if (cvCefr === null && straddlesFromBasic(text, reqTier)) return false;
+  return cvTier >= reqTier;
 }
 
 /** Para idiomas: el CV declara ALGÚN nivel (código del marco europeo o palabra). */
@@ -800,7 +827,7 @@ export function evaluateRequirement(
           assessment: "pendiente_verificacion",
           evidence,
           rationale: algunoDeclara
-            ? `${foundText} Pero el CV declara un nivel de idioma por debajo del que pide el puesto. Verifique el nivel real.`
+            ? `${foundText} Pero el nivel de idioma que declara el CV no alcanza del todo el que pide el puesto. Verifique el nivel real.`
             : `${foundText} Pero el CV no declara el nivel del idioma y el puesto pide un nivel concreto; confírmelo en la entrevista.`,
         };
       }
@@ -821,6 +848,25 @@ export function evaluateRequirement(
         assessment: "pendiente_verificacion",
         evidence,
         rationale: `${foundText} Pero el CV declara un nivel ${LEVEL_NAMES[declaredMax]} y el puesto pide un nivel ${LEVEL_NAMES[required]} o superior. Verifique el nivel real.`,
+      };
+    }
+    // Rango que parte de básico y solo llega justo a lo pedido («básico-intermedio»
+    // frente a intermedio): si ninguna mención lo cumple de lleno, queda PARCIAL.
+    if (
+      required !== null &&
+      declaredMax !== null &&
+      declaredMax >= required &&
+      !matches.some((m) => {
+        const item = itemTextOf(original, haystack, m);
+        const alto = declaredSkillLevel(item);
+        return alto !== null && alto >= required && !straddlesFromBasic(item, required);
+      })
+    ) {
+      return {
+        ...base,
+        assessment: "pendiente_verificacion",
+        evidence,
+        rationale: `${foundText} Pero el CV declara un rango que parte de básico y llega justo a ${LEVEL_NAMES[required]}, el nivel que pide el puesto: lo cumple solo en parte. Confírmelo en la entrevista.`,
       };
     }
     // El CV menciona la habilidad pero NO su nivel, y el puesto pide uno POR ENCIMA
