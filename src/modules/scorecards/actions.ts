@@ -23,9 +23,14 @@ async function loadInterview(interviewId: string) {
 
 /**
  * Crea o actualiza la evaluación (scorecard) del usuario actual sobre una
- * ENTREVISTA realizada. Una por evaluador y entrevista (upsert). No cambia el
- * estado del proceso ni la puntuación del motor: es un insumo para la decisión
- * humana, basado en lo observado en la entrevista.
+ * ENTREVISTA realizada. Una por evaluador y entrevista. No cambia el estado del
+ * proceso ni la puntuación del motor: es un insumo para la decisión humana,
+ * basado en lo observado en la entrevista.
+ *
+ * No usa upsert: PostgREST lo traduce a ON CONFLICT DO UPDATE sobre TODAS las
+ * columnas enviadas (incluidas interview_id y evaluator_id), y la tabla solo
+ * permite actualizar recommendation, comment y scores. Por eso se busca la
+ * tarjeta propia y se actualiza solo lo editable, o se crea si no existe.
  */
 export async function saveScorecard(input: SaveScorecardInput): Promise<ActionResult> {
   return runAction("scorecards.save", async () => {
@@ -35,16 +40,23 @@ export async function saveScorecard(input: SaveScorecardInput): Promise<ActionRe
     if (status !== "realizada") {
       throw new AppError("Solo puedes evaluar una entrevista con resultado registrado.", "conflict");
     }
-    const { error } = await supabase.from("interview_scorecards").upsert(
-      {
-        interview_id: values.interviewId,
-        evaluator_id: user.id,
-        recommendation: values.recommendation,
-        comment: values.comment ? values.comment : null,
-        scores: values.scores,
-      },
-      { onConflict: "interview_id,evaluator_id" },
-    );
+    const editable = {
+      recommendation: values.recommendation,
+      comment: values.comment ? values.comment : null,
+      scores: values.scores,
+    };
+    const { data: existing, error: lookupError } = await supabase
+      .from("interview_scorecards")
+      .select("id")
+      .eq("interview_id", values.interviewId)
+      .eq("evaluator_id", user.id)
+      .maybeSingle();
+    if (lookupError) throw toAppError(lookupError);
+    const { error } = existing
+      ? await supabase.from("interview_scorecards").update(editable).eq("id", existing.id)
+      : await supabase
+          .from("interview_scorecards")
+          .insert({ interview_id: values.interviewId, evaluator_id: user.id, ...editable });
     if (error) throw toAppError(error);
     revalidatePath(`/postulaciones/${applicationId}`);
     return null;
