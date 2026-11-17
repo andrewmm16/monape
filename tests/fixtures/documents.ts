@@ -53,6 +53,10 @@ type DocxOptions = {
   embedded?: boolean;
   externalTemplate?: boolean;
   extraEntries?: Record<string, Uint8Array>;
+  /** XML crudo del cuerpo (w:body), en lugar de los párrafos de texto plano. */
+  bodyXml?: string;
+  /** XML crudo de word/styles.xml (contenido de w:styles). */
+  stylesXml?: string;
 };
 
 /** Genera un DOCX mínimo válido (y variantes maliciosas para pruebas). */
@@ -75,11 +79,17 @@ export function makeDocx(paragraphs: string[], options: DocxOptions = {}): Uint8
       }</Relationships>`,
     ),
     "word/document.xml": strToU8(
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs
-        .map((p) => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(p)}</w:t></w:r></w:p>`)
-        .join("")}</w:body></w:document>`,
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${
+        options.bodyXml ??
+        paragraphs.map((p) => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(p)}</w:t></w:r></w:p>`).join("")
+      }</w:body></w:document>`,
     ),
   };
+  if (options.stylesXml) {
+    files["word/styles.xml"] = strToU8(
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${options.stylesXml}</w:styles>`,
+    );
+  }
   if (options.header) {
     files["word/header1.xml"] = strToU8(
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:r><w:t>${escapeXml(options.header)}</w:t></w:r></w:p></w:hdr>`,

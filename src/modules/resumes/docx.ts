@@ -99,7 +99,8 @@ export function repackTextParts(parts: Record<string, Uint8Array>): Uint8Array {
 
 const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
-function decodeXmlText(value: string): string {
+/** Decodifica las entidades XML de un texto (&amp;, &#x41;, etc.). */
+export function decodeXmlText(value: string): string {
   return value.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, entity: string) => {
     if (entity.startsWith("#x") || entity.startsWith("#X")) return String.fromCodePoint(Number.parseInt(entity.slice(2), 16));
     if (entity.startsWith("#")) return String.fromCodePoint(Number.parseInt(entity.slice(1), 10));

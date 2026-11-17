@@ -7,9 +7,9 @@
  * Módulo PURO y determinista (sin red, sin pdf.js): recibe fragmentos ya
  * extraídos y el tamaño de la página, para poder probarlo de forma aislada. El
  * mapeo desde los `items` reales de pdf.js (su `transform`) vive en la capa de
- * extracción. Esta versión cubre dos trucos (tamaño minúsculo y fuera de
- * página); el blanco-sobre-blanco (color) y el keyword-stuffing son fases
- * aparte.
+ * extracción. En PDF cubre dos trucos (tamaño minúsculo y fuera de página); el
+ * DOCX tiene su propia detección (docx-hidden.ts: oculto, minúsculo y blanco) y
+ * comparte con el PDF el tipo de fragmento y el aviso a RRHH.
  */
 
 /** Un fragmento de texto con su tamaño de fuente (pt) y su origen en el espacio de la página (pt). */
@@ -18,9 +18,23 @@ export type TextFragment = { str: string; fontSize: number; x: number; y: number
 /** Área visible de la página, en puntos PDF. */
 export type PageBox = { width: number; height: number };
 
-export type HiddenReason = "tiny" | "offpage";
+/**
+ * Motivo por el que el texto no se ve: fuente minúscula, fuera de la página (PDF),
+ * marcado como oculto en Word o blanco sin fondo detrás (DOCX).
+ */
+export type HiddenReason = "tiny" | "offpage" | "vanish" | "white";
 
-export type HiddenFragment = { fragment: TextFragment; reason: HiddenReason };
+/** Texto oculto detectado. En PDF lleva tamaño y posición; en DOCX, el tamaño solo si es minúsculo. */
+export type HiddenText = { str: string; fontSize?: number; x?: number; y?: number };
+
+export type HiddenFragment = { fragment: HiddenText; reason: HiddenReason };
+
+const REASON_LABELS: Record<HiddenReason, string> = {
+  tiny: "fuente diminuta",
+  offpage: "fuera de la página",
+  vanish: "marcado como oculto en Word",
+  white: "en blanco sobre fondo blanco",
+};
 
 /** Por debajo de este tamaño de fuente (pt) el texto es ilegible: truco de ocultamiento. */
 export const DEFAULT_MIN_FONT_SIZE = 3;
@@ -69,5 +83,8 @@ export function summarizeHidden(hidden: HiddenFragment[], maxChars = 300): strin
     .join(" · ");
   if (contenido === "") return null;
   const recortado = contenido.length > maxChars ? `${contenido.slice(0, maxChars)}…` : contenido;
-  return `Se detectó texto no visible en el documento (fuente diminuta o fuera de la página), que no ve una persona al abrirlo; se excluyó de la evaluación para que no altere las coincidencias. Contenido oculto: «${recortado}». Revise el archivo original antes de decidir.`;
+  const motivos = [...new Set(hidden.map((h) => REASON_LABELS[h.reason]))]
+    .join(", ")
+    .replace(/, ([^,]*)$/, " y $1");
+  return `Se detectó texto no visible en el documento (${motivos}), que no ve una persona al abrirlo; se excluyó de la evaluación para que no altere las coincidencias. Contenido oculto: «${recortado}». Revise el archivo original antes de decidir.`;
 }

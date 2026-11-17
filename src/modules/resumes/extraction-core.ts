@@ -1,6 +1,7 @@
 import { getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
 import { extractHeaderFooterText, inspectDocx, repackTextParts } from "./docx.ts";
+import { stripHiddenDocxText } from "./docx-hidden.ts";
 import { assembleVisibleText, type PdfItem, type PdfPage } from "./pdf-text.ts";
 import type { HiddenFragment } from "./hidden-text.ts";
 
@@ -15,9 +16,9 @@ export type ResumeFileKind = "pdf" | "docx";
 
 /**
  * Texto del documento más los fragmentos OCULTOS que se detectaron y se
- * excluyeron (texto no visible: fuente ~0 o fuera de la hoja). El texto ya
- * viene limpio de esos fragmentos; `hidden` existe para avisar a RRHH. En DOCX
- * no hay posición ni tamaño de fuente fiables, así que `hidden` va vacío.
+ * excluyeron. En PDF: fuente ~0 o fuera de la hoja. En DOCX: texto marcado como
+ * oculto, fuente ~0 o blanco sin fondo (ver docx-hidden.ts). El texto ya viene
+ * limpio de esos fragmentos; `hidden` existe para avisar a RRHH.
  */
 export type ExtractedParts = { text: string; hidden: HiddenFragment[] };
 
@@ -71,26 +72,27 @@ async function extractPdfParts(bytes: Uint8Array): Promise<ExtractedParts> {
   }
 }
 
-async function extractDocx(bytes: Uint8Array): Promise<string> {
+async function extractDocxParts(bytes: Uint8Array): Promise<ExtractedParts> {
   const inspection = inspectDocx(bytes);
   if (!inspection.ok) throw new Error("docx_invalido");
-  const sanitized = repackTextParts(inspection.parts);
+  // mammoth extrae también el texto oculto: se quita del XML antes de leerlo.
+  const { parts, hidden } = stripHiddenDocxText(inspection.parts);
+  const sanitized = repackTextParts(parts);
   const { value } = await mammoth.extractRawText({ buffer: Buffer.from(sanitized) });
-  const headerFooter = extractHeaderFooterText(inspection.parts);
-  return headerFooter ? `${headerFooter}\n\n${value}` : value;
+  const headerFooter = extractHeaderFooterText(parts);
+  return { text: headerFooter ? `${headerFooter}\n\n${value}` : value, hidden };
 }
 
 /**
- * Extrae el texto y, en PDF, los fragmentos ocultos detectados. El texto que
- * devuelve ya está limpio de esos fragmentos, de modo que el motor evalúa solo
- * lo visible y el texto oculto no infla las coincidencias.
+ * Extrae el texto y los fragmentos ocultos detectados. El texto que devuelve ya
+ * está limpio de esos fragmentos, de modo que el motor evalúa solo lo visible y
+ * el texto oculto no infla las coincidencias.
  */
 export async function extractResumeParts(bytes: Uint8Array, kind: ResumeFileKind): Promise<ExtractedParts> {
-  if (kind === "pdf") return extractPdfParts(bytes);
-  return { text: await extractDocx(bytes), hidden: [] };
+  return kind === "pdf" ? extractPdfParts(bytes) : extractDocxParts(bytes);
 }
 
-/** Compatibilidad: solo el texto (ya limpio de lo oculto en PDF). */
+/** Compatibilidad: solo el texto (ya limpio de lo oculto). */
 export async function extractRawText(bytes: Uint8Array, kind: ResumeFileKind): Promise<string> {
   return (await extractResumeParts(bytes, kind)).text;
 }
