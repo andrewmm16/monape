@@ -31,6 +31,13 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
     concepto: "tecnologías de la información",
     equivalentes: ["tecnologías de la información", "TI"],
   },
+  {
+    // PLE es el nombre SUNAT del «Programa de Libros Electrónicos»: quien lleva
+    // libros electrónicos usa PLE. Excepción justificada a «sin software con nombre
+    // propio», porque es la misma evidencia escrita de dos formas, no un hiperónimo.
+    concepto: "PLE",
+    equivalentes: ["PLE", "libros electrónicos", "programa de libros electrónicos"],
+  },
 ];
 
 /**

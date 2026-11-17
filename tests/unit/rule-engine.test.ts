@@ -705,8 +705,10 @@ describe("reglas-v4: nivel de idioma por código del marco europeo", () => {
     expect(run("Idiomas: Inglés B1.", "Inglés intermedio B1-B2")).toBe("acreditado");
   });
 
-  it("no declarar el nivel no es declararlo bajo", () => {
-    expect(run("Idiomas: Inglés y portugués.")).toBe("acreditado");
+  it("no declarar el nivel, con un nivel pedido, queda pendiente (reglas-v8)", () => {
+    // No declarar el nivel no es declararlo bajo, pero tampoco acredita: se confirma
+    // en entrevista cuando el puesto pide un nivel concreto.
+    expect(run("Idiomas: Inglés y portugués.")).toBe("pendiente_verificacion");
   });
 
   it("solo se aplica a requisitos de idioma: «B2B» de ventas no es un nivel", () => {
@@ -824,8 +826,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v7", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v7");
+  it("RULE_ENGINE_VERSION es reglas-v8", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v8");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {

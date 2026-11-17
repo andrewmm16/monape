@@ -95,8 +95,20 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    los respaldan (al menos 2 años por debajo en su lectura más generosa), no se
  *    acredita por el texto: se marca pendiente y se avisa de la discrepancia, para
  *    que RRHH la verifique (CV posiblemente inflado).
+ *
+ * Novedades de reglas-v8 (deterministas, sin servicios externos):
+ *  - Nivel por término base también en habilidades: «Excel avanzado» como término
+ *    busca además «Excel», para que un «Excel básico» coincida y la escalera lo
+ *    juzgue (lo que ya hacía idiomas).
+ *  - Nivel no declarado: si el CV menciona la habilidad o el idioma SIN nivel y el
+ *    puesto pide uno POR ENCIMA del básico, queda pendiente (se confirma en
+ *    entrevista): no declarar el nivel no es declararlo bajo, pero tampoco lo
+ *    acredita. Si el puesto solo pide «usuario/básico», mencionarlo basta.
+ *  - Equivalencias también en herramientas, y «libros electrónicos» ≈ «PLE».
+ *  - Categoría genérica vs concreta: si el CV solo declara la categoría (ERP) y el
+ *    puesto pide la herramienta concreta (SAP), queda pendiente a verificar.
  */
-export const RULE_ENGINE_VERSION = "reglas-v7";
+export const RULE_ENGINE_VERSION = "reglas-v8";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -127,6 +139,7 @@ type TermMatch = Match & { term: string; via?: string };
 export function isEquivalenceScope(requirement: RequirementInput): boolean {
   return (
     requirement.category === "habilidad_tecnica" ||
+    requirement.category === "herramienta" ||
     requirement.category === "competencia" ||
     requirement.category === "experiencia" ||
     requirement.category === "otro"
@@ -276,8 +289,6 @@ function formatDate(date: Date): string {
 // Estudios sin terminar o título aún no obtenido: no acreditan la formación.
 const IN_PROGRESS = /\b(?:en curso|cursando|ciclo|semestre|estudiante|actualmente estudiando|trunc[oa]s?|inconclus[oa]s?|en tramite|en proceso|por obtener)\b/;
 const STUDY_CUES = /\b(?:bachiller|titul[oa]d[oa]?|titulo|licenciad[oa]|egresad[oa]|graduad[oa]|colegiad[oa]|colegiatura|grado|maestria|magister|doctorad[oa]|diplomado|especializacion|posgrado|universidad|instituto|tecnic[oa]|ingenier[oa]|carrera|estudios?|facultad)\b/;
-const BASIC_LEVEL = /\b(?:basic[oa]s?|inicial|principiante|elemental|nociones)\b/;
-const HIGHER_LEVEL = /\b(?:intermedi[oa]s?|avanzad[oa]s?|experto|experta|senior|advanced|intermediate|fluido|fluida|nativ[oa])\b/;
 
 /**
  * Escalera de nivel declarado para habilidades y herramientas (no idiomas), de
@@ -551,6 +562,75 @@ function conjunctTerms(requirement: RequirementInput, terms: string[]): string[]
   return nombrados.length >= 2 ? nombrados : [];
 }
 
+// Unión de las palabras de nivel, para separar el término base de una habilidad
+// («Excel avanzado» → «Excel»). Global: se reutiliza y se resetea lastIndex.
+const SKILL_LEVEL_WORDS =
+  /\b(?:avanzad[oa]s?|experto|experta|senior|advanced|fluido|fluida|nativ[oa]|intermedi[oa]s?|intermediate|basic[oa]s?|inicial|principiante|elemental|nociones)\b/g;
+
+/**
+ * Términos base de las habilidades/herramientas cuyo keyword trae el nivel pegado
+ * («Excel avanzado» → «Excel»), para que coincidan con un CV que escribe la
+ * habilidad con otro nivel o sin él; el nivel lo juzga luego la escalera de 3
+ * peldaños. Solo herramienta/habilidad: en otras categorías el «nivel» es incidental.
+ */
+function skillBaseTerms(requirement: RequirementInput, terms: string[]): string[] {
+  if (requirement.category !== "herramienta" && requirement.category !== "habilidad_tecnica") return [];
+  const out: string[] = [];
+  for (const t of terms) {
+    const norm = normalizeTerm(t);
+    SKILL_LEVEL_WORDS.lastIndex = 0;
+    if (!SKILL_LEVEL_WORDS.test(norm)) continue;
+    SKILL_LEVEL_WORDS.lastIndex = 0;
+    const base = norm.replace(SKILL_LEVEL_WORDS, " ").replace(/\s+/g, " ").trim();
+    if (base.length >= 2 && !terms.some((x) => normalizeTerm(x) === base) && !out.includes(base)) out.push(base);
+  }
+  return out;
+}
+
+// Marco europeo a la escala de 3 peldaños: A→básico, B→intermedio, C→avanzado.
+const CEFR_TIER = (c: number): number => (c <= 2 ? 1 : c <= 4 ? 2 : 3);
+
+/**
+ * Para idiomas: el CV ALCANZA el nivel pedido. Compara por el marco europeo (A2 <
+ * B2) cuando ambos lados lo usan, para no perder B1 < B2; si no, lleva ambos a los
+ * 3 peldaños (mezclando palabra y código). Si el CV no declara nivel, no alcanza.
+ */
+function languageMeets(reqDesc: string, text: string): boolean {
+  const reqCefr = cefrLevel(reqDesc, "minimo");
+  const cvCefr = cefrLevel(text, "maximo");
+  if (reqCefr !== null && cvCefr !== null) return cvCefr >= reqCefr;
+  const reqTier = reqCefr !== null ? CEFR_TIER(reqCefr) : requiredSkillLevel(reqDesc);
+  const cvTier = cvCefr !== null ? CEFR_TIER(cvCefr) : declaredSkillLevel(text);
+  return reqTier !== null && cvTier !== null ? cvTier >= reqTier : false;
+}
+
+/** Para idiomas: el CV declara ALGÚN nivel (código del marco europeo o palabra). */
+function languageDeclaresLevel(text: string): boolean {
+  return cefrLevel(text, "maximo") !== null || declaredSkillLevel(text) !== null;
+}
+
+/**
+ * Categorías genéricas y las herramientas concretas que las instancian. Si el
+ * requisito pide una concreta (SAP) y el CV solo menciona la categoría (ERP), el
+ * candidato tiene «un» ERP pero no se prueba que sea el pedido: queda pendiente a
+ * verificar, no acreditado (no es la misma evidencia) ni sin evidencia (sí declara algo).
+ */
+const GENERIC_CATEGORIES: ReadonlyArray<{ generico: string; especificos: readonly string[] }> = [
+  { generico: "ERP", especificos: ["SAP", "SAP MM", "SAP FI", "SAP Business One", "Concar", "Oracle", "Dynamics", "Odoo"] },
+];
+
+/** Categorías genéricas a buscar porque el requisito pide una herramienta concreta de ellas. */
+function genericTerms(requirement: RequirementInput): string[] {
+  const keys = requirement.keywords.map(normalizeTerm);
+  const out: string[] = [];
+  for (const { generico, especificos } of GENERIC_CATEGORIES) {
+    if (especificos.some((e) => keys.includes(normalizeTerm(e))) && !keys.includes(normalizeTerm(generico))) {
+      out.push(generico);
+    }
+  }
+  return out;
+}
+
 export function evaluateRequirement(
   original: string,
   haystack: NormalizedText,
@@ -560,11 +640,26 @@ export function evaluateRequirement(
 ): ItemAssessment {
   const base = { requirementId: requirement.id };
   const terms = uniqueTerms(requirement.keywords);
+  // Términos añadidos que son solo una categoría genérica (ERP), para distinguirlos
+  // de los concretos al decidir el veredicto (ver el intercepto genérico más abajo).
+  const genericos = new Set<string>();
   // Idiomas: añade el idioma a secas, porque el término configurado suele traer el
   // nivel pegado y así un «Inglés básico (A2)» no coincidiría (ver languageWordsIn).
   if (isLanguageRequirement(requirement)) {
     for (const idioma of languageWordsIn(requirement)) {
       if (!terms.some((t) => normalizeTerm(t) === normalizeTerm(idioma))) terms.push(idioma);
+    }
+  } else {
+    // Habilidades/herramientas: busca el término base quitando la palabra de nivel
+    // («Excel avanzado» → «Excel»), por lo mismo que en idiomas (ver skillBaseTerms).
+    for (const skillBase of skillBaseTerms(requirement, terms)) terms.push(skillBase);
+    // Categorías genéricas (ERP por SAP): se buscan para poder marcar pendiente si el
+    // CV solo trae el genérico y no la herramienta concreta (ver intercepto abajo).
+    for (const g of genericTerms(requirement)) {
+      if (!terms.some((t) => normalizeTerm(t) === normalizeTerm(g))) {
+        terms.push(g);
+        genericos.add(normalizeTerm(g));
+      }
     }
   }
 
@@ -632,6 +727,18 @@ export function evaluateRequirement(
     }
   }
 
+  // Genérico vs concreto: el CV solo menciona la categoría genérica (ERP) y no la
+  // herramienta concreta que pide el requisito (SAP). Tiene «un» ERP pero no se
+  // prueba que sea el pedido: pendiente a verificar (ver GENERIC_CATEGORIES).
+  if (genericos.size > 0 && !matches.some((m) => !genericos.has(normalizeTerm(m.term)))) {
+    return {
+      ...base,
+      assessment: "pendiente_verificacion",
+      evidence,
+      rationale: `${foundText} Pero eso es una categoría genérica; el puesto pide una herramienta concreta (${requirement.keywords.join(", ")}). Verifique cuál usa la persona.`,
+    };
+  }
+
   // Formación: el término debe aparecer en una frase de estudios o título, no en
   // «con interés en Contabilidad» ni en el cargo («Asistente Contable»).
   if (requirement.minYears === null && isFormationRequirement(requirement)) {
@@ -678,24 +785,23 @@ export function evaluateRequirement(
   // enumeración donde está el término, no en toda la oración: en «Excel (básico) y
   // Power BI avanzado» el «avanzado» es de Power BI.
   if (isLanguageRequirement(requirement)) {
-    // Idiomas: se conserva la comparación por código del marco europeo (A2 < B2),
-    // con regreso a las palabras (básico / intermedio / avanzado) cuando el CV no
-    // trae código. `every` corta en la primera mención que ya acredita.
+    // Idiomas: el requisito se cumple solo si alguna mención ALCANZA el nivel pedido
+    // (por el marco europeo, A2 < B2, con regreso a las palabras). Si ninguna lo
+    // alcanza, queda pendiente, distinguiendo «por debajo» de «sin nivel declarado»:
+    // no declarar el nivel no es declararlo bajo, pero tampoco acredita; se confirma
+    // en entrevista.
     if (asksForHigherLevel(requirement)) {
-      const pedido = cefrLevel(normalizeTerm(requirement.description), "minimo");
-      const insuficiente = (text: string) => {
-        if (pedido !== null) {
-          const declarado = cefrLevel(text, "maximo");
-          if (declarado !== null) return declarado < pedido;
-        }
-        return BASIC_LEVEL.test(text) && !HIGHER_LEVEL.test(text);
-      };
-      if (matches.every((m) => insuficiente(itemTextOf(original, haystack, m)))) {
+      const reqDesc = normalizeTerm(requirement.description);
+      const itemTexts = matches.map((m) => itemTextOf(original, haystack, m));
+      if (!itemTexts.some((t) => languageMeets(reqDesc, t))) {
+        const algunoDeclara = itemTexts.some(languageDeclaresLevel);
         return {
           ...base,
           assessment: "pendiente_verificacion",
           evidence,
-          rationale: `${foundText} Pero el CV declara un nivel básico y el puesto pide un nivel intermedio o avanzado. Verifique el nivel real.`,
+          rationale: algunoDeclara
+            ? `${foundText} Pero el CV declara un nivel de idioma por debajo del que pide el puesto. Verifique el nivel real.`
+            : `${foundText} Pero el CV no declara el nivel del idioma y el puesto pide un nivel concreto; confírmelo en la entrevista.`,
         };
       }
     }
@@ -715,6 +821,23 @@ export function evaluateRequirement(
         assessment: "pendiente_verificacion",
         evidence,
         rationale: `${foundText} Pero el CV declara un nivel ${LEVEL_NAMES[declaredMax]} y el puesto pide un nivel ${LEVEL_NAMES[required]} o superior. Verifique el nivel real.`,
+      };
+    }
+    // El CV menciona la habilidad pero NO su nivel, y el puesto pide uno POR ENCIMA
+    // del básico: no se da por cumplido; el nivel se confirma en entrevista (igual
+    // que en idiomas). Si el puesto solo pide «usuario/básico» (el piso), mencionar
+    // la herramienta ya basta y no se exige el nivel.
+    if (
+      required !== null &&
+      required >= 2 &&
+      declaredMax === null &&
+      (requirement.category === "herramienta" || requirement.category === "habilidad_tecnica")
+    ) {
+      return {
+        ...base,
+        assessment: "pendiente_verificacion",
+        evidence,
+        rationale: `${foundText} Pero el CV no declara el nivel y el puesto pide un nivel ${LEVEL_NAMES[required]} o superior; confírmelo en la entrevista.`,
       };
     }
     // Sin nivel exigido, pero la persona lo declara solo como «nociones» en todas

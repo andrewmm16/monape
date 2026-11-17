@@ -380,8 +380,8 @@ const CASOS: Caso[] = [
     nombre: "Idioma sin nivel declarado",
     texto: "Idiomas: Inglés y portugués.",
     requisito: { category: "idioma", description: "Inglés intermedio (B2)", keywords: ["Inglés"] },
-    espera: ["acreditado"],
-    porque: "No declarar el nivel no es declararlo bajo; el reclutador lo verifica con la cita delante.",
+    espera: ["pendiente_verificacion"],
+    porque: "El puesto pide un nivel concreto (B2) y el CV no lo declara: no es acreditado ni sin evidencia, se confirma en entrevista (reglas-v8).",
   },
   {
     grupo: "G. Grado académico",
