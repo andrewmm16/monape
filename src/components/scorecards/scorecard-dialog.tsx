@@ -32,10 +32,10 @@ type Recommendation = Enums<"scorecard_recommendation">;
 
 /** Formulario para crear o editar la propia evaluación (scorecard) de una postulación. */
 export function ScorecardDialog({
-  applicationId,
+  interviewId,
   existing,
 }: {
-  applicationId: string;
+  interviewId: string;
   existing: ScorecardEntry | null;
 }) {
   const router = useRouter();
@@ -66,7 +66,7 @@ export function ScorecardDialog({
     startTransition(async () => {
       if (!complete || recommendation === null) return;
       const result = await saveScorecard({
-        applicationId,
+        interviewId,
         recommendation,
         comment,
         scores: SCORECARD_COMPETENCIES.map((competency) => ({

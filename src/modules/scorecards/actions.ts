@@ -4,49 +4,66 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
-import { toAppError } from "@/lib/errors";
+import { AppError, toAppError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { saveScorecardSchema, type SaveScorecardInput } from "./schemas";
 
+/** Devuelve la postulación y el estado de la entrevista, o lanza si no existe/sin acceso. */
+async function loadInterview(interviewId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("interviews")
+    .select("application_id, status")
+    .eq("id", interviewId)
+    .maybeSingle();
+  if (error) throw toAppError(error);
+  if (!data) throw new AppError("La entrevista no existe.", "not_found");
+  return { supabase, applicationId: data.application_id, status: data.status };
+}
+
 /**
  * Crea o actualiza la evaluación (scorecard) del usuario actual sobre una
- * postulación. Una por evaluador (upsert). No cambia el estado del proceso ni la
- * puntuación del motor: es un insumo para la decisión humana.
+ * ENTREVISTA realizada. Una por evaluador y entrevista (upsert). No cambia el
+ * estado del proceso ni la puntuación del motor: es un insumo para la decisión
+ * humana, basado en lo observado en la entrevista.
  */
 export async function saveScorecard(input: SaveScorecardInput): Promise<ActionResult> {
   return runAction("scorecards.save", async () => {
     const user = await requirePermission("applications:manage");
     const values = parseInput(saveScorecardSchema, input);
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.from("application_scorecards").upsert(
+    const { supabase, applicationId, status } = await loadInterview(values.interviewId);
+    if (status !== "realizada") {
+      throw new AppError("Solo puedes evaluar una entrevista con resultado registrado.", "conflict");
+    }
+    const { error } = await supabase.from("interview_scorecards").upsert(
       {
-        application_id: values.applicationId,
+        interview_id: values.interviewId,
         evaluator_id: user.id,
         recommendation: values.recommendation,
         comment: values.comment ? values.comment : null,
         scores: values.scores,
       },
-      { onConflict: "application_id,evaluator_id" },
+      { onConflict: "interview_id,evaluator_id" },
     );
     if (error) throw toAppError(error);
-    revalidatePath(`/postulaciones/${values.applicationId}`);
+    revalidatePath(`/postulaciones/${applicationId}`);
     return null;
   });
 }
 
-/** Elimina la evaluación del usuario actual sobre una postulación. */
-export async function deleteScorecard(applicationId: string): Promise<ActionResult> {
+/** Elimina la evaluación del usuario actual sobre una entrevista. */
+export async function deleteScorecard(interviewId: string): Promise<ActionResult> {
   return runAction("scorecards.delete", async () => {
     const user = await requirePermission("applications:manage");
-    const id = parseInput(z.uuid(), applicationId);
-    const supabase = await createSupabaseServerClient();
+    const id = parseInput(z.uuid(), interviewId);
+    const { supabase, applicationId } = await loadInterview(id);
     const { error } = await supabase
-      .from("application_scorecards")
+      .from("interview_scorecards")
       .delete()
-      .eq("application_id", id)
+      .eq("interview_id", id)
       .eq("evaluator_id", user.id);
     if (error) throw toAppError(error);
-    revalidatePath(`/postulaciones/${id}`);
+    revalidatePath(`/postulaciones/${applicationId}`);
     return null;
   });
 }

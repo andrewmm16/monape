@@ -3,9 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { CandidateMessageDialog } from "@/components/applications/candidate-message-dialog";
-import { TeamEvaluationCard } from "@/components/scorecards/team-evaluation-card";
-import { consolidateScorecards } from "@/modules/scorecards/consolidation";
-import { listScorecards } from "@/modules/scorecards/queries";
+import {
+  CandidateEvaluationSummary,
+  InterviewEvaluation,
+  type EvaluationRound,
+} from "@/components/scorecards/interview-evaluation";
+import { consolidateScorecards, type ScorecardEntry } from "@/modules/scorecards/consolidation";
+import { listApplicationScorecards } from "@/modules/scorecards/queries";
 import { EvaluationCard } from "@/components/applications/evaluation-card";
 import { NoteForm } from "@/components/applications/note-form";
 import { KillerAnswersCard } from "@/components/applications/killer-answers-card";
@@ -24,7 +28,9 @@ import { AppError } from "@/lib/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, REVIEW_OUTCOME_LABELS, SYSTEM_ACTOR_LABEL } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { linkCurrentResume, runEvaluation } from "@/modules/applications/actions";
+import { linkCurrentResume, requestAiEvaluationAction, runEvaluation } from "@/modules/applications/actions";
+import { AiJobStatus } from "@/components/applications/ai-job-status";
+import { describeAiJob, describeAiWorker, getAiWorkerStatus, getLatestAiJob } from "@/modules/evaluation/ai-queue";
 import {
   getApplicationDetail,
   getCurrentResume,
@@ -35,6 +41,7 @@ import {
   listRequirementVerifications,
 } from "@/modules/applications/queries";
 import { listApplicationInterviews } from "@/modules/interviews/queries";
+import { formatInterviewDateTime } from "@/modules/interviews/datetime";
 import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
 import { getAiStatus } from "@/modules/evaluation/service";
@@ -62,10 +69,26 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
     listRequirementVerifications(supabase, application.id),
     listApplicationInterviews(supabase, application.id),
     listKillerAnswers(supabase, application.id),
-    listScorecards(supabase, application.id),
+    listApplicationScorecards(supabase, application.id),
   ]);
-  const scorecardConsolidation = consolidateScorecards(scorecards);
-  const myScorecard = scorecards.find((entry) => entry.evaluatorId === user.id) ?? null;
+  // Evaluaciones agrupadas por entrevista (una tarjeta por evaluador y entrevista).
+  const scorecardsByInterview = new Map<string, ScorecardEntry[]>();
+  for (const entry of scorecards) {
+    const list = scorecardsByInterview.get(entry.interviewId) ?? [];
+    list.push(entry);
+    scorecardsByInterview.set(entry.interviewId, list);
+  }
+  // Resumen por ronda (progresión): entrevistas de la más antigua a la más
+  // reciente que ya tengan al menos una evaluación. `interviews` viene en orden
+  // descendente, así que se recorre invertido.
+  const evaluationRounds: EvaluationRound[] = [...interviews]
+    .reverse()
+    .filter((interview) => (scorecardsByInterview.get(interview.id)?.length ?? 0) > 0)
+    .map((interview) => ({
+      interviewId: interview.id,
+      label: formatInterviewDateTime(interview.scheduled_at),
+      consolidation: consolidateScorecards(scorecardsByInterview.get(interview.id) ?? []),
+    }));
   const schedulable = canManage && canScheduleInterview(application.status, application.vacancy.status);
   const newerResume =
     currentResume && application.resume && currentResume.id !== application.resume.id ? currentResume : null;
@@ -103,6 +126,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
   const criteriaApproved = Boolean(application.vacancy.criteria_approved_at);
   const ai = canEvaluate ? getAiStatus() : null;
+  const aiQueued = Boolean(ai?.available && ai.queued);
+  const aiJob = aiQueued ? describeAiJob(await getLatestAiJob(supabase, application.id), formatDateTime) : null;
+  // Con un trabajo abierto, avisa si el worker no está atendiendo la cola (caído o en pausa).
+  const aiWorkerNotice = aiJob?.active ? describeAiWorker(await getAiWorkerStatus(supabase), formatDateTime) : null;
 
   return (
     <>
@@ -138,7 +165,22 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 >
                   {evaluations.length > 0 ? "Volver a evaluar" : "Evaluar con motor de reglas"}
                 </ActionButton>
-                {ai?.available ? (
+                {ai?.available && aiQueued ? (
+                  <ActionButton
+                    variant="outline"
+                    action={requestAiEvaluationAction.bind(null, application.id)}
+                    disabled={!criteriaApproved || Boolean(aiJob?.active)}
+                    pendingLabel="Enviando a la cola…"
+                    confirm={{
+                      title: "¿Evaluar con IA?",
+                      description:
+                        "Se pondrá en cola el texto del CV, sin datos de contacto, para el proveedor de IA aprobado por la empresa. El resultado aparecerá en esta página en unos minutos; se verificará contra el CV y deberá revisarlo RRHH.",
+                      confirmLabel: "Evaluar con IA",
+                    }}
+                  >
+                    {aiJob?.active ? "IA en cola" : "Evaluar con IA"}
+                  </ActionButton>
+                ) : ai?.available ? (
                   <ActionButton
                     variant="outline"
                     action={runEvaluation.bind(null, application.id, "ia")}
@@ -163,6 +205,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                       : "el candidato aún no tiene CV"}
                 </span>
               </div>
+              {aiJob ? <AiJobStatus message={aiJob.message} tone={aiJob.tone} active={aiJob.active} /> : null}
+              {aiWorkerNotice ? (
+                <p role="status" className="rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
+                  {aiWorkerNotice.message}
+                </p>
+              ) : null}
               {newerResume && canManage ? (
                 <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
                   <span>Existe una versión más reciente del CV (v{newerResume.version}).</span>
@@ -250,37 +298,56 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 />
               ) : (
                 <ul className="space-y-2">
-                  {interviews.map(({ result_recorder, ...interview }) => (
-                    <InterviewItem
-                      key={interview.id}
-                      showApplication={false}
-                      canManage={canManage}
-                      interview={{
-                        ...interview,
-                        recordedBy: result_recorder?.full_name ?? null,
-                        application: {
-                          id: application.id,
-                          status: application.status,
-                          candidateName: application.candidate.full_name,
-                          vacancyId: application.vacancy.id,
-                          vacancyTitle: application.vacancy.title,
-                          vacancyStatus: application.vacancy.status,
-                        },
-                      }}
-                    />
-                  ))}
+                  {interviews.map(({ result_recorder, ...interview }) => {
+                    const entries = scorecardsByInterview.get(interview.id) ?? [];
+                    const myEntry = entries.find((entry) => entry.evaluatorId === user.id) ?? null;
+                    return (
+                      <InterviewItem
+                        key={interview.id}
+                        showApplication={false}
+                        canManage={canManage}
+                        interview={{
+                          ...interview,
+                          recordedBy: result_recorder?.full_name ?? null,
+                          application: {
+                            id: application.id,
+                            status: application.status,
+                            candidateName: application.candidate.full_name,
+                            vacancyId: application.vacancy.id,
+                            vacancyTitle: application.vacancy.title,
+                            vacancyStatus: application.vacancy.status,
+                          },
+                        }}
+                      >
+                        <InterviewEvaluation
+                          interviewId={interview.id}
+                          interviewStatus={interview.status}
+                          entries={entries}
+                          myEntry={myEntry}
+                          canEvaluate={canManage}
+                        />
+                      </InterviewItem>
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>
           </Card>
 
-          <TeamEvaluationCard
-            applicationId={application.id}
-            entries={scorecards}
-            consolidation={scorecardConsolidation}
-            myEntry={myScorecard}
-            canEvaluate={canManage}
-          />
+          {evaluationRounds.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen de evaluaciones</CardTitle>
+                <CardDescription>
+                  Valoración del equipo por entrevista (promedio y recomendaciones). El detalle de cada ronda está en su
+                  entrevista.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CandidateEvaluationSummary rounds={evaluationRounds} />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

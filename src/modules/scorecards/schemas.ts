@@ -11,7 +11,7 @@ export const scoreItemSchema = z.object({
 });
 
 export const saveScorecardSchema = z.object({
-  applicationId: z.uuid(),
+  interviewId: z.uuid(),
   recommendation: z.enum(["avanza", "duda", "no_avanza"]),
   comment: z.string().trim().max(SCORECARD_COMMENT_MAX).optional().default(""),
   scores: z

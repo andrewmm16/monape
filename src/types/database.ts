@@ -9,6 +9,115 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_evaluation_jobs: {
+        Row: {
+          application_id: string
+          attempts: number
+          available_at: string
+          claim_token: string | null
+          claimed_at: string | null
+          criteria_version: number | null
+          error_code: string | null
+          evaluation_id: string | null
+          finished_at: string | null
+          id: string
+          input_sha256: string | null
+          origin: Database["public"]["Enums"]["ai_job_origin"]
+          requested_at: string
+          requested_by: string | null
+          status: Database["public"]["Enums"]["ai_job_status"]
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          attempts?: number
+          available_at?: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          criteria_version?: number | null
+          error_code?: string | null
+          evaluation_id?: string | null
+          finished_at?: string | null
+          id?: string
+          input_sha256?: string | null
+          origin: Database["public"]["Enums"]["ai_job_origin"]
+          requested_at?: string
+          requested_by?: string | null
+          status?: Database["public"]["Enums"]["ai_job_status"]
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          attempts?: number
+          available_at?: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          criteria_version?: number | null
+          error_code?: string | null
+          evaluation_id?: string | null
+          finished_at?: string | null
+          id?: string
+          input_sha256?: string | null
+          origin?: Database["public"]["Enums"]["ai_job_origin"]
+          requested_at?: string
+          requested_by?: string | null
+          status?: Database["public"]["Enums"]["ai_job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_evaluation_jobs_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_evaluation_jobs_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_evaluation_jobs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_worker_status: {
+        Row: {
+          cli_version: string | null
+          id: boolean
+          last_seen_at: string
+          pause_reason: string | null
+          paused_until: string | null
+          state: string
+          state_since: string
+        }
+        Insert: {
+          cli_version?: string | null
+          id?: boolean
+          last_seen_at: string
+          pause_reason?: string | null
+          paused_until?: string | null
+          state: string
+          state_since: string
+        }
+        Update: {
+          cli_version?: string | null
+          id?: boolean
+          last_seen_at?: string
+          pause_reason?: string | null
+          paused_until?: string | null
+          state?: string
+          state_since?: string
+        }
+        Relationships: []
+      }
       application_events: {
         Row: {
           actor_id: string | null
@@ -104,54 +213,6 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "vacancy_killer_questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      application_scorecards: {
-        Row: {
-          application_id: string
-          comment: string | null
-          created_at: string
-          evaluator_id: string
-          id: string
-          recommendation: Database["public"]["Enums"]["scorecard_recommendation"]
-          scores: Json
-          updated_at: string
-        }
-        Insert: {
-          application_id: string
-          comment?: string | null
-          created_at?: string
-          evaluator_id: string
-          id?: string
-          recommendation: Database["public"]["Enums"]["scorecard_recommendation"]
-          scores?: Json
-          updated_at?: string
-        }
-        Update: {
-          application_id?: string
-          comment?: string | null
-          created_at?: string
-          evaluator_id?: string
-          id?: string
-          recommendation?: Database["public"]["Enums"]["scorecard_recommendation"]
-          scores?: Json
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_scorecards_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "application_scorecards_evaluator_id_fkey"
-            columns: ["evaluator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -725,6 +786,52 @@ export type Database = {
           },
         ]
       }
+      candidate_tags: {
+        Row: {
+          assigned_by: string | null
+          candidate_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          candidate_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_tags_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_tags_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "talent_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           created_at: string
@@ -1103,6 +1210,54 @@ export type Database = {
             columns: ["vacancy_id"]
             isOneToOne: false
             referencedRelation: "vacancies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_scorecards: {
+        Row: {
+          comment: string | null
+          created_at: string
+          evaluator_id: string
+          id: string
+          interview_id: string
+          recommendation: Database["public"]["Enums"]["scorecard_recommendation"]
+          scores: Json
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          evaluator_id: string
+          id?: string
+          interview_id: string
+          recommendation: Database["public"]["Enums"]["scorecard_recommendation"]
+          scores?: Json
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          evaluator_id?: string
+          id?: string
+          interview_id?: string
+          recommendation?: Database["public"]["Enums"]["scorecard_recommendation"]
+          scores?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_scorecards_evaluator_id_fkey"
+            columns: ["evaluator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_scorecards_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
         ]
@@ -1649,6 +1804,41 @@ export type Database = {
           },
         ]
       }
+      talent_tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_tags_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vacancies: {
         Row: {
           city: string | null
@@ -1935,6 +2125,70 @@ export type Database = {
         }
         Returns: number
       }
+      add_candidate_to_vacancy: {
+        Args: {
+          p_candidate_id: string | null
+          p_vacancy_id: string | null
+        }
+        Returns: string
+      }
+      ai_claim_job: {
+        Args: never
+        Returns: {
+          job_id: string | null
+          application_id: string | null
+          attempts: number | null
+          claim_token: string | null
+        }[]
+      }
+      ai_complete_job: {
+        Args: {
+          p_job_id: string | null
+          p_claim_token: string | null
+          p_resume_id: string | null
+          p_criteria_version: number | null
+          p_method_version: string | null
+          p_scoring_version: string | null
+          p_model: string | null
+          p_score: number | null
+          p_score_potential: number | null
+          p_evidence_coverage: number | null
+          p_level: Database["public"]["Enums"]["compatibility_level"] | null
+          p_summary: string | null
+          p_limitations: string[] | null
+          p_input_sha256: string | null
+          p_items: Json | null
+        }
+        Returns: string
+      }
+      ai_release_job: {
+        Args: {
+          p_job_id: string | null
+          p_claim_token: string | null
+          p_outcome: string | null
+          p_error_code?: string | null
+          p_retry_at?: string | null
+        }
+        Returns: Database["public"]["Enums"]["ai_job_status"]
+      }
+      ai_start_job: {
+        Args: {
+          p_job_id: string | null
+          p_claim_token: string | null
+          p_input_sha256: string | null
+          p_criteria_version: number | null
+        }
+        Returns: undefined
+      }
+      ai_worker_heartbeat: {
+        Args: {
+          p_state: string | null
+          p_reason?: string | null
+          p_until?: string | null
+          p_cli_version?: string | null
+        }
+        Returns: boolean
+      }
       apply_resume_ocr: {
         Args: {
           p_resume_id: string | null
@@ -2076,6 +2330,12 @@ export type Database = {
           p_vacancy_id: string | null
         }
         Returns: Json
+      }
+      enqueue_system_ai_evaluation: {
+        Args: {
+          p_application_id: string | null
+        }
+        Returns: string
       }
       find_candidate_duplicates: {
         Args: {
@@ -2349,6 +2609,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      request_ai_evaluation: {
+        Args: {
+          p_application_id: string | null
+          p_automatic?: boolean | null
+        }
+        Returns: string
+      }
       request_opinion: {
         Args: {
           p_application_id: string | null
@@ -2456,9 +2723,11 @@ export type Database = {
       }
     }
     Enums: {
+      ai_job_origin: "automatico" | "manual"
+      ai_job_status: "pendiente" | "procesando" | "completado" | "error"
       app_role: "admin" | "rrhh" | "reclutador_caleta"
       application_event_type: "postulacion_creada" | "cambio_estado" | "evaluacion_generada" | "evaluacion_revisada" | "observacion" | "requisito_verificado" | "entrevista_programada" | "entrevista_reprogramada" | "entrevista_cancelada" | "entrevista_resultado" | "correo_enviado"
-      application_intake_method: "manual" | "carga_masiva" | "formulario_en_linea" | "integracion"
+      application_intake_method: "manual" | "carga_masiva" | "formulario_en_linea" | "integracion" | "cartera"
       application_status: "nuevo" | "en_revision" | "preseleccionado" | "entrevista_programada" | "en_evaluacion" | "seleccionado" | "no_seleccionado" | "en_reserva" | "retirado"
       caleta_contact_channel: "linkedin" | "whatsapp" | "email" | "otro"
       caleta_source: "linkedin" | "cip" | "grupo" | "google" | "referido" | "otro"
@@ -2511,9 +2780,11 @@ export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"]
 export const Constants = {
   public: {
     Enums: {
+      ai_job_origin: ["automatico", "manual"],
+      ai_job_status: ["pendiente", "procesando", "completado", "error"],
       app_role: ["admin", "rrhh", "reclutador_caleta"],
       application_event_type: ["postulacion_creada", "cambio_estado", "evaluacion_generada", "evaluacion_revisada", "observacion", "requisito_verificado", "entrevista_programada", "entrevista_reprogramada", "entrevista_cancelada", "entrevista_resultado", "correo_enviado"],
-      application_intake_method: ["manual", "carga_masiva", "formulario_en_linea", "integracion"],
+      application_intake_method: ["manual", "carga_masiva", "formulario_en_linea", "integracion", "cartera"],
       application_status: ["nuevo", "en_revision", "preseleccionado", "entrevista_programada", "en_evaluacion", "seleccionado", "no_seleccionado", "en_reserva", "retirado"],
       caleta_contact_channel: ["linkedin", "whatsapp", "email", "otro"],
       caleta_source: ["linkedin", "cip", "grupo", "google", "referido", "otro"],

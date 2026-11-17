@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { CalendarClockIcon, MapPinIcon, UserRoundIcon } from "lucide-react";
 import { ApplicationStatusBadge } from "@/components/common/badges";
@@ -80,11 +81,14 @@ export function InterviewItem({
   showApplication = true,
   canManage = true,
   highlight = false,
+  children,
 }: {
   interview: InterviewItemData;
   showApplication?: boolean;
   canManage?: boolean;
   highlight?: boolean;
+  /** Contenido extra al pie de la fila (p. ej. la evaluación del equipo). */
+  children?: ReactNode;
 }) {
   const { application } = interview;
   const scheduledLabel = formatInterviewDateTime(interview.scheduled_at);
@@ -186,6 +190,8 @@ export function InterviewItem({
           />
         </div>
       ) : null}
+
+      {children ? <div className="pt-1">{children}</div> : null}
     </li>
   );
 }
