@@ -224,6 +224,11 @@ export function EvaluationCard({
                               <Quote text={e.quote ?? ""} terms={[...(e.matched ?? []), ...found]} />
                             </blockquote>
                           ))}
+                          {/* «Por confirmar» con cita: la cita sola no dice QUÉ falta confirmar
+                              (cargo parecido, nivel por debajo, fechas que no cuadran…). */}
+                          {!verified && item.assessment === "pendiente_verificacion" && item.rationale ? (
+                            <p className="text-sm text-muted-foreground">{item.rationale}</p>
+                          ) : null}
                         </div>
                       ) : item.assessment === "sin_evidencia" ? (
                         <p className="text-sm text-muted-foreground">
