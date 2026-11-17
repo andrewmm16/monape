@@ -37,6 +37,9 @@ export type Evidence = {
  *  - `nivel_inferior`: declara un nivel por debajo del pedido (o un rango desde básico).
  *  - `nivel_no_declarado`: menciona la habilidad o el idioma sin nivel.
  *  - `fechas_no_cuadran`: declara más años de los que suman sus fechas.
+ *  - `solo_capacitacion`: la herramienta solo aparece en cursos o talleres (reglas-v11).
+ *  - `posible_errata`: no está el término, sí una palabra que parece una falta de
+ *    ortografía de él («Exel» por «Excel») (reglas-v11).
  */
 export type EngineSignal =
   | "cargo_relacionado"
@@ -44,7 +47,9 @@ export type EngineSignal =
   | "mencion_dudosa"
   | "nivel_inferior"
   | "nivel_no_declarado"
-  | "fechas_no_cuadran";
+  | "fechas_no_cuadran"
+  | "solo_capacitacion"
+  | "posible_errata";
 
 export type ItemAssessment = {
   requirementId: string;

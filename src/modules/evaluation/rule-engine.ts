@@ -5,9 +5,11 @@ import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from ".
 import {
   findTermOccurrences,
   isAspirationalMention,
+  isCompanyNameMention,
   isLinkMention,
   isNegatedMention,
   isThirdPartyMention,
+  isTrainingMention,
   normalizeForSearch,
   normalizeTerm,
   sentenceBounds,
@@ -124,11 +126,29 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    acredita ni cambia el puntaje.
  *  - Cada duda concreta lleva una marca legible por código (`signal`, ver
  *    EngineSignal en types.ts) para que una segunda opinión sepa qué revisar.
+ *
+ * Novedades de reglas-v11 (puntos ciegos hallados con casos realistas):
+ *  - No cuentan como evidencia: «me interesa…», la intención futura
+ *    («próximamente», «planeo») ni el término dentro del NOMBRE DE UNA EMPRESA
+ *    («Recepcionista en SAP Perú S.A.C.»).
+ *  - Una herramienta o habilidad técnica que solo aparece en cursos o talleres queda
+ *    pendiente: estudiarla no muestra que se haya usado.
+ *  - Los años de una mención con su propia área («10 años de experiencia en ventas»)
+ *    no se atribuyen a un término lejano de ella («…y conocimientos de contabilidad»).
+ *  - Se reconocen: idiomas y niveles en inglés («English (fluent)»), abreviaturas
+ *    de títulos («Ing. Civil»), «contador» como prueba de contabilidad (en un solo
+ *    sentido) y posibles faltas de ortografía («Exel» → pendiente, nunca acreditado).
  */
-export const RULE_ENGINE_VERSION = "reglas-v10";
+export const RULE_ENGINE_VERSION = "reglas-v11";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
+/**
+ * Palabras como máximo entre «años de experiencia en» y el término para que esos
+ * años sean de ese término: «en el área de contabilidad» (4) sí; «en ventas y
+ * conocimientos de contabilidad» (5) no.
+ */
+const YEARS_AREA_WORDS = 4;
 // Números escritos con letras, para leer «tres años como contador».
 const NUMBER_WORDS: Record<string, number> = {
   un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9,
@@ -248,6 +268,33 @@ function pickEvidence(original: string, haystack: NormalizedText, matches: TermM
 
 type YearsMention = { value: number; start: number; end: number };
 
+function wordsBetween(text: string, from: number, to: number): number {
+  return text.slice(from, to).split(/\s+/).filter(Boolean).length;
+}
+
+/** Palabras que no identifican un área («en el sector de…»). */
+const AREA_FILLER = new Set(["de", "del", "la", "las", "el", "los", "en", "como", "un", "una", "area", "sector", "rubro", "empresas", "empresa", "campo"]);
+
+/**
+ * Área que nombra una mención de años: hasta 4 palabras tras «en»/«como», cortando
+ * en «y», coma o fin de oración («en ventas y conocimientos de…» → «ventas»).
+ */
+function yearsArea(after: string): string[] {
+  const clause = after.replace(/^\s*(?:en|como)\s+/, "").split(/[,.;:\n]|\s(?:y|e)\s/)[0] ?? "";
+  return clause
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, YEARS_AREA_WORDS)
+    .filter((w) => w.length >= 4 && !AREA_FILLER.has(w));
+}
+
+/** ¿Alguna palabra del área comparte raíz (5 primeras letras) con el término? */
+function sharesStem(area: string[], term: string): boolean {
+  const stem = (w: string) => w.slice(0, 5);
+  const termStems = new Set(term.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4).map(stem));
+  return area.some((w) => termStems.has(stem(w)));
+}
+
 /**
  * Años de experiencia mencionados explícitamente cerca de las coincidencias.
  * Para cada coincidencia se toma la mención más próxima (no la mayor), con
@@ -272,6 +319,19 @@ export function findYearsMention(haystack: NormalizedText, matches: Match[], ori
         if (!Number.isFinite(value) || value > 50) continue;
         const start = from + index;
         const end = Math.min(haystack.text.length, start + found[0].length);
+        // reglas-v11: si la mención nombra su propia área («10 años de experiencia EN
+        // ventas…») y el término viene después y lejos de ella («…y conocimientos de
+        // contabilidad»), esos años son de otra área: no se atribuyen al término.
+        // Solo cuando el término viene DESPUÉS y fuera del área, y esa área no comparte
+        // raíz con él: «5 años de experiencia en supervisión de obras» sí vale para el
+        // cargo «Supervisor de Obra» de más abajo; «en ventas» no vale para
+        // «contabilidad». Si el término va ANTES («Asesor comercial con 3 años de
+        // experiencia en ventas»), los años son de ese cargo, como siempre.
+        const namesItsArea = /\b(?:en|como)$/.test(found[0].trimEnd()) || /^\s(?:en|como)\s/.test(haystack.text.slice(end, end + 7));
+        if (namesItsArea && match.start >= end && wordsBetween(haystack.text, end, match.start) > YEARS_AREA_WORDS) {
+          const area = yearsArea(haystack.text.slice(end, end + 80));
+          if (!sharesStem(area, haystack.text.slice(match.start, match.end))) continue;
+        }
         const originalAt = haystack.map[start]!;
         const sameSentence = sentence !== null && originalAt >= sentence.from && originalAt < sentence.to;
         const rank = sameSentence ? 0 : 1;
@@ -315,10 +375,12 @@ const STUDY_CUES = /\b(?:bachiller|titul[oa]d[oa]?|titulo|licenciad[oa]|egresad[
  * de la escalera de grados académicos: el requisito toma el mínimo que pide y el
  * CV el máximo que declara.
  */
+// reglas-v11: también los niveles escritos en inglés («fluent», «native»,
+// «beginner»). «Basic» no cuenta en «Visual Basic», que es un lenguaje.
 const LEVEL_WORDS: ReadonlyArray<readonly [number, RegExp]> = [
-  [3, /\b(?:avanzad[oa]s?|experto|experta|senior|advanced|fluido|fluida|nativ[oa])\b/],
-  [2, /\b(?:intermedi[oa]s?|intermediate)\b/],
-  [1, /\b(?:basic[oa]s?|inicial|principiante|elemental|nociones)\b/],
+  [3, /\b(?:avanzad[oa]s?|experto|experta|senior|advanced|fluido|fluida|nativ[oa]|fluent|native|proficient|expert)\b/],
+  [2, /\b(?:intermedi[oa]s?|intermediate|conversational)\b/],
+  [1, /\b(?:basic[oa]s?|inicial|principiante|elemental|nociones|beginner|elementary)\b|(?<!\bvisual )\bbasic\b/],
 ];
 const LEVEL_NAMES: Record<number, string> = { 1: "básico", 2: "intermedio", 3: "avanzado" };
 // «A nivel usuario» equivale a pedir un nivel básico. Solo se usa para leer el
@@ -401,8 +463,28 @@ function languageWordsIn(requirement: RequirementInput): string[] {
   for (const m of texto.matchAll(new RegExp(LANGUAGE_WORDS.source, "g"))) {
     if (m[0] !== "idioma" && m[0] !== "idiomas") encontrados.add(m[0]);
   }
-  return [...encontrados].map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  const nombres = [...encontrados].map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  // reglas-v11: el nombre en inglés, para los CV escritos en inglés («English (fluent)»).
+  for (const w of encontrados) {
+    const ingles = LANGUAGE_IN_ENGLISH[w];
+    if (ingles) nombres.push(ingles);
+  }
+  return nombres;
 }
+
+/** Nombre en inglés de cada idioma de LANGUAGE_WORDS (sin tildes, como se normaliza). */
+const LANGUAGE_IN_ENGLISH: Record<string, string> = {
+  ingles: "English",
+  portugues: "Portuguese",
+  frances: "French",
+  italiano: "Italian",
+  aleman: "German",
+  chino: "Chinese",
+  mandarin: "Mandarin",
+  japones: "Japanese",
+  coreano: "Korean",
+  ruso: "Russian",
+};
 
 /**
  * Nivel del marco europeo que aparece en un texto, como número de 1 (A1) a
@@ -646,6 +728,103 @@ function genericTerms(requirement: RequirementInput): string[] {
 }
 
 /**
+ * Abreviaturas habituales de un título (reglas-v11), para los requisitos de
+ * formación: «Ingeniería Civil» → «Ing. Civil», «Ingeniero Civil»; «Licenciatura en
+ * Enfermería» → «Lic. en Enfermería», «Licenciada en Enfermería»; «Bachiller en X»
+ * → «Bach. en X». La exigencia de estudios concluidos se aplica igual.
+ */
+function formationAbbreviations(term: string): string[] {
+  const t = term.trim();
+  const ingenieria = /^ingenier[ií]a\s+(.+)$/i.exec(t);
+  if (ingenieria) {
+    const x = ingenieria[1]!;
+    return [`Ing. ${x}`, `Ing ${x}`, `Ingeniero ${x}`, `Ingeniera ${x}`];
+  }
+  const licenciatura = /^licenciatura\s+en\s+(.+)$/i.exec(t);
+  if (licenciatura) {
+    const x = licenciatura[1]!;
+    return [`Lic. en ${x}`, `Lic. ${x}`, `Licenciado en ${x}`, `Licenciada en ${x}`];
+  }
+  const bachiller = /^bachiller(?:ato)?\s+en\s+(.+)$/i.exec(t);
+  if (bachiller) return [`Bach. en ${bachiller[1]!}`, `Bach. ${bachiller[1]!}`];
+  return [];
+}
+
+/**
+ * Una coincidencia cuenta como evidencia del candidato salvo que esté negada,
+ * exprese un interés o una intención futura, la atribuya a otra persona, forme
+ * parte del nombre de una empresa (reglas-v11) o esté dentro de un correo o enlace.
+ */
+function countsAsEvidence(original: string, haystack: NormalizedText, m: Match): boolean {
+  return (
+    !isNegatedMention(original, haystack, m) &&
+    !isAspirationalMention(original, haystack, m) &&
+    !isThirdPartyMention(original, haystack, m) &&
+    !isCompanyNameMention(original, haystack, m) &&
+    !isLinkMention(original, haystack, m)
+  );
+}
+
+/** ¿`a` y `b` están a una edición (inserción, borrado, cambio o trasposición)? */
+function withinOneEdit(a: string, b: string): boolean {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) {
+    // Cambio de una letra, o dos letras traspuestas («Excle» por «Excel»).
+    if (a.slice(i + 1) === b.slice(i + 1)) return true;
+    return a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2);
+  }
+  const [shorter, longer] = a.length < b.length ? [a, b] : [b, a];
+  return shorter.slice(i) === longer.slice(i + 1);
+}
+
+/** Longitud mínima de un término para buscarle faltas de ortografía. */
+const TYPO_MIN_LENGTH = 5;
+
+/**
+ * Posible falta de ortografía (reglas-v11): el CV no trae el término pero sí una
+ * palabra a una sola edición de él («Exel» por «Excel», «Pyton» por «Python»).
+ * Solo términos de una palabra y de 5 letras o más, para no confundir palabras
+ * cortas. Queda PENDIENTE, nunca acreditado: puede ser otra palabra.
+ */
+function typoEvidence(
+  original: string,
+  haystack: NormalizedText,
+  requirement: RequirementInput,
+  terms: string[],
+): Omit<ItemAssessment, "requirementId"> | null {
+  if (requirement.category === "idioma" || requirement.category === "competencia") return null;
+  // Palabras de 4 letras o más: una letra de menos sobre un término de 5 («Exel»).
+  const words = new Set(haystack.text.match(/\p{L}{4,}/gu) ?? []);
+  const typos = new Map<string, string>();
+  for (const term of terms) {
+    const key = normalizeTerm(term);
+    if (!/^\p{L}+$/u.test(key) || key.length < TYPO_MIN_LENGTH) continue;
+    const variants = new Set(termVariants(term).map(normalizeTerm));
+    for (const word of words) {
+      if (!variants.has(word) && withinOneEdit(word, key) && !typos.has(word)) typos.set(word, term);
+    }
+  }
+  if (typos.size === 0) return null;
+  const found = collectMatches(haystack, [...typos.keys()]).filter((m) => countsAsEvidence(original, haystack, m));
+  if (found.length === 0) return null;
+  // Primera aparición de cada palabra, con su grafía original en el CV.
+  const first = new Map<string, TermMatch>();
+  for (const m of found) if (!first.has(m.term)) first.set(m.term, m);
+  const shown = [...first.entries()]
+    .slice(0, 3)
+    .map(([word, m]) => `«${original.slice(haystack.map[m.start]!, haystack.map[m.end - 1]! + 1)}» (¿«${typos.get(word)}»?)`)
+    .join(", ");
+  return {
+    assessment: "pendiente_verificacion",
+    evidence: pickEvidence(original, haystack, found),
+    rationale: `No aparece ninguno de los términos configurados (${terms.join(", ")}), pero el CV menciona ${shown}, que parece una falta de ortografía. Confírmelo al revisar el CV.`,
+    signal: "posible_errata",
+  };
+}
+
+/**
  * Evidencia relacionada (reglas-v10, ver related.ts): si el CV no trae ningún
  * término configurado pero sí un cargo o una habilidad PARECIDOS, el requisito
  * queda pendiente con esa pista en vez de «sin evidencia». Nunca acredita: un
@@ -665,20 +844,14 @@ function relatedEvidence(
   for (const core of cores.keys()) {
     if (!candidates.some((c) => normalizeTerm(c) === normalizeTerm(core))) candidates.push(core);
   }
-  if (candidates.length === 0) return null;
-  const valid = collectMatches(haystack, candidates).filter(
-    (m) =>
-      !isNegatedMention(original, haystack, m) &&
-      !isAspirationalMention(original, haystack, m) &&
-      !isThirdPartyMention(original, haystack, m) &&
-      !isLinkMention(original, haystack, m),
-  );
+  if (candidates.length === 0) return typoEvidence(original, haystack, requirement, terms);
+  const valid = collectMatches(haystack, candidates).filter((m) => countsAsEvidence(original, haystack, m));
   // Una mención dentro de otra más larga («negociación» en «técnicas de negociación»)
   // no se cuenta aparte.
   const found = valid.filter(
     (m) => !valid.some((o) => o !== m && o.start <= m.start && o.end >= m.end && o.end - o.start > m.end - m.start),
   );
-  if (found.length === 0) return null;
+  if (found.length === 0) return typoEvidence(original, haystack, requirement, terms);
 
   const foundTerms = [...new Set(found.map((m) => m.term))];
   const label = (t: string) => (cores.has(t) ? `«${t}» (más general que «${cores.get(t)}»)` : `«${t}»`);
@@ -752,22 +925,20 @@ export function evaluateRequirement(
     };
   }
 
-  const expand = isEquivalenceScope(requirement) ? equivalentsFor : () => [];
+  const expand = isEquivalenceScope(requirement)
+    ? equivalentsFor
+    : isFormationRequirement(requirement)
+      ? formationAbbreviations
+      : () => [];
   const allMatches = collectMatches(haystack, terms, expand);
   // «Sin experiencia en SAP» menciona el término pero no lo acredita.
-  const matches = allMatches.filter(
-    (m) =>
-      !isNegatedMention(original, haystack, m) &&
-      !isAspirationalMention(original, haystack, m) &&
-      !isThirdPartyMention(original, haystack, m) &&
-      !isLinkMention(original, haystack, m),
-  );
+  const matches = allMatches.filter((m) => countsAsEvidence(original, haystack, m));
   if (matches.length === 0 && allMatches.length > 0) {
     return {
       ...base,
       assessment: "pendiente_verificacion",
       evidence: pickEvidence(original, haystack, allMatches),
-      rationale: `El CV menciona: ${[...new Set(allMatches.map((m) => m.term))].join(", ")}, pero solo en frases que parecen negarlo, expresar un interés, atribuirlo a otra persona o dentro de un correo o un enlace (por ejemplo «sin experiencia en…», «interés en…», «mi equipo usaba…» o «concar.com.pe»). Revíselo en el CV.`,
+      rationale: `El CV menciona: ${[...new Set(allMatches.map((m) => m.term))].join(", ")}, pero solo en frases que parecen negarlo, expresar un interés o una intención futura, atribuirlo a otra persona, como parte del nombre de una empresa o dentro de un correo o un enlace (por ejemplo «sin experiencia en…», «me interesa…», «mi equipo usaba…», «SAP Perú S.A.C.» o «concar.com.pe»). Revíselo en el CV.`,
       signal: "mencion_dudosa",
     };
   }
@@ -819,6 +990,21 @@ export function evaluateRequirement(
       assessment: "pendiente_verificacion",
       evidence,
       rationale: `${foundText} Pero eso es una categoría genérica; el puesto pide una herramienta concreta (${requirement.keywords.join(", ")}). Verifique cuál usa la persona.`,
+    };
+  }
+
+  // Herramienta o habilidad técnica que SOLO aparece en cursos o talleres
+  // (reglas-v11): haberla estudiado no muestra que se haya usado en el trabajo.
+  if (
+    (requirement.category === "herramienta" || requirement.category === "habilidad_tecnica") &&
+    matches.every((m) => isTrainingMention(original, haystack, m))
+  ) {
+    return {
+      ...base,
+      assessment: "pendiente_verificacion",
+      evidence,
+      rationale: `${foundText} Pero solo aparece en cursos o capacitaciones: haberlo estudiado no muestra que lo haya usado en el trabajo. Verifique su experiencia práctica.`,
+      signal: "solo_capacitacion",
     };
   }
 
@@ -981,7 +1167,10 @@ export function evaluateRequirement(
         ...evidence.filter((e) => e.quote !== sentence.quote).slice(0, 2),
       ];
     }
-    const dated = estimateFromIndex(experienceIndex(), terms);
+    // reglas-v11: también las equivalencias que coincidieron («Contador General
+    // 2018 – actualidad» suma años de contabilidad), no solo los términos configurados.
+    const equivalentes = [...new Set(matches.flatMap((m) => (m.via === undefined ? [] : [m.via])))];
+    const dated = estimateFromIndex(experienceIndex(), [...terms, ...equivalentes]);
     const minimum = formatYears(required);
     const byMention = years !== null && years >= required;
     const byDates = dated !== null && dated.minYears >= required;

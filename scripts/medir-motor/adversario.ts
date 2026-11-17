@@ -430,6 +430,55 @@ const CASOS: Caso[] = [
     espera: ["pendiente_verificacion", "sin_evidencia"],
     porque: "Intención futura expresada con el sinónimo, no experiencia.",
   },
+  // ------------------------------------------------ K. Puntos ciegos (reglas-v11)
+  {
+    grupo: "K. Puntos ciegos",
+    nombre: "El término es el nombre de la empresa",
+    texto: "EXPERIENCIA\nRecepcionista - SAP Perú S.A.C. (2020 - 2023)\nAtención de visitas.",
+    requisito: { category: "herramienta", description: "Manejo de SAP", keywords: ["SAP"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Trabajar en una empresa llamada SAP no dice que la persona maneje SAP.",
+  },
+  {
+    grupo: "K. Puntos ciegos",
+    nombre: "Años de otra área junto al término",
+    texto: "10 años de experiencia en ventas y conocimientos de contabilidad básica.",
+    requisito: { category: "experiencia", description: "Mínimo 3 años de experiencia en contabilidad", keywords: ["contabilidad"], minYears: 3 },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Los 10 años son de ventas; de contabilidad solo declara conocimientos básicos.",
+  },
+  {
+    grupo: "K. Puntos ciegos",
+    nombre: "La herramienta solo aparece en un curso",
+    texto: "CURSOS\nCurso de SAP FI - Instituto Ficticio (2024)",
+    requisito: { category: "herramienta", description: "Manejo de SAP", keywords: ["SAP"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Haber llevado un curso no muestra que la haya usado en el trabajo.",
+  },
+  {
+    grupo: "K. Puntos ciegos",
+    nombre: "Intención futura",
+    texto: "Próximamente me certificaré en SAP.",
+    requisito: { category: "herramienta", description: "Manejo de SAP", keywords: ["SAP"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Lo que hará en el futuro todavía no es experiencia.",
+  },
+  {
+    grupo: "K. Puntos ciegos",
+    nombre: "«Me interesa…»",
+    texto: "Me interesa mucho trabajar con SAP.",
+    requisito: { category: "herramienta", description: "Manejo de SAP", keywords: ["SAP"] },
+    espera: ["pendiente_verificacion", "sin_evidencia"],
+    porque: "Un interés no es experiencia.",
+  },
+  {
+    grupo: "K. Puntos ciegos",
+    nombre: "Una falta de ortografía no acredita",
+    texto: "Manejo de Exel avanzado y Word.",
+    requisito: { category: "herramienta", description: "Excel avanzado", keywords: ["Excel"] },
+    espera: ["pendiente_verificacion"],
+    porque: "«Exel» parece Excel, pero puede ser otra cosa: se señala para revisar, sin acreditar.",
+  },
 ];
 
 exit(

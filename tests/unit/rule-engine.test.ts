@@ -833,8 +833,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v10", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v10");
+  it("RULE_ENGINE_VERSION es reglas-v11", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v11");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {
@@ -1033,5 +1033,84 @@ describe("reglas-v10: evidencia relacionada y marcas de duda", () => {
     expect(evalua("Manejo de Excel.", excel).signal).toBe("nivel_no_declarado");
     expect(evalua("Sin experiencia en Excel.", excel).signal).toBe("mencion_dudosa");
     expect(evalua("Excel avanzado.", excel).signal).toBeUndefined();
+  });
+});
+
+describe("reglas-v11: puntos ciegos", () => {
+  const REF = new Date("2026-11-03T12:00:00.000Z");
+  const evalua = (texto: string, overrides: Partial<RequirementInput>) =>
+    evaluateWithRules(texto, [req("r", overrides)], { referenceDate: REF })[0]!;
+  const SAP: Partial<RequirementInput> = { category: "herramienta", description: "Manejo de SAP", keywords: ["SAP"] };
+  const CONTA: Partial<RequirementInput> = {
+    category: "experiencia",
+    description: "Mínimo 3 años de experiencia en contabilidad",
+    keywords: ["contabilidad"],
+    minYears: 3,
+  };
+
+  it("el término dentro del nombre de una empresa no acredita; con «en» delante, sí", () => {
+    const empresa = evalua("Recepcionista - SAP Perú S.A.C. (2020 - 2023)", SAP);
+    expect(empresa.assessment).toBe("pendiente_verificacion");
+    expect(empresa.signal).toBe("mencion_dudosa");
+    expect(empresa.rationale).toContain("nombre de una empresa");
+    expect(evalua("Manejo de SAP en Alicorp S.A.A. durante 3 años.", SAP).assessment).toBe("acreditado");
+  });
+
+  it("«me interesa…» y la intención futura no acreditan", () => {
+    expect(evalua("Me interesa mucho trabajar con SAP.", SAP).assessment).not.toBe("acreditado");
+    expect(evalua("Próximamente me certificaré en SAP.", SAP).assessment).not.toBe("acreditado");
+  });
+
+  it("una herramienta solo en cursos queda pendiente; con uso real, se acredita", () => {
+    const curso = evalua("CURSOS\nCurso de SAP FI - Instituto Ficticio (2024)", SAP);
+    expect(curso.assessment).toBe("pendiente_verificacion");
+    expect(curso.signal).toBe("solo_capacitacion");
+    expect(evalua("Uso diario de SAP FI.\nCURSOS\nCurso de SAP FI (2023)", SAP).assessment).toBe("acreditado");
+    // El curso DESPUÉS del término no resta: la persona dice que ya lo maneja.
+    const excel = { category: "herramienta" as const, description: "Excel avanzado", keywords: ["Excel"] };
+    expect(evalua("Manejo Excel avanzado, que quiero perfeccionar con un curso de macros.", excel).assessment).toBe("acreditado");
+  });
+
+  it("los años de otra área no se atribuyen; los de la misma área, sí", () => {
+    expect(evalua("10 años de experiencia en ventas y conocimientos de contabilidad básica.", CONTA).assessment).toBe("pendiente_verificacion");
+    expect(evalua("Contadora con 5 años de experiencia en el área contable.", CONTA).assessment).toBe("acreditado");
+    expect(evalua("5 años de experiencia en contabilidad y finanzas.", CONTA).assessment).toBe("acreditado");
+    // El cargo ANTES de los años (el patrón más común): los años son de ese cargo.
+    const asesor = { category: "experiencia" as const, description: "3 años como asesor comercial", keywords: ["asesor comercial"], minYears: 3 };
+    expect(evalua("Asesor comercial con tres años de experiencia en ventas de consumo masivo.", asesor).assessment).toBe("acreditado");
+  });
+
+  it("«contador» prueba contabilidad (y suma sus fechas), pero no al revés", () => {
+    expect(evalua("EXPERIENCIA\nContador General Ene 2018 - Actualidad", CONTA).assessment).toBe("acreditado");
+    const contador = { category: "experiencia" as const, description: "Experiencia como contador", keywords: ["contador"] };
+    expect(evalua("Asistente contable en Comercial Ficticia.", contador).assessment).not.toBe("acreditado");
+  });
+
+  it("idioma y nivel en inglés", () => {
+    const ingles = { category: "idioma" as const, description: "Inglés intermedio", keywords: ["Inglés"] };
+    expect(evalua("Languages: English (fluent), Spanish (native).", ingles).assessment).toBe("acreditado");
+    expect(evalua("Languages: English (beginner).", ingles).assessment).toBe("pendiente_verificacion");
+  });
+
+  it("«Visual Basic» no se lee como nivel básico", () => {
+    const excel = { category: "herramienta" as const, description: "Excel avanzado", keywords: ["Excel"] };
+    expect(evalua("Excel avanzado con macros en Visual Basic.", excel).assessment).toBe("acreditado");
+  });
+
+  it("abreviaturas de títulos: «Ing. Civil», «Lic. en Enfermería»", () => {
+    const civil = { category: "formacion" as const, description: "Título en Ingeniería Civil", keywords: ["Ingeniería Civil"] };
+    expect(evalua("Ing. Civil titulado - Universidad Ficticia (2015)", civil).assessment).toBe("acreditado");
+    const enf = { category: "formacion" as const, description: "Licenciatura en Enfermería", keywords: ["Licenciatura en Enfermería"] };
+    expect(evalua("Lic. en Enfermería titulada, colegiada CEP.", enf).assessment).toBe("acreditado");
+  });
+
+  it("una posible falta de ortografía queda pendiente, nunca acreditada", () => {
+    const excel = { category: "herramienta" as const, description: "Excel avanzado", keywords: ["Excel"] };
+    const r = evalua("Manejo de Exel avanzado y Word.", excel);
+    expect(r.assessment).toBe("pendiente_verificacion");
+    expect(r.signal).toBe("posible_errata");
+    expect(r.rationale).toContain("«Exel» (¿«Excel»?)");
+    // Palabras cortas no se comparan: «Java» no es errata de «Lava».
+    expect(evalua("Experiencia en Lava.", { category: "herramienta", description: "Java", keywords: ["Java"] }).assessment).toBe("sin_evidencia");
   });
 });

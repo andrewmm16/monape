@@ -9,6 +9,12 @@ import { normalizeTerm } from "./text";
 export const EQUIVALENCE_GROUPS: ReadonlyArray<{
   concepto: string;
   equivalentes: readonly string[];
+  /**
+   * Expresiones que DEMUESTRAN el concepto pero no al revés (reglas-v11): un
+   * contador hace contabilidad, pero quien hace tareas contables no es contador.
+   * Se buscan al pedir el concepto; pedirlas a ellas no expande al grupo.
+   */
+  implicados?: readonly string[];
 }> = [
   {
     concepto: "contabilidad",
@@ -18,6 +24,7 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
       "libros contables",
       "registros contables",
     ],
+    implicados: ["contador", "contador público", "contador general"],
   },
   {
     concepto: "atención al cliente",
@@ -50,7 +57,7 @@ export function equivalentsFor(term: string): string[] {
   const out: string[] = [];
   for (const group of EQUIVALENCE_GROUPS) {
     if (!group.equivalentes.some((e) => normalizeTerm(e) === key)) continue;
-    for (const e of group.equivalentes) {
+    for (const e of [...group.equivalentes, ...(group.implicados ?? [])]) {
       const n = normalizeTerm(e);
       if (seen.has(n)) continue;
       seen.add(n);

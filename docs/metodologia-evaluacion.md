@@ -26,7 +26,9 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v5`; antes `reglas-v4`, `reglas-v3` y `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v11`; antes `reglas-v10` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+
+Las novedades de reglas-v6 a reglas-v11 se resumen en «Cambios de reglas-v6 a reglas-v11», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
 
 Determinista: con el mismo texto, los mismos criterios y la misma fecha de evaluación, da el mismo resultado. La fecha importa solo para los empleos «a la actualidad» (regla 5). Las evaluaciones anteriores al 28/10/2026 indican `reglas-v1`, que no calculaba años por fechas.
 
@@ -144,7 +146,22 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
 
 **Curación.** Cada grupo se valida contra los bancos de medición (legítimo y adversario). Un grupo ventas ↔ comercial se probó y se retiró: «empresa/área comercial» acreditaba un requisito de «Ventas».
 
-**Límite conocido: experiencia por fechas.** El cálculo de años por fechas (`experience-dates.ts`) no se expande con equivalencias en esta versión. Si el único indicio es un sinónimo dentro del bloque de fechas y no hay años explícitos, el requisito queda *pendiente de verificación*; es el sentido conservador (no se acredita de más).
+**Experiencia por fechas.** Desde reglas-v11, el cálculo de años por fechas (`experience-dates.ts`) también considera las equivalencias que coincidieron («Contador General 2018 – actualidad» suma años de contabilidad). Hasta reglas-v10 no lo hacía y esos requisitos quedaban *pendientes de verificación*.
+
+**Equivalencias en un solo sentido (reglas-v11).** Un grupo puede tener `implicados`: expresiones que demuestran el concepto pero no al revés. «Contador» demuestra contabilidad, pero quien hace tareas contables no es contador; pedir «contador» no se expande al grupo.
+
+## Cambios de reglas-v6 a reglas-v11
+
+Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* en lugar de *acreditado*, o *por confirmar* en lugar de *sin evidencia*. Se miden contra la vara de 248 casillas revisadas a mano (`npm run gold:motor`) y los bancos (`npm run verificar:motor`).
+
+- **v6. Escalera de niveles** (básico < intermedio < avanzado): un nivel por debajo del pedido queda por confirmar. «Nociones» queda por confirmar.
+- **v7. Requisitos conjuntivos** («S10 y MS Project» exige ambos; «o» es alternativa), idioma buscado a secas y **discrepancia de años**: si declara años que sus fechas no respaldan (≥ 2 menos), queda por confirmar con aviso.
+- **v8. Nivel no declarado** frente a un nivel pedido por encima de básico → por confirmar; categoría genérica («ERP») frente a la herramienta concreta («SAP») → por confirmar.
+- **v9. Rangos que parten de básico** («básico-intermedio» frente a intermedio) → por confirmar.
+- **v10. Evidencia relacionada** (`related.ts`): sin el término pero con un cargo parecido («asistente de residencia» frente a «residente de obra») o una habilidad más general («negociación» frente a «negociación de contratos») → por confirmar con la pista, nunca acreditado. Cada duda lleva una marca legible por código (`signal`) para la segunda opinión.
+- **v11. Puntos ciegos** hallados con casos realistas: no cuentan «me interesa…», la intención futura («próximamente», «planeo») ni el término dentro del **nombre de una empresa** («SAP Perú S.A.C.»); una herramienta que **solo aparece en cursos** queda por confirmar; los años de una mención con **área propia distinta** («10 años de experiencia en ventas y conocimientos de contabilidad») no se atribuyen a un término lejano; se reconocen idiomas y niveles en inglés, abreviaturas de títulos («Ing. Civil») y posibles **faltas de ortografía** («Exel» → por confirmar, nunca acreditado).
+
+**Límite conocido.** El motor no entiende paráfrasis sin palabras clave («atendí llamadas y resolví quejas» para atención al cliente): queda *sin evidencia*. Es uno de los casos previstos para la segunda opinión con IA.
 
 ## Cambios de reglas-v4
 

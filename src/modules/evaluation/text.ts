@@ -468,7 +468,10 @@ export function isThirdPartyMention(original: string, haystack: NormalizedText, 
   return THIRD_PARTY_SUBJECT.test(before) && !FIRST_PERSON.test(before);
 }
 
-const WISH_BEFORE = /(?:interes en|interesad[oa] en|interes por|busco|aspiro|deseo|objetivo|me gustaria|ganas de|quiero)/;
+// reglas-v11: también «me interesa…» y la intención futura («próximamente me
+// certificaré en SAP», «planeo aprender Power BI»): no es experiencia todavía.
+const WISH_BEFORE =
+  /(?:interes en|interesad[oa] en|interes por|busco|aspiro|deseo|objetivo|me gustaria|ganas de|quiero|\bme interesa|\bproximamente\b|\bplaneo\b|\bpienso\b|\ba futuro\b|\ben el futuro\b)/;
 /**
  * Deseo expresado DESPUÉS del término, en una oración de relativo que cuelga de
  * él: «cursos de Concar que planeo tomar». Solo cuentan los verbos de adquirir
@@ -486,4 +489,80 @@ export function isAspirationalMention(original: string, haystack: NormalizedText
   const before = normalizeForSearch(original.slice(from, start)).text;
   if (WISH_BEFORE.test(before)) return true;
   return WISH_AFTER.test(normalizeForSearch(original.slice(end, to)).text);
+}
+
+/** Línea del texto original que contiene la posición `index`. */
+function lineAround(original: string, index: number): { from: number; to: number } {
+  const from = original.lastIndexOf("\n", index - 1) + 1;
+  const next = original.indexOf("\n", index);
+  return { from, to: next === -1 ? original.length : next };
+}
+
+/**
+ * Forma jurídica al final de un nombre de empresa (Perú y comunes): S.A.C.,
+ * S.A.A., S.A., E.I.R.L., S.R.L., S.A.S., Ltda., Inc., Corp., LLC.
+ */
+const COMPANY_SUFFIX = /^(?:s\.?\s?a\.?\s?c\.?|s\.?\s?a\.?\s?a\.?|s\.?\s?a\.?\s?s\.?|s\.?\s?a\.?|e\.?\s?i\.?\s?r\.?\s?l\.?|s\.?\s?r\.?\s?l\.?|ltda\.?|inc\.?|corp\.?|llc)(?=$|[\s,;:)(\]|/-])/i;
+/** Palabra de un nombre propio (con mayúscula inicial) o conector dentro de un nombre. */
+const NAME_WORD = /^(?:\p{Lu}[\p{L}\p{N}.&'-]*|de|del|y|&)$/u;
+
+/**
+ * El término forma parte del NOMBRE DE UNA EMPRESA (reglas-v11): «Recepcionista en
+ * SAP Perú S.A.C.» no dice que la persona maneje SAP. Se reconoce porque tras el
+ * término, en la misma línea, solo hay palabras con mayúscula y luego una forma
+ * jurídica. «Manejo de SAP en Alicorp S.A.A.» no cuenta: «en» corta el nombre.
+ */
+export function isCompanyNameMention(original: string, haystack: NormalizedText, match: Match): boolean {
+  const end = haystack.map[match.end - 1]! + 1;
+  const { to } = lineAround(original, end);
+  const rest = original.slice(end, Math.min(to, end + 60));
+  const words = rest.split(/\s+/).filter((w) => w !== "");
+  // Como mucho dos palabras de nombre entre el término y la forma jurídica: así un
+  // cargo pegado a la empresa («Contador General Cementos Pacasmayo S.A.A.») no
+  // convierte al cargo en parte del nombre.
+  for (let i = 0; i < words.length && i <= 2; i++) {
+    const tail = words.slice(i).join(" ");
+    if (COMPANY_SUFFIX.test(tail)) return true;
+    if (!NAME_WORD.test(words[i]!)) return false;
+  }
+  return false;
+}
+
+/**
+ * Palabras de una línea de formación complementaria: cursos, talleres, seminarios.
+ * Las certificaciones NO cuentan aquí: una certificación en una herramienta sí es
+ * evidencia razonable de dominio, un curso suelto no.
+ */
+// La palabra va ANTES del término y cerca, sin comas en medio: «Curso de SAP FI»,
+// «Capacitación en Excel». En «Manejo Excel, que perfeccionaré con un curso», el
+// curso viene después y la persona dice que ya lo maneja: no cuenta.
+const TRAINING_BEFORE =
+  /\b(?:curso|cursos|taller|talleres|capacitacion|capacitaciones|seminario|seminarios|webinar|diplomado|diplomados)\b(?:\s+[^\s,;:()]+){0,4}\s*$/;
+/** Encabezados de secciones de formación complementaria. */
+const TRAINING_HEADING =
+  /^(?:cursos|capacitaciones|seminarios|talleres|diplomados|formacion complementaria|estudios complementarios|cursos y capacitaciones)\b/;
+/** Línea con aspecto de encabezado: corta y toda en mayúsculas. */
+function isHeadingLine(line: string): boolean {
+  const letters = line.replace(/[^\p{L}]/gu, "");
+  return letters.length >= 4 && line.trim().length <= 40 && letters === letters.toUpperCase();
+}
+
+/**
+ * El término aparece en un curso o taller (reglas-v11): precedido de cerca por la
+ * palabra («Curso de SAP FI (2024)») o bajo un encabezado de cursos o
+ * capacitaciones. Haber estudiado una herramienta no muestra que se haya usado.
+ */
+export function isTrainingMention(original: string, haystack: NormalizedText, match: Match): boolean {
+  const start = haystack.map[match.start]!;
+  const line = lineAround(original, start);
+  if (TRAINING_BEFORE.test(normalizeForSearch(original.slice(line.from, start)).text)) return true;
+  // Encabezado más cercano por encima (hasta 30 líneas).
+  let cursor = line.from - 1;
+  for (let i = 0; i < 30 && cursor > 0; i++) {
+    const previous = lineAround(original, cursor);
+    const text = original.slice(previous.from, previous.to);
+    if (isHeadingLine(text)) return TRAINING_HEADING.test(normalizeForSearch(text.trim()).text);
+    cursor = previous.from - 1;
+  }
+  return false;
 }
