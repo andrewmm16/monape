@@ -8,7 +8,8 @@ import { VacancyStatusBadge } from "@/components/common/badges";
 import { PageHeader } from "@/components/common/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { VacancySuggestions } from "@/components/talent/vacancy-suggestions";
 import { PublicLink } from "@/components/vacancies/public-listing-notice";
 import { ApplicationsBoard } from "@/components/vacancies/applications-board";
 import { ApplicationsTable } from "@/components/vacancies/applications-table";
@@ -38,6 +39,7 @@ import {
   rankVacancyApplications,
 } from "@/modules/applications/queries";
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
+import { suggestCandidatesForVacancy } from "@/modules/talent-pool/matching";
 import { portalLogo } from "@/modules/portals/logos";
 import { listPortalPublications } from "@/modules/portals/queries";
 import { getVacancy, listKillerQuestions, listRequirements } from "@/modules/vacancies/queries";
@@ -169,6 +171,25 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     const canRun = can(user.role, "evaluations:run");
     const pending = canRun ? await countPendingEvaluations(supabase, vacancy.id) : 0;
     const comparable = await countComparable(supabase, vacancy.id);
+    // Sugerencias de la base de talento: solo si RRHH puede gestionar candidatos y la vacante admite postulaciones.
+    const suggestedCandidates =
+      can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada")
+        ? await suggestCandidatesForVacancy(supabase, vacancy.id)
+        : null;
+    const suggestions =
+      suggestedCandidates === null ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Candidatos de tu base que encajan</CardTitle>
+            <CardDescription>
+              Perfiles de tu histórico que coinciden con los requisitos y están disponibles para reactivar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VacancySuggestions vacancyId={vacancy.id} candidates={suggestedCandidates} />
+          </CardContent>
+        </Card>
+      );
     const toggleLink = (target: "tabla" | "tablero", label: string) => (
       <Link
         href={target === "tablero" ? `/vacantes/${vacancy.id}?tab=candidatos&modo=tablero` : `/vacantes/${vacancy.id}?tab=candidatos`}
@@ -203,6 +224,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
       const boardRows = await listApplicationsForBoard(supabase, vacancy.id);
       content = (
         <div className="space-y-4">
+          {suggestions}
           {actions}
           <ApplicationsBoard rows={boardRows} canManage={canManage} />
         </div>
@@ -222,6 +244,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
       );
       content = (
         <div className="space-y-4">
+          {suggestions}
           {actions}
           <ApplicationsTable
             vacancyId={vacancy.id}

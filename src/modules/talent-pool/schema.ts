@@ -23,7 +23,38 @@ export const talentFiltersSchema = z.object({
   location: z.string().trim().max(100).catch(""),
   /** Estado de alguna postulación previa del candidato. */
   status: z.enum(TALENT_APPLICATION_STATUSES).optional().catch(undefined),
+  /** Etiqueta (id) para filtrar el pool. */
+  tag: z.uuid().optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(1000).catch(1),
 });
 
 export type TalentFilters = z.infer<typeof talentFiltersSchema>;
+
+/** Colores disponibles para una etiqueta (coinciden con el check de la BD). */
+export const TALENT_TAG_COLORS = ["slate", "green", "blue", "amber", "red", "orange"] as const;
+export type TalentTagColor = (typeof TALENT_TAG_COLORS)[number];
+
+export const createTalentTagSchema = z.object({
+  name: z.string().trim().min(1, "Escribe un nombre").max(40, "Máximo 40 caracteres"),
+  color: z.enum(TALENT_TAG_COLORS).optional(),
+});
+export type CreateTalentTagInput = z.input<typeof createTalentTagSchema>;
+
+export const candidateTagSchema = z.object({
+  candidateId: z.uuid(),
+  tagId: z.uuid(),
+});
+export type CandidateTagInput = z.input<typeof candidateTagSchema>;
+
+export const reactivateCandidateSchema = z.object({
+  candidateId: z.uuid(),
+  vacancyId: z.uuid(),
+});
+export type ReactivateCandidateInput = z.input<typeof reactivateCandidateSchema>;
+
+/** Acción en lote (invitar o añadir) sobre varios candidatos sugeridos de una vacante. */
+export const batchCandidateVacancySchema = z.object({
+  vacancyId: z.uuid(),
+  candidateIds: z.array(z.uuid()).min(1, "Selecciona al menos un candidato").max(100, "Máximo 100 a la vez"),
+});
+export type BatchCandidateVacancyInput = z.input<typeof batchCandidateVacancySchema>;

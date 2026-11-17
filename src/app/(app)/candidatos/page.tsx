@@ -39,7 +39,7 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/candi
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline">
                 <Link href="/candidatos/buscar">
-                  <SearchIcon /> Búsqueda avanzada
+                  <SearchIcon /> Pool de talento
                 </Link>
               </Button>
               <Button asChild>

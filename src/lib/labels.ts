@@ -208,6 +208,7 @@ export const REVIEW_OUTCOME_LABELS: Record<Enums<"evaluation_review_outcome">, s
 
 export const INTAKE_METHOD_LABELS: Record<Enums<"application_intake_method">, string> = {
   manual: "Registro manual",
+  cartera: "Base de talentos",
   carga_masiva: "Carga masiva",
   formulario_en_linea: "Formulario en línea",
   integracion: "Integración",
