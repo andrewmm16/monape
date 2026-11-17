@@ -7,22 +7,27 @@
  * Módulo PURO y determinista (sin red, sin pdf.js): recibe fragmentos ya
  * extraídos y el tamaño de la página, para poder probarlo de forma aislada. El
  * mapeo desde los `items` reales de pdf.js (su `transform`) vive en la capa de
- * extracción. En PDF cubre dos trucos (tamaño minúsculo y fuera de página); el
- * DOCX tiene su propia detección (docx-hidden.ts: oculto, minúsculo y blanco) y
- * comparte con el PDF el tipo de fragmento y el aviso a RRHH.
+ * extracción. En PDF cubre tres trucos: tamaño minúsculo, fuera de página y sin
+ * contraste con el fondo (este último lo marca la extracción tras renderizar la
+ * página, ver pdf-contrast.ts). El DOCX tiene su propia detección
+ * (docx-hidden.ts) y comparte con el PDF el tipo de fragmento y el aviso a RRHH.
  */
 
-/** Un fragmento de texto con su tamaño de fuente (pt) y su origen en el espacio de la página (pt). */
-export type TextFragment = { str: string; fontSize: number; x: number; y: number };
+/**
+ * Un fragmento de texto con su tamaño de fuente (pt) y su origen en el espacio de
+ * la página (pt). `lowContrast` lo marca la capa de extracción cuando, en la página
+ * renderizada, el texto no se distingue del fondo (ver pdf-contrast.ts).
+ */
+export type TextFragment = { str: string; fontSize: number; x: number; y: number; lowContrast?: boolean };
 
 /** Área visible de la página, en puntos PDF. */
 export type PageBox = { width: number; height: number };
 
 /**
- * Motivo por el que el texto no se ve: fuente minúscula, fuera de la página (PDF),
- * marcado como oculto en Word o blanco sin fondo detrás (DOCX).
+ * Motivo por el que el texto no se ve: fuente minúscula; en PDF, fuera de la página
+ * o sin contraste con el fondo; en DOCX, marcado como oculto o blanco sin fondo.
  */
-export type HiddenReason = "tiny" | "offpage" | "vanish" | "white";
+export type HiddenReason = "tiny" | "offpage" | "nocontrast" | "vanish" | "white";
 
 /** Texto oculto detectado. En PDF lleva tamaño y posición; en DOCX, el tamaño solo si es minúsculo. */
 export type HiddenText = { str: string; fontSize?: number; x?: number; y?: number };
@@ -32,6 +37,7 @@ export type HiddenFragment = { fragment: HiddenText; reason: HiddenReason };
 const REASON_LABELS: Record<HiddenReason, string> = {
   tiny: "fuente diminuta",
   offpage: "fuera de la página",
+  nocontrast: "del mismo color que el fondo o tapado por otro elemento",
   vanish: "marcado como oculto en Word",
   white: "en blanco sobre fondo blanco",
 };
@@ -65,7 +71,11 @@ export function findHiddenFragments(
       fragment.y < -OFFPAGE_MARGIN ||
       fragment.x > page.width + OFFPAGE_MARGIN ||
       fragment.y > page.height + OFFPAGE_MARGIN;
-    if (offpage) hidden.push({ fragment, reason: "offpage" });
+    if (offpage) {
+      hidden.push({ fragment, reason: "offpage" });
+      continue;
+    }
+    if (fragment.lowContrast === true) hidden.push({ fragment, reason: "nocontrast" });
   }
   return hidden;
 }

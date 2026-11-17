@@ -1,8 +1,9 @@
 /**
  * Ensamblado del texto de un PDF a partir de sus fragmentos (items de pdf.js),
  * EXCLUYENDO los que están ocultos a la vista (ver hidden-text.ts). Es la base
- * de la señal anti-trampas: un CV que mete keywords invisibles (fuente ~0 o
- * fuera de la hoja) para inflar las coincidencias no debe inflar el motor, y
+ * de la señal anti-trampas: un CV que mete keywords invisibles (fuente ~0, fuera
+ * de la hoja o sin contraste con el fondo) para inflar las coincidencias no debe
+ * inflar el motor, y
  * RRHH debe quedar avisado.
  *
  * El ensamblado replica EXACTAMENTE el de unpdf (`extractText` con
