@@ -26,7 +26,7 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v11`; antes `reglas-v10` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v12`; antes `reglas-v11` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
 
 Las novedades de reglas-v6 a reglas-v11 se resumen en «Cambios de reglas-v6 a reglas-v11», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
 
@@ -82,6 +82,21 @@ Con Haiku, la política «motor + IA en lo dudoso» rinde igual que con Opus. Ha
 - *Relevo:* la evaluación vigente es la del motor con la IA en los requisitos que dudó (la columna «Motor+IA» de la tabla). Cada requisito indica si lo resolvió la IA y qué había dicho el motor.
 - *Aprendizaje:* el motor aprende **vocabulario** (cargos o habilidades que equivalen o no, erratas, paráfrasis), no el juicio caso a caso (nivel por las tareas, menciones dudosas, alcance real). Una regla se activa con 2 CV distintos en el mismo sentido (5 hasta el 18/11: los votos de Haiku se equivocan juntos, así que más votos no daban más seguridad; el control independiente es el juez), ninguno en contra y el acuerdo de un segundo juez más capaz; se suspende sola si la IA o RRHH la contradicen. «Equivale» se aplica como una palabra clave más del requisito (el motor sigue calculando años y niveles); «no equivale» quita la duda y deja el requisito por confirmar sin consultar a la IA.
 - *Medición v4 (Haiku, 32 CV):* IA sola 91 %; Motor+IA 94 % (99 % contando *pendiente* = *sin evidencia*), igual que v3. El banco tiene ~4 CV por puesto, así que con el mínimo de entonces (5) ninguna regla llegaba: la simulación de `medir:ia` muestra las candidatas. Haiku votó al revés que el juez en los dos cargos de obra («Asistente de Residencia» no cuenta, «Maestro de Obra» sí); Opus, como juez, decidió lo correcto en ambos: con Haiku, el segundo juez es imprescindible.
+
+**Prueba de punta a punta en la app y calibración (18/11/2026).** Con Playwright, como lo haría RRHH: 8 vacantes y sus requisitos creados por la interfaz, criterios aprobados, publicadas, los 32 CV por carga masiva (evaluación automática), la IA por la cola (Haiku, 30 evaluaciones, 0 errores), verificación de RRHH por la interfaz y página de aprendizaje. Primera medición: el motor solo y el vigente (motor + IA) empataban en 98 % contando *pendiente* = *sin evidencia*; la IA mandaba el 73 % de los CV y cambió el puntaje de 1 candidato de 25. Calibración aplicada (con el OK de Omar):
+
+- *La IA cuenta solo si cambia el puntaje* («cumple» o «no cumple»); sus «indicios» se muestran como nota.
+- *A la IA solo lo que puede resolver:* dudas concretas del motor y relleno, más la muestra de control (del 75 % al 44 % de los CV).
+- *reglas-v12:* el motor marca la **negación explícita** dicha con otras palabras («sin experiencia en reclamos», «no cuento↵con experiencia en planillas, ni en PLAME»; une las líneas que el PDF partió y usa la familia de cargos de `related.ts`: «programación» niega «desarrollador»). 5 de 5 en el banco, sin falsos positivos. Nunca descarta: marca la duda para que la IA lo confirme.
+- *Aprendizaje:* manda el segundo juez desde el primer CV (ver configuracion-ia.md). Sus 5 primeras reglas: «Asistente de Residencia» y «Recepcionista» cuentan; «Maestro de Obra» y «Negociación básica» no; vender «a bodegas y supermercados» es B2B.
+- *Vara:* decisiones de Omar del 18/11: vender a bodegas y supermercados es B2B (Chávez · Ventas B2B → acreditado) y «sin experiencia en programación» niega React, JS/TS, Node.js y pruebas/CI-CD (Fuentes → no cumplido).
+
+| Medido en la app (32 CV, 248 casillas) | Exacto | Contando *pendiente* = *sin evidencia* |
+|---|---:|---:|
+| Motor solo (reglas-v12 + reglas aprendidas) | 96,4 % | 96,4 % |
+| **Vigente (motor + IA)** | **100 %** | **100 %** |
+
+La IA cambió 9 casillas del motor, las 9 a mejor (todos los «no cumple» explícitos); 0 acreditaciones de más ni mérito perdido; el orden de los candidatos es correcto en los 8 puestos. Advertencias: (1) el banco es la «cancha de local» del motor (afinado 12 versiones sobre estos CV) y 5 casillas de la vara se decidieron el mismo día revisando desacuerdos con la IA; falta medir con CV que el motor nunca vio. (2) Reevaluar muchas postulaciones seguidas choca con el límite de 30 evaluaciones cada 10 minutos por usuario (protección esperada; para lotes, «Evaluar pendientes»).
 
 ## 3. Puntuación (`scoring v1`)
 
