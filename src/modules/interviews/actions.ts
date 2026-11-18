@@ -13,6 +13,7 @@ import { scheduleInterviewEmail } from "./emails";
 import { listInterviewRequirements } from "./queries";
 import {
   cancelInterviewSchema,
+  parseInterviewerEmails,
   recordResultSchema,
   rescheduleInterviewSchema,
   scheduleInterviewSchema,
@@ -55,6 +56,15 @@ async function saveCoordinates(supabase: AppSupabaseClient, interviewId: string,
   if (error) throw toAppError(error);
 }
 
+/** Correos de los entrevistadores: van aparte de schedule/reschedule (mismo patrón que el punto del mapa). */
+async function saveInterviewerEmails(supabase: AppSupabaseClient, interviewId: string, emails: string[]) {
+  const { error } = await supabase.rpc("set_interview_interviewer_emails", {
+    p_interview_id: interviewId,
+    p_emails: emails,
+  });
+  if (error) throw toAppError(error);
+}
+
 /** Agenda una entrevista; si la postulación no lo estaba, pasa a «Entrevista programada». */
 export async function scheduleInterview(input: ScheduleInterviewInput): Promise<ActionResult<{ id: string }>> {
   return runAction(
@@ -82,6 +92,16 @@ export async function scheduleInterview(input: ScheduleInterviewInput): Promise<
           logServerError("interviews.coordinates", coordinatesError);
         }
       }
+      const emails = parseInterviewerEmails(values.interviewerEmails);
+      if (emails.length > 0) {
+        // Igual que el punto del mapa: la entrevista ya existe y no se repite el alta.
+        // El esquema ya validó los correos con las mismas reglas que la BD.
+        try {
+          await saveInterviewerEmails(supabase, data, emails);
+        } catch (emailsError) {
+          logServerError("interviews.interviewer_emails", emailsError);
+        }
+      }
       scheduleInterviewEmail(supabase, "invitation", data);
       revalidateInterviews(values.applicationId);
       return { id: data };
@@ -97,6 +117,12 @@ export async function rescheduleInterview(input: RescheduleInterviewInput): Prom
       await requirePermission("applications:manage");
       const values = parseInput(rescheduleInterviewSchema, input);
       const supabase = await createSupabaseServerClient();
+      const { data: previous, error: previousError } = await supabase
+        .from("interviews")
+        .select("interviewer_emails")
+        .eq("id", values.interviewId)
+        .maybeSingle();
+      if (previousError) throw toAppError(previousError);
       const { error } = await supabase.rpc("reschedule_interview", {
         p_interview_id: values.interviewId,
         p_scheduled_at: scheduledAtOf(values),
@@ -114,7 +140,19 @@ export async function rescheduleInterview(input: RescheduleInterviewInput): Prom
       } catch (coordinatesError) {
         logServerError("interviews.coordinates", coordinatesError);
       }
-      scheduleInterviewEmail(supabase, "rescheduled", values.interviewId);
+      const emails = parseInterviewerEmails(values.interviewerEmails);
+      const before = new Set(previous?.interviewer_emails ?? []);
+      let interviewersSaved = true;
+      try {
+        await saveInterviewerEmails(supabase, values.interviewId, emails);
+      } catch (emailsError) {
+        interviewersSaved = false;
+        logServerError("interviews.interviewer_emails", emailsError);
+      }
+      // Quien se suma ahora recibe la invitación; quien ya estaba, el aviso de cambio.
+      scheduleInterviewEmail(supabase, "rescheduled", values.interviewId, {
+        addedInterviewers: interviewersSaved ? emails.filter((email) => !before.has(email)) : [],
+      });
       revalidateInterviews();
       revalidatePath("/postulaciones/[id]", "page");
       return null;

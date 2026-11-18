@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CalendarClockIcon, MapPinIcon, UserRoundIcon } from "lucide-react";
+import { BellRingIcon, CalendarClockIcon, MapPinIcon, UserRoundIcon } from "lucide-react";
 import { ApplicationStatusBadge } from "@/components/common/badges";
 import { LocationMap } from "@/components/common/location-map";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,8 @@ export type InterviewItemData = {
   location_lat?: number | null;
   location_lng?: number | null;
   interviewers: string | null;
+  /** Correos de los entrevistadores (reciben avisos y recordatorio). */
+  interviewer_emails?: string[] | null;
   instructions: string | null;
   status: Enums<"interview_status">;
   result: Enums<"interview_result"> | null;
@@ -28,6 +30,8 @@ export type InterviewItemData = {
   cancel_reason: string | null;
   /** Quién registró el resultado (ficha de la postulación). */
   recordedBy?: string | null;
+  /** Se envió el recordatorio automático para la fecha vigente. */
+  reminderSent?: boolean;
   application: {
     id: string;
     status: Enums<"application_status">;
@@ -125,6 +129,12 @@ export function InterviewItem({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
         <span>{INTERVIEW_MODALITY_LABELS[interview.modality]}</span>
+        {programmed && interview.reminderSent ? (
+          <span className="flex items-center gap-1">
+            <BellRingIcon className="size-3.5 shrink-0" aria-hidden />
+            Recordatorio enviado
+          </span>
+        ) : null}
         {interview.location ? (
           <span className="flex min-w-0 items-center gap-1">
             <MapPinIcon className="size-3.5 shrink-0" aria-hidden />
@@ -135,6 +145,12 @@ export function InterviewItem({
           <span className="flex min-w-0 items-center gap-1">
             <UserRoundIcon className="size-3.5 shrink-0" aria-hidden />
             <span className="break-words">{interview.interviewers}</span>
+          </span>
+        ) : null}
+        {programmed && interview.interviewer_emails?.length ? (
+          <span title={interview.interviewer_emails.join(", ")}>
+            Avisos a {interview.interviewer_emails.length}{" "}
+            {interview.interviewer_emails.length === 1 ? "entrevistador" : "entrevistadores"}
           </span>
         ) : null}
       </div>

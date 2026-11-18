@@ -2,6 +2,7 @@ import "server-only";
 import { toAppError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import { listRequirements } from "@/modules/vacancies/queries";
+import type { Enums } from "@/types/database";
 import type { InterviewRequirement } from "./schemas";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,7 +14,7 @@ const RECENT_LIMIT = 100;
 
 /** Entrevista con la postulación, el candidato y la vacante (para listados). */
 const LIST_SELECT =
-  "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, applications!inner(id, status, vacancy_id, candidates(id, full_name), vacancies(id, title, status))";
+  "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, interviewer_emails, interview_reminders(scheduled_at, recipient, outcome), applications!inner(id, status, vacancy_id, candidates(id, full_name), vacancies(id, title, status))";
 
 export type InterviewRow = Awaited<ReturnType<typeof listAgenda>>["pending"][number];
 
@@ -47,12 +48,15 @@ export async function listApplicationInterviews(supabase: AppSupabaseClient, app
   const { data, error } = await supabase
     .from("interviews")
     .select(
-      "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, result_recorder:profiles!interviews_result_recorded_by_fkey(full_name)",
+      "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, interviewer_emails, interview_reminders(scheduled_at, recipient, outcome), result_recorder:profiles!interviews_result_recorded_by_fkey(full_name)",
     )
     .eq("application_id", applicationId)
     .order("scheduled_at", { ascending: false });
   if (error) throw toAppError(error);
-  return data;
+  return data.map(({ interview_reminders: reminders, ...interview }) => ({
+    ...interview,
+    reminderSent: reminderSentFor(interview.scheduled_at, reminders),
+  }));
 }
 
 /** Próximas entrevistas programadas (panel): desde ahora y dentro de `days` días. */
@@ -156,9 +160,10 @@ export async function summarizeInterviews(
 
 /** Fila de listado → datos para mostrar (forma que usa `InterviewItem`). */
 export function toInterviewItem(row: InterviewRow) {
-  const { applications: application, ...interview } = row;
+  const { applications: application, interview_reminders: reminders, ...interview } = row;
   return {
     ...interview,
+    reminderSent: reminderSentFor(interview.scheduled_at, reminders),
     application: {
       id: application.id,
       status: application.status,
@@ -168,4 +173,15 @@ export function toInterviewItem(row: InterviewRow) {
       vacancyStatus: application.vacancies?.status ?? null,
     },
   };
+}
+
+/** ¿Le llegó a la persona candidata el recordatorio de la fecha vigente? */
+export function reminderSentFor(
+  scheduledAt: string,
+  reminders: { scheduled_at: string; recipient: string; outcome: Enums<"interview_reminder_outcome"> }[] | null | undefined,
+): boolean {
+  const current = new Date(scheduledAt).getTime();
+  return (reminders ?? []).some(
+    (r) => r.recipient === "candidato" && r.outcome === "enviado" && new Date(r.scheduled_at).getTime() === current,
+  );
 }

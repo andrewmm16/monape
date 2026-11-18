@@ -217,6 +217,42 @@ export type Database = {
           },
         ]
       }
+      application_tracking_tokens: {
+        Row: {
+          application_id: string
+          created_at: string
+          created_by: string | null
+          token_hash: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          created_by?: string | null
+          token_hash: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          created_by?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_tracking_tokens_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_tracking_tokens_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           applied_at: string
@@ -719,6 +755,35 @@ export type Database = {
           },
         ]
       }
+      candidate_portal_settings: {
+        Row: {
+          enabled: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_portal_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_profile_items: {
         Row: {
           candidate_id: string
@@ -850,6 +915,7 @@ export type Database = {
       }
       candidates: {
         Row: {
+          anonymized_at: string | null
           created_at: string
           created_by: string | null
           email: string | null
@@ -867,6 +933,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          anonymized_at?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -884,6 +951,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          anonymized_at?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -1259,6 +1327,38 @@ export type Database = {
           },
         ]
       }
+      interview_reminders: {
+        Row: {
+          created_at: string
+          interview_id: string
+          outcome: Database["public"]["Enums"]["interview_reminder_outcome"]
+          recipient: string
+          scheduled_at: string
+        }
+        Insert: {
+          created_at?: string
+          interview_id: string
+          outcome?: Database["public"]["Enums"]["interview_reminder_outcome"]
+          recipient: string
+          scheduled_at: string
+        }
+        Update: {
+          created_at?: string
+          interview_id?: string
+          outcome?: Database["public"]["Enums"]["interview_reminder_outcome"]
+          recipient?: string
+          scheduled_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_reminders_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_scorecards: {
         Row: {
           comment: string | null
@@ -1316,6 +1416,7 @@ export type Database = {
           duration_minutes: number
           id: string
           instructions: string | null
+          interviewer_emails: string[]
           interviewers: string | null
           location: string | null
           location_lat: number | null
@@ -1337,6 +1438,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instructions?: string | null
+          interviewer_emails?: string[]
           interviewers?: string | null
           location?: string | null
           location_lat?: number | null
@@ -1358,6 +1460,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instructions?: string | null
+          interviewer_emails?: string[]
           interviewers?: string | null
           location?: string | null
           location_lat?: number | null
@@ -2428,6 +2531,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      anonymize_candidate: {
+        Args: {
+          p_candidate_id: string | null
+        }
+        Returns: undefined
+      }
       apply_resume_ocr: {
         Args: {
           p_resume_id: string | null
@@ -2522,6 +2631,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      claim_due_interview_reminders: {
+        Args: {
+          p_hours_before?: number | null
+          p_min_notice_hours?: number | null
+          p_limit?: number | null
+        }
+        Returns: {
+          interview_id: string | null
+          scheduled_at: string | null
+          recipient: string | null
+        }[]
+      }
       close_intake_batch: {
         Args: {
           p_batch_id: string | null
@@ -2553,6 +2674,12 @@ export type Database = {
           p_bucket: string | null
         }
         Returns: boolean
+      }
+      create_application_tracking_link: {
+        Args: {
+          p_application_id: string | null
+        }
+        Returns: string
       }
       current_privacy_notice: {
         Args: never
@@ -2590,6 +2717,15 @@ export type Database = {
           phone: string | null
           match_reasons: string[] | null
         }[]
+      }
+      finish_interview_reminder: {
+        Args: {
+          p_interview_id: string | null
+          p_scheduled_at: string | null
+          p_recipient: string | null
+          p_outcome: string | null
+        }
+        Returns: undefined
       }
       get_dashboard_summary: {
         Args: never
@@ -2640,6 +2776,29 @@ export type Database = {
         }
         Returns: string
       }
+      list_inactive_candidates: {
+        Args: {
+          p_months?: number | null
+          p_limit?: number | null
+        }
+        Returns: {
+          candidate_id: string | null
+          full_name: string | null
+          last_activity: string | null
+          applications: number | null
+          pool_consent: string | null
+        }[]
+      }
+      list_orphan_resume_files: {
+        Args: {
+          p_min_age_hours?: number | null
+          p_limit?: number | null
+        }
+        Returns: {
+          name: string | null
+          updated_at: string | null
+        }[]
+      }
       log_candidate_message: {
         Args: {
           p_application_id: string | null
@@ -2673,6 +2832,12 @@ export type Database = {
           p_publication_id: string | null
         }
         Returns: undefined
+      }
+      public_application_status: {
+        Args: {
+          p_token: string | null
+        }
+        Returns: Json
       }
       public_killer_questions: {
         Args: {
@@ -2974,6 +3139,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_interview_interviewer_emails: {
+        Args: {
+          p_interview_id: string | null
+          p_emails: string[] | null
+        }
+        Returns: undefined
+      }
       set_learned_equivalence_active: {
         Args: {
           p_id: string | null
@@ -3044,6 +3216,7 @@ export type Database = {
       intake_batch_status: "abierto" | "cerrado"
       intake_item_status: "listo" | "requiere_datos" | "error" | "registrado"
       interview_modality: "presencial" | "virtual" | "telefonica"
+      interview_reminder_outcome: "enviando" | "enviado" | "sin_correo"
       interview_result: "paso" | "no_paso"
       interview_status: "programada" | "realizada" | "no_asistio" | "cancelada"
       job_portal_kind: "automatico" | "manual"
@@ -3102,6 +3275,7 @@ export const Constants = {
       intake_batch_status: ["abierto", "cerrado"],
       intake_item_status: ["listo", "requiere_datos", "error", "registrado"],
       interview_modality: ["presencial", "virtual", "telefonica"],
+      interview_reminder_outcome: ["enviando", "enviado", "sin_correo"],
       interview_result: ["paso", "no_paso"],
       interview_status: ["programada", "realizada", "no_asistio", "cancelada"],
       job_portal_kind: ["automatico", "manual"],

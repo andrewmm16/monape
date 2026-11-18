@@ -14,6 +14,7 @@ import { ACTIVITY_COOKIE, IDLE_SIGN_OUT_PATH, isServerIdleExpired } from "@/lib/
  * EVALUATION_WEBHOOK_SECRET y responde 404 si falta o no coincide.
  * /api/bot/* es la API del robot de portales: mismo esquema con PORTAL_BOT_SECRET.
  * /api/ia/* es la API del worker de IA (ia-worker/): mismo esquema con AI_WORKER_SECRET.
+ * /api/tareas/* son las tareas programadas (cron): mismo esquema con CRON_SECRET.
  */
 const PUBLIC_PATHS = [
   "/ingresar",
@@ -27,6 +28,7 @@ const PUBLIC_PATHS = [
   "/api/evaluar-cv",
   "/api/bot",
   "/api/ia",
+  "/api/tareas",
   IDLE_SIGN_OUT_PATH,
 ];
 
@@ -48,7 +50,8 @@ function isCookielessPublicPath(pathname: string): boolean {
     pathname.startsWith("/api/integraciones/talent/") ||
     pathname === "/api/evaluar-cv" ||
     pathname.startsWith("/api/bot/") ||
-    pathname.startsWith("/api/ia/")
+    pathname.startsWith("/api/ia/") ||
+    pathname.startsWith("/api/tareas/")
   );
 }
 

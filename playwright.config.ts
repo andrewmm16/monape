@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { E2E_INTAKE_HASH_SECRET } from "./tests/fixtures/online-apply";
 import { E2E_TALENT_APPLY_SECRET, E2E_TALENT_FEED_TOKEN } from "./tests/fixtures/talent-apply";
+import { E2E_CRON_SECRET } from "./tests/fixtures/scheduled-tasks";
 
 /**
  * Pruebas de interfaz.
@@ -59,6 +60,8 @@ export default defineConfig({
           // Formulario público de postulación (2.2), con un secreto ficticio.
           PUBLIC_APPLY_ENABLED: "true",
           INTAKE_HASH_SECRET: E2E_INTAKE_HASH_SECRET,
+          // Tareas programadas (/api/tareas/*), con un secreto ficticio.
+          CRON_SECRET: E2E_CRON_SECRET,
         }
       : {
           NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:59999",

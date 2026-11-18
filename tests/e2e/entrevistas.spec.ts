@@ -25,7 +25,7 @@ function limaDate(days: number): string {
 
 async function scheduleFromDialog(
   page: Page,
-  values: { date: string; time: string; location?: string; interviewers?: string },
+  values: { date: string; time: string; location?: string; interviewers?: string; interviewerEmails?: string },
 ) {
   const dialog = page.getByRole("dialog", { name: "Programar entrevista" });
   await expect(dialog).toBeVisible();
@@ -33,7 +33,8 @@ async function scheduleFromDialog(
   await dialog.getByLabel("Hora").fill(values.time);
   await dialog.getByLabel("Modalidad").selectOption({ label: "Virtual" });
   if (values.location) await dialog.getByLabel("Enlace de la reunión").fill(values.location);
-  if (values.interviewers) await dialog.getByLabel("Entrevistadores").fill(values.interviewers);
+  if (values.interviewers) await dialog.getByLabel("Entrevistadores", { exact: true }).fill(values.interviewers);
+  if (values.interviewerEmails) await dialog.getByLabel("Correos de los entrevistadores").fill(values.interviewerEmails);
   await dialog.getByRole("button", { name: "Programar", exact: true }).click();
   await expect(page.getByText(/Entrevista programada\. La postulación quedó/)).toBeVisible();
 }
@@ -131,11 +132,17 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
     time: "10:00",
     location: meetingLink,
     interviewers: "Ana Gómez, Pedro Ruiz",
+    // Reciben el aviso y el recordatorio; se guardan en minúsculas y sin repetidos.
+    interviewerEmails: "ana.gomez@empresa.test, Pedro.Ruiz@empresa.test; ana.gomez@empresa.test",
   });
   const interviewsCard = page.locator("#entrevistas");
   await expect(interviewsCard.getByTestId("interview-item")).toHaveCount(1);
   await expect(interviewsCard.getByText("Programada", { exact: true })).toBeVisible();
   await expect(interviewsCard.getByText("Ana Gómez, Pedro Ruiz")).toBeVisible();
+  await expect(interviewsCard.getByText("Avisos a 2 entrevistadores")).toHaveAttribute(
+    "title",
+    "ana.gomez@empresa.test, pedro.ruiz@empresa.test",
+  );
   // El enlace de la reunión es un enlace seguro.
   const link = interviewsCard.getByRole("link", { name: meetingLink });
   await expect(link).toHaveAttribute("href", meetingLink);

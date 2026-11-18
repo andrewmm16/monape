@@ -54,6 +54,7 @@ function defaultScheduleValues(): InterviewFormValues {
     locationLat: null,
     locationLng: null,
     interviewers: "",
+    interviewerEmails: "",
     instructions: "",
   };
 }
@@ -67,6 +68,7 @@ export type InterviewForEdit = {
   location_lat?: number | null;
   location_lng?: number | null;
   interviewers: string | null;
+  interviewer_emails?: string[] | null;
   instructions: string | null;
 };
 
@@ -88,6 +90,7 @@ function valuesOf(interview: InterviewForEdit): InterviewFormValues {
     locationLat: interview.modality === "presencial" ? (interview.location_lat ?? null) : null,
     locationLng: interview.modality === "presencial" ? (interview.location_lng ?? null) : null,
     interviewers: interview.interviewers ?? "",
+    interviewerEmails: (interview.interviewer_emails ?? []).join(", "),
     instructions: interview.instructions ?? "",
   };
 }
@@ -277,6 +280,19 @@ export function InterviewFormDialog({ trigger, defaultOpen = false, applicationI
               <Input id={`${id}-interviewers`} placeholder="Nombres, separados por comas" {...form.register("interviewers")} />
               <FieldDescription>Pueden ser personas que no usan la plataforma.</FieldDescription>
               <FieldError errors={[errors.interviewers]} />
+            </Field>
+            <Field data-invalid={Boolean(errors.interviewerEmails)}>
+              <FieldLabel htmlFor={`${id}-interviewer-emails`}>Correos de los entrevistadores</FieldLabel>
+              <Input
+                id={`${id}-interviewer-emails`}
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+                placeholder="Opcional. Separados por comas"
+                {...form.register("interviewerEmails")}
+              />
+              <FieldDescription>Reciben el aviso de la entrevista, sus cambios y un recordatorio antes de la fecha.</FieldDescription>
+              <FieldError errors={[errors.interviewerEmails]} />
             </Field>
             <Field data-invalid={Boolean(errors.instructions)}>
               <FieldLabel htmlFor={`${id}-instructions`}>Indicaciones</FieldLabel>

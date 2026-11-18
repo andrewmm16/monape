@@ -18,6 +18,20 @@ export function canScheduleInterview(
 
 const optionalText = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`);
 
+/** Máximo de correos de entrevistadores por entrevista (igual que la BD). */
+export const MAX_INTERVIEWER_EMAILS = 10;
+
+const emailSchema = z.email();
+
+/** Correos separados por comas, punto y coma o espacios → lista en minúsculas, sin repetidos. */
+export function parseInterviewerEmails(value: string | null | undefined): string[] {
+  const emails = (value ?? "")
+    .split(/[\s,;]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(emails)];
+}
+
 /** Datos del formulario de agendar o reprogramar (fecha y hora en hora de Perú). */
 export const interviewFormSchema = z
   .object({
@@ -35,6 +49,8 @@ export const interviewFormSchema = z
     locationLat: z.number().min(-90, "Latitud fuera de rango").max(90, "Latitud fuera de rango").nullish(),
     locationLng: z.number().min(-180, "Longitud fuera de rango").max(180, "Longitud fuera de rango").nullish(),
     interviewers: optionalText(300),
+    /** Correos de quienes entrevistan (opcional): reciben los avisos y el recordatorio. */
+    interviewerEmails: z.string().trim().max(2600, "Demasiado texto").default(""),
     instructions: optionalText(2000),
   })
   .superRefine((v, ctx) => {
@@ -54,6 +70,18 @@ export const interviewFormSchema = z
           path: ["location"],
         });
       }
+    }
+    const emails = parseInterviewerEmails(v.interviewerEmails);
+    if (emails.length > MAX_INTERVIEWER_EMAILS) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Indique hasta ${MAX_INTERVIEWER_EMAILS} correos`,
+        path: ["interviewerEmails"],
+      });
+    }
+    const invalid = emails.find((email) => email.length > 254 || !emailSchema.safeParse(email).success);
+    if (invalid) {
+      ctx.addIssue({ code: "custom", message: `Correo no válido: ${invalid}`, path: ["interviewerEmails"] });
     }
     if ((v.locationLat == null) !== (v.locationLng == null)) {
       ctx.addIssue({ code: "custom", message: "Las coordenadas del lugar están incompletas", path: ["location"] });
