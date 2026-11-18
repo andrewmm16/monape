@@ -1,3 +1,4 @@
+import type { EquivalenceVote } from "./ai/response";
 import { normalizeTerm } from "./text";
 import type { Assessment, ItemAssessment, RequirementInput } from "./types";
 
@@ -59,6 +60,39 @@ export function isLearnableVote(engineItem: ItemAssessment | undefined, equivale
   if (engineItem.resolvedBy === "regla_aprendida") return true;
   if (engineItem.signal) return LEARNABLE_SIGNALS.has(engineItem.signal);
   return engineItem.assessment === "sin_evidencia" && equivalent;
+}
+
+/**
+ * Lo que RRHH verificó también enseña al motor: si confirmó «cumple» en un
+ * requisito donde el motor dudó por un cargo, una habilidad relacionada o una
+ * errata, el término que dejó la duda suma un voto «cuenta». (Un «no cumple» no
+ * vota: puede deberse a los años o al nivel, no al término; ese caso ya suspende
+ * las reglas activas en la base.) Pura. Votos del mismo candidato: manda RRHH.
+ */
+export function votesFromVerifications(
+  engineItems: ItemAssessment[],
+  verified: { requirementId: string; result: "acreditado" | "no_cumplido"; source?: string }[],
+): EquivalenceVote[] {
+  const engine = new Map(engineItems.map((item) => [item.requirementId, item]));
+  const votes: EquivalenceVote[] = [];
+  const seen = new Set<string>();
+  for (const v of verified) {
+    const item = engine.get(v.requirementId);
+    if (v.result !== "acreditado" || !item?.signal || !LEARNABLE_SIGNALS.has(item.signal)) continue;
+    for (const raw of item.evidence.flatMap((e) => e.matched ?? [])) {
+      const term = normalizeLearnedTerm(raw);
+      if (!term || seen.has(`${v.requirementId}|${term.term}`)) continue;
+      seen.add(`${v.requirementId}|${term.term}`);
+      votes.push({
+        requirementId: v.requirementId,
+        term: term.term,
+        display: term.display,
+        equivalent: true,
+        rationale: `RRHH verificó que cumple${v.source ? ` (${v.source})` : ""}.`,
+      });
+    }
+  }
+  return votes;
 }
 
 const RANK: Record<Assessment, number> = { no_cumplido: 0, sin_evidencia: 1, pendiente_verificacion: 2, acreditado: 4 };

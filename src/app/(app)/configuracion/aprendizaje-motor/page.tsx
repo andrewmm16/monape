@@ -126,7 +126,7 @@ export default async function EngineLearningPage() {
                         <Verdict rule={rule} />
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        IA en {Math.max(rule.votes_yes, rule.votes_no)} CV · juez {rule.judge_model ?? "—"}
+                        Confirmado en {Math.max(rule.votes_yes, rule.votes_no)} CV (IA o RRHH) · juez {rule.judge_model ?? "—"}
                         {rule.judge_reason ? `: ${rule.judge_reason}` : ""}
                         {rule.activated_at ? ` · activa desde ${formatDate(rule.activated_at)}` : ""}
                       </TableCell>
@@ -156,7 +156,9 @@ export default async function EngineLearningPage() {
           <Card>
             <CardHeader>
               <CardTitle>Aprendiendo ({learning.length})</CardTitle>
-              <CardDescription>Dudas que la IA ya resolvió en algún CV. Se activan solas al llegar al mínimo, sin votos en contra.</CardDescription>
+              <CardDescription>
+                Dudas que la IA resolvió o RRHH verificó en algún CV. Se activan solas al llegar al mínimo, sin votos en contra.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -164,7 +166,7 @@ export default async function EngineLearningPage() {
                   <TableRow>
                     <TableHead>En el CV dice</TableHead>
                     <TableHead>Requisito</TableHead>
-                    <TableHead className="text-right">La IA: cuenta / no cuenta</TableHead>
+                    <TableHead className="text-right">Cuenta / no cuenta</TableHead>
                     <TableHead>Estado</TableHead>
                   </TableRow>
                 </TableHeader>

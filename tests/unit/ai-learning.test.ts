@@ -4,7 +4,13 @@ import { buildJudgePrompt, JUDGE_JSON_SCHEMA, parseJudgeOutput } from "@/modules
 import { buildUserMessage, PROMPT_VERSION, SYSTEM_PROMPT } from "@/modules/evaluation/ai/prompt";
 import { hasRelayedItems, relayToAi } from "@/modules/evaluation/ai/relay";
 import { extractEquivalenceVotes } from "@/modules/evaluation/ai/response";
-import { isLearnableVote, normalizeLearnedTerm, requirementKey, type LearnedRule } from "@/modules/evaluation/learned";
+import {
+  isLearnableVote,
+  normalizeLearnedTerm,
+  requirementKey,
+  votesFromVerifications,
+  type LearnedRule,
+} from "@/modules/evaluation/learned";
 import { evaluateWithRules } from "@/modules/evaluation/rule-engine";
 import type { ItemAssessment, RequirementInput } from "@/modules/evaluation/types";
 
@@ -151,6 +157,41 @@ describe("votos de la IA para que el motor aprenda", () => {
     expect(isLearnableVote(item("a", "acreditado"))).toBe(false);
     expect(isLearnableVote(item("a", "sin_evidencia", { cvAssessment: "sin_evidencia" }))).toBe(false); // verificado
     expect(isLearnableVote(undefined)).toBe(false);
+  });
+});
+
+describe("lo que RRHH verifica también enseña al motor", () => {
+  const engine = [
+    item("a", "pendiente_verificacion", {
+      signal: "cargo_relacionado",
+      evidence: [{ quote: "Asistente de Residencia 2018 - 2024", matched: ["Asistente de Residencia"] }],
+    }),
+    item("b", "pendiente_verificacion", { signal: "nivel_inferior", evidence: [{ quote: "Inglés básico", matched: ["Inglés"] }] }),
+    item("c", "sin_evidencia"),
+  ];
+
+  it("«cumple» donde el motor dudó por un cargo parecido: vota que el término cuenta", () => {
+    expect(
+      votesFromVerifications(engine, [
+        { requirementId: "a", result: "acreditado", source: "Entrevista" },
+        { requirementId: "a", result: "acreditado" },
+      ]),
+    ).toEqual([
+      {
+        requirementId: "a",
+        term: "asistente de residencia",
+        display: "Asistente de Residencia",
+        equivalent: true,
+        rationale: "RRHH verificó que cumple (Entrevista).",
+      },
+    ]);
+  });
+
+  it("no vota con «no cumple» (puede ser por años o nivel), ni en dudas de juicio, ni sin un término del motor", () => {
+    expect(votesFromVerifications(engine, [{ requirementId: "a", result: "no_cumplido" }])).toEqual([]);
+    expect(votesFromVerifications(engine, [{ requirementId: "b", result: "acreditado" }])).toEqual([]);
+    expect(votesFromVerifications(engine, [{ requirementId: "c", result: "acreditado" }])).toEqual([]);
+    expect(votesFromVerifications(engine, [{ requirementId: "x", result: "acreditado" }])).toEqual([]);
   });
 });
 

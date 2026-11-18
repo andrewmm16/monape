@@ -348,7 +348,8 @@ export function EvaluationCard({
                               <Quote text={e.quote ?? ""} terms={[...(e.matched ?? []), ...found]} />
                             </blockquote>
                           ))}
-                          <p className="text-sm text-muted-foreground">{item.rationale}</p>
+                          {/* La insignia y la línea de abajo ya dicen quién lo resolvió y qué dijo el motor. */}
+                          <p className="text-sm text-muted-foreground">{item.rationale.replace(/^Resuelto por la IA \([^)]*\): /, "")}</p>
                           {item.engine_assessment && item.engine_assessment !== item.assessment ? (
                             <p className="text-xs text-muted-foreground">
                               El motor solo lo había dejado como «{ENGINE_LABELS[item.engine_assessment]}».

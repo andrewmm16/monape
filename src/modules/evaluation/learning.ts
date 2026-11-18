@@ -1,10 +1,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getServerEnv } from "@/lib/env";
 import { logServerError, toAppError } from "@/lib/errors";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import type { EquivalenceVote } from "./ai/response";
-import { isLearnableVote, requirementKey, type LearnedRule, type LearnedVerdict } from "./learned";
+import { loadEvaluationContext } from "./context";
+import { isLearnableVote, requirementKey, votesFromVerifications, type LearnedRule, type LearnedVerdict } from "./learned";
+import { evaluateWithRules } from "./rule-engine";
 import type { ItemAssessment, RequirementInput } from "./types";
 
 /**
@@ -76,6 +80,38 @@ export async function recordEquivalenceVotes(
     }
   }
   return recorded;
+}
+
+/**
+ * Tras una verificación de RRHH: lo confirmado como «cumple» donde el motor dudó
+ * por un cargo o una habilidad relacionada suma un voto (ver votesFromVerifications).
+ * Usa el cliente del sistema (los votos solo los escribe el sistema). Nunca lanza.
+ */
+export async function learnFromVerifications(
+  applicationId: string,
+  verified: { requirementId: string; result: "acreditado" | "no_cumplido"; source?: string }[],
+): Promise<number> {
+  try {
+    const minConfirmations = getServerEnv().AI_LEARN_MIN_CONFIRMATIONS;
+    if (!(minConfirmations >= 2) || !verified.some((v) => v.result === "acreditado")) return 0;
+    const admin = createSupabaseAdminClient();
+    const context = await loadEvaluationContext(admin, applicationId);
+    // El motor sin reglas aprendidas: la duda y el término tal como los ve el motor base.
+    const engineItems = evaluateWithRules(context.fullText, context.requirements, { referenceDate: new Date() });
+    const votes = votesFromVerifications(engineItems, verified);
+    if (votes.length === 0) return 0;
+    return await recordEquivalenceVotes(admin, {
+      candidateId: context.candidateId,
+      applicationId: context.applicationId,
+      requirements: context.requirements,
+      engineItems,
+      votes,
+      minConfirmations,
+    });
+  } catch (error) {
+    logServerError("learning.from_verifications", error);
+    return 0;
+  }
 }
 
 export type LearnedRuleRow = Pick<

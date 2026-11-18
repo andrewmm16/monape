@@ -14,7 +14,9 @@ import {
   getAiStatus,
   ResumeTextUnavailableError,
 } from "@/modules/evaluation/service";
+import { VERIFICATION_SOURCE_LABELS } from "@/lib/labels";
 import { requestAiEvaluation } from "@/modules/evaluation/ai-queue";
+import { learnFromVerifications } from "@/modules/evaluation/learning";
 import { reevaluateAfterVerification, type ReevaluationOutcome } from "@/modules/evaluation/reevaluate";
 import { sendEmail } from "@/modules/notifications/email/client";
 import { buildCandidateMessageEmail } from "@/modules/notifications/email/templates/candidate-message";
@@ -480,6 +482,11 @@ export async function verifyRequirements(
       });
       if (error) throw toAppError(error);
       const outcome = await reevaluateAfterVerification(supabase, values.applicationId);
+      // Lo que RRHH confirmó también enseña al motor (nunca hace fallar la verificación).
+      await learnFromVerifications(
+        values.applicationId,
+        values.items.map((item) => ({ requirementId: item.requirementId, result: item.result, source: VERIFICATION_SOURCE_LABELS[item.source] })),
+      );
       revalidateApplication(values.applicationId);
       return { ...outcome, saved: saved ?? values.items.length };
     },
