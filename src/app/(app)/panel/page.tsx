@@ -19,6 +19,8 @@ import { listUpcomingInterviews } from "@/modules/interviews/queries";
 import { getBotDailySummary } from "@/modules/portals/daily-summary";
 import { listBotPortalStatuses } from "@/modules/portals/queries";
 import { getDashboardSummary } from "@/modules/dashboard/queries";
+import { countOpenAiJobs, describeAiWorker, getAiWorkerStatus } from "@/modules/evaluation/ai-queue";
+import { getAiStatus } from "@/modules/evaluation/service";
 import { listPendingOpinions } from "@/modules/notifications/queries";
 import { Constants } from "@/types/database";
 
@@ -44,7 +46,10 @@ export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
   const canSeeInterviews = can(user.role, "applications:manage");
   const botConfigured = Boolean(getServerEnv().PORTAL_BOT_SECRET);
-  const [summary, pendingOpinions, upcomingInterviews, botStatuses, botDaily] = await Promise.all([
+  const ai = getAiStatus();
+  // Solo el personal que evalúa ve (y puede leer, por RLS) el estado del worker.
+  const aiQueued = ai.available && ai.queued && can(user.role, "evaluations:run");
+  const [summary, pendingOpinions, upcomingInterviews, botStatuses, botDaily, aiWorker] = await Promise.all([
     getDashboardSummary(supabase),
     listPendingOpinions(supabase, user.id),
     canSeeInterviews ? listUpcomingInterviews(supabase, { limit: 5, days: 7 }) : Promise.resolve([]),
@@ -60,6 +65,15 @@ export default async function DashboardPage() {
           return { publishedToday: 0, applicantsToday: 0 };
         })
       : Promise.resolve({ publishedToday: 0, applicantsToday: 0 }),
+    // Cola de IA con el worker (AI_PROVIDER=claude-cli): ¿la está atendiendo?
+    aiQueued
+      ? Promise.all([getAiWorkerStatus(supabase), countOpenAiJobs(supabase)])
+          .then(([status, openJobs]) => ({ notice: describeAiWorker(status, formatDateTime), openJobs }))
+          .catch((error: unknown) => {
+            logServerError("panel.ai_worker", error);
+            return { notice: null, openJobs: 0 };
+          })
+      : Promise.resolve({ notice: null, openJobs: 0 }),
   ]);
 
   const byStatus = Constants.public.Enums.application_status.map((status) => ({
@@ -77,6 +91,18 @@ export default async function DashboardPage() {
       />
 
       {botConfigured ? <BotStatusPanel statuses={botStatuses} daily={botDaily} /> : null}
+
+      {aiWorker.notice ? (
+        <p
+          role="status"
+          className="rounded-md border border-warning-foreground/40 bg-warning px-4 py-3 text-sm text-warning-foreground"
+        >
+          {aiWorker.notice.message}
+          {aiWorker.openJobs > 0
+            ? ` En cola: ${aiWorker.openJobs} ${aiWorker.openJobs === 1 ? "evaluación" : "evaluaciones"}.`
+            : null}
+        </p>
+      ) : null}
 
       {pendingOpinions.length > 0 ? (
         <section

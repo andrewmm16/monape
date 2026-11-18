@@ -17,6 +17,7 @@ src/
     <dominio>/queries.ts     Lecturas (server-only, sujetas a RLS)
     <dominio>/actions.ts     Server Actions: autorizan, validan y escriben
     evaluation/              Motor de reglas, puntuación, adaptador de IA (lógica pura + servicio)
+                             y cola de IA: ai-queue.ts (encolado) y ai-worker-api.ts (/api/ia/trabajos/*)
     resumes/                 Validación de archivos, inspección DOCX, extracción y sugerencias
   lib/                       Entorno, clientes Supabase, sesión y permisos, errores, auditoría, límites
   types/database.ts          Tipos generados desde las migraciones
@@ -30,6 +31,8 @@ tests/
   e2e/                       Playwright
   fixtures/                  Generadores de documentos ficticios
 scripts/                     Tipos, datos ficticios y verificación de secretos
+ia-worker/                   Worker de evaluaciones con IA: ejecuta `claude -p` con la suscripción
+                             (OAuth) y habla con la app por /api/ia/trabajos/* (ver ia-worker/README.md)
 ```
 
 ## Decisiones

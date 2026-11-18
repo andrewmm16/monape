@@ -11,8 +11,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CRITERIA_NOT_APPROVED_MESSAGE,
   evaluateApplication,
+  getAiStatus,
   ResumeTextUnavailableError,
 } from "@/modules/evaluation/service";
+import { requestAiEvaluation } from "@/modules/evaluation/ai-queue";
 import { reevaluateAfterVerification, type ReevaluationOutcome } from "@/modules/evaluation/reevaluate";
 import { sendEmail } from "@/modules/notifications/email/client";
 import { buildCandidateMessageEmail } from "@/modules/notifications/email/templates/candidate-message";
@@ -207,6 +209,29 @@ export async function runEvaluation(applicationId: string, method: string): Prom
       return { id };
     },
     "Evaluación generada. Revísela antes de tomar decisiones.",
+  );
+}
+
+/**
+ * «Evaluar con IA» con la cola (AI_PROVIDER=claude-cli): encola la postulación;
+ * el worker la procesa y el resultado aparece en la página. Sin tope propio:
+ * solo hay un trabajo abierto por postulación.
+ */
+export async function requestAiEvaluationAction(applicationId: string): Promise<ActionResult<{ id: string }>> {
+  return runAction(
+    "evaluations.ai_request",
+    async () => {
+      await requirePermission("evaluations:run");
+      const values = parseInput(z.object({ applicationId: z.uuid() }), { applicationId });
+      const status = getAiStatus();
+      if (!status.available) throw new AppError(status.reason, "unavailable");
+      if (!status.queued) throw new AppError("En esta instalación la evaluación con IA no usa la cola.", "conflict");
+      const supabase = await createSupabaseServerClient();
+      const id = await requestAiEvaluation(supabase, values.applicationId);
+      revalidateApplication(values.applicationId);
+      return { id };
+    },
+    "Evaluación con IA en cola. El resultado aparecerá en esta página en unos minutos.",
   );
 }
 

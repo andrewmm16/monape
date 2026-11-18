@@ -13,6 +13,7 @@ import { ACTIVITY_COOKIE, IDLE_SIGN_OUT_PATH, isServerIdleExpired } from "@/lib/
  * /api/evaluar-cv es un webhook interno: exige `Authorization: Bearer` con
  * EVALUATION_WEBHOOK_SECRET y responde 404 si falta o no coincide.
  * /api/bot/* es la API del robot de portales: mismo esquema con PORTAL_BOT_SECRET.
+ * /api/ia/* es la API del worker de IA (ia-worker/): mismo esquema con AI_WORKER_SECRET.
  */
 const PUBLIC_PATHS = [
   "/ingresar",
@@ -25,6 +26,7 @@ const PUBLIC_PATHS = [
   "/api/integraciones/talent",
   "/api/evaluar-cv",
   "/api/bot",
+  "/api/ia",
   IDLE_SIGN_OUT_PATH,
 ];
 
@@ -45,7 +47,8 @@ function isCookielessPublicPath(pathname: string): boolean {
     pathname === "/sitemap.xml" ||
     pathname.startsWith("/api/integraciones/talent/") ||
     pathname === "/api/evaluar-cv" ||
-    pathname.startsWith("/api/bot/")
+    pathname.startsWith("/api/bot/") ||
+    pathname.startsWith("/api/ia/")
   );
 }
 

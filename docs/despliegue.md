@@ -17,7 +17,7 @@ Cada entorno tiene sus **propias claves**. Nunca reutilice la clave secreta de p
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY` (marcar como *Sensitive*)
    - `APP_URL` (URL pública del entorno), `APP_ENV` (`staging` / `production`)
-   - Variables de IA solo si corresponde (ver [configuracion-ia.md](configuracion-ia.md)).
+   - Variables de IA solo si corresponde (ver [configuracion-ia.md](configuracion-ia.md)). Con `AI_PROVIDER=claude-cli`, `AI_WORKER_SECRET` (*Sensitive*) y el worker desplegado en una máquina siempre encendida ([ia-worker/README.md](../ia-worker/README.md)).
    - Parte pública y formulario: `PUBLIC_JOBS_ENABLED`, `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME`, `PUBLIC_APPLY_ENABLED` e `INTAKE_HASH_SECRET` (*Sensitive*, 32 caracteres o más). El formulario solo se enciende con el aviso de privacidad activado en «Configuración → Privacidad».
    - Talent.com, solo si se activa: ver [configuracion-talent.md](configuracion-talent.md).
 3. Añada `https://<dominio>/auth/confirm` a las *Redirect URLs* de Supabase y ajuste la *Site URL*.

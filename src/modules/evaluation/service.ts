@@ -5,31 +5,20 @@ import { AppError, toAppError } from "@/lib/errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/types/database";
+import { autoEnqueueAfterRules } from "./ai-queue";
 import { assembleEvaluation } from "./assemble";
+import { loadEvaluationContext } from "./context";
 import { detectDateSignalNotes } from "./date-consistency";
 import { requestAnthropicAssessment } from "./ai/anthropic";
 import { getAiAvailability } from "./ai/availability";
-import { buildUserMessage, PROMPT_VERSION, SYSTEM_PROMPT } from "./ai/prompt";
-import { redactContactData } from "./ai/redact";
+import { buildAiInput } from "./ai/input";
+import { PROMPT_VERSION } from "./ai/prompt";
 import { interpretAiResponse, InvalidAiResponseError } from "./ai/response";
 import { evaluateWithRules, RULE_ENGINE_VERSION } from "./rule-engine";
-import type { EvaluationMethod, EvaluationResult, ItemAssessment, RequirementInput } from "./types";
+import type { EvaluationMethod, EvaluationResult, ItemAssessment } from "./types";
 import { applyVerifications, type RequirementVerification } from "./verifications";
 
-const MIN_TEXT_LENGTH = 50;
-
-export const CRITERIA_NOT_APPROVED_MESSAGE = "Los criterios de la vacante deben estar aprobados por RRHH antes de evaluar.";
-
-/**
- * La postulación no se puede evaluar porque no hay CV o no hay texto legible
- * (p. ej. un escaneado). Permite distinguirla de otros fallos sin comparar textos.
- */
-export class ResumeTextUnavailableError extends AppError {
-  constructor(message: string) {
-    super(message, "conflict");
-    this.name = "ResumeTextUnavailableError";
-  }
-}
+export { CRITERIA_NOT_APPROVED_MESSAGE, ResumeTextUnavailableError } from "./context";
 
 export function getAiStatus() {
   return getAiAvailability(getServerEnv());
@@ -89,58 +78,8 @@ export async function evaluateApplication(
   if (options.system && method !== "reglas") {
     throw new AppError("La evaluación del sistema solo usa el motor de reglas.", "validation");
   }
-  const { data: application, error } = await supabase
-    .from("applications")
-    .select("id, candidate_id, resume_id, vacancies(id, title, criteria_version, criteria_approved_at)")
-    .eq("id", applicationId)
-    .maybeSingle();
-  if (error) throw toAppError(error);
-  if (!application?.vacancies) throw new AppError("La postulación no existe o no tiene acceso.", "not_found");
-
-  const vacancy = application.vacancies;
-  if (!vacancy.criteria_approved_at) {
-    throw new AppError(CRITERIA_NOT_APPROVED_MESSAGE, "conflict");
-  }
-
-  const { data: requirementRows, error: requirementsError } = await supabase
-    .from("vacancy_requirements")
-    .select("id, category, priority, description, keywords, weight, min_years, is_essential")
-    .eq("vacancy_id", vacancy.id)
-    .order("position")
-    .order("created_at");
-  if (requirementsError) throw toAppError(requirementsError);
-  if (!requirementRows?.length) throw new AppError("La vacante no tiene requisitos definidos.", "conflict");
-
-  const requirements: RequirementInput[] = requirementRows.map((r) => ({
-    id: r.id,
-    category: r.category,
-    priority: r.priority,
-    description: r.description,
-    keywords: r.keywords,
-    weight: r.weight,
-    minYears: r.min_years,
-    isEssential: r.is_essential,
-  }));
-
-  // Se evalúa el CV asociado a la postulación (o el vigente si aún no tiene
-  // uno): una carga posterior no cambia lo evaluado sin decisión de RRHH.
-  let resumeQuery = supabase
-    .from("resumes")
-    .select("id, resume_extractions(raw_text, corrected_text)")
-    .eq("candidate_id", application.candidate_id);
-  resumeQuery = application.resume_id ? resumeQuery.eq("id", application.resume_id) : resumeQuery.eq("is_current", true);
-  const { data: resume, error: resumeError } = await resumeQuery.maybeSingle();
-  if (resumeError) throw toAppError(resumeError);
-  if (!resume) throw new ResumeTextUnavailableError("El candidato no tiene un CV cargado.");
-
-  const extraction = resume.resume_extractions;
-  const textWasCorrected = Boolean(extraction?.corrected_text);
-  const fullText = (extraction?.corrected_text ?? extraction?.raw_text ?? "").trim();
-  if (fullText.length < MIN_TEXT_LENGTH) {
-    throw new ResumeTextUnavailableError(
-      "No hay texto legible del CV. Revise la extracción o transcriba el contenido en la ficha del candidato.",
-    );
-  }
+  const context = await loadEvaluationContext(supabase, applicationId);
+  const { requirements, fullText, textWasCorrected } = context;
 
   const referenceDate = new Date();
   // Señales deterministas sobre las fechas del CV, independientes del método:
@@ -160,22 +99,28 @@ export async function evaluateApplication(
     const env = getServerEnv();
     const availability = getAiAvailability(env);
     if (!availability.available) throw new AppError(availability.reason, "unavailable");
+    // Con la cola (suscripción vía ia-worker/) la evaluación no corre dentro de la solicitud.
+    if (availability.queued) {
+      throw new AppError("La evaluación con IA se procesa en cola: solicítela con «Evaluar con IA».", "conflict");
+    }
     if ((await countAiEvaluationsLast24h(supabase)) >= env.AI_MAX_EVALUATIONS_PER_DAY) {
       throw new AppError("Se alcanzó el límite diario de evaluaciones con IA.", "rate_limited");
     }
 
-    // Minimización: no se envían datos de contacto ni el nombre del archivo.
-    evaluatedText = redactContactData(fullText);
-    if (evaluatedText.length > env.AI_MAX_INPUT_CHARS) {
-      evaluatedText = evaluatedText.slice(0, env.AI_MAX_INPUT_CHARS);
-      textTruncated = true;
-    }
+    const input = buildAiInput({
+      vacancyTitle: context.vacancyTitle,
+      requirements,
+      fullText,
+      maxChars: env.AI_MAX_INPUT_CHARS,
+    });
+    evaluatedText = input.evaluatedText;
+    textTruncated = input.textTruncated;
 
     const response = await requestAnthropicAssessment({
       apiKey: env.AI_API_KEY!,
       model: availability.model,
-      system: SYSTEM_PROMPT,
-      userMessage: buildUserMessage({ vacancyTitle: vacancy.title, requirements, resumeText: evaluatedText }),
+      system: input.system,
+      userMessage: input.userMessage,
     });
     try {
       items = interpretAiResponse(response.raw, requirements, evaluatedText);
@@ -190,7 +135,7 @@ export async function evaluateApplication(
   }
 
   // Lo que RRHH comprobó después del CV prevalece, sin perder la valoración original.
-  items = applyVerifications(items, await listVerifications(supabase, application.id));
+  items = applyVerifications(items, await listVerifications(supabase, context.applicationId));
 
   const result = assembleEvaluation({
     method,
@@ -203,14 +148,26 @@ export async function evaluateApplication(
     signalNotes,
   });
 
-  return recordAssembledEvaluation(supabase, {
-    applicationId: application.id,
-    resumeId: resume.id,
-    criteriaVersion: vacancy.criteria_version,
+  const evaluationId = await recordAssembledEvaluation(supabase, {
+    applicationId: context.applicationId,
+    resumeId: context.resumeId,
+    criteriaVersion: context.criteriaVersion,
     result,
     inputSha256: createHash("sha256").update(evaluatedText).digest("hex"),
     system: options.system,
   });
+
+  // Segunda opinión con IA en cola (según AI_AUTO_ENQUEUE). Nunca hace fallar al motor.
+  if (method === "reglas") {
+    await autoEnqueueAfterRules(supabase, {
+      applicationId: context.applicationId,
+      result,
+      requirements,
+      system: options.system,
+    });
+  }
+
+  return evaluationId;
 }
 
 /** Registra una evaluación ya armada (con record_evaluation, o record_system_evaluation si es del sistema). */

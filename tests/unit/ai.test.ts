@@ -118,6 +118,8 @@ describe("disponibilidad de la IA", () => {
       available: true,
       provider: "anthropic",
       model: "claude-opus-5-5",
+      // La API de pago se consulta dentro de la solicitud (sin cola).
+      queued: false,
     });
   });
 });

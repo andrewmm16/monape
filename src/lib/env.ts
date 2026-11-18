@@ -28,12 +28,19 @@ const serverEnvSchema = z
     NEXT_PUBLIC_SUPABASE_URL: z.url(),
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
     SUPABASE_SECRET_KEY: z.string().min(20).optional().or(z.literal("").transform(() => undefined)),
-    AI_PROVIDER: z.enum(["none", "anthropic"]).default("none"),
+    // `anthropic`: API de pago dentro de la solicitud. `claude-cli`: cola procesada por
+    // ia-worker/ con la suscripción de Claude (docs/configuracion-ia.md).
+    AI_PROVIDER: z.enum(["none", "anthropic", "claude-cli"]).default("none"),
     AI_API_KEY: z.string().optional(),
-    AI_MODEL: z.string().min(1).default("claude-opus-5-5"),
+    AI_MODEL: z.string().min(1).default("claude-haiku-5-5"),
     AI_EXTERNAL_PROCESSING_APPROVED: booleanFlag,
+    // Solo con `anthropic` (costo por token); la cola no tiene tope propio.
     AI_MAX_EVALUATIONS_PER_DAY: z.coerce.number().int().min(0).default(50),
     AI_MAX_INPUT_CHARS: z.coerce.number().int().min(1000).max(200_000).default(30_000),
+    // API del worker de IA (/api/ia/*): apagada si no se define el secreto.
+    AI_WORKER_SECRET: optionalText,
+    // Tras cada evaluación del motor, con `claude-cli`: nada, solo los casos dudosos o todas.
+    AI_AUTO_ENQUEUE: z.enum(["off", "dudosos", "todos"]).default("dudosos"),
     // Parte pública (2.9): apagada por defecto. Encendida, exige URL y empresa.
     PUBLIC_JOBS_ENABLED: booleanFlag,
     PUBLIC_SITE_URL: optionalUrl,
@@ -83,7 +90,7 @@ const serverEnvSchema = z
         });
       }
     }
-    for (const name of ["EVALUATION_WEBHOOK_SECRET", "PORTAL_BOT_SECRET"] as const) {
+    for (const name of ["EVALUATION_WEBHOOK_SECRET", "PORTAL_BOT_SECRET", "AI_WORKER_SECRET"] as const) {
       const value = env[name];
       if (value && value.length < MIN_TALENT_SECRET_LENGTH) {
         ctx.addIssue({ code: "custom", path: [name], message: `Mínimo ${MIN_TALENT_SECRET_LENGTH} caracteres` });
