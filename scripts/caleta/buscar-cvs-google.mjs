@@ -177,7 +177,7 @@ async function main() {
   fs.writeFileSync(outPath, JSON.stringify(resultado, null, 2));
 
   console.log('\n========== RESUMEN ==========');
-  for (const [k, v] of Object.entries(resultado)) {
+  for (const v of Object.values(resultado)) {
     console.log(`${v.titulo}: ${v.urls.length} URLs`);
   }
   console.log(`\n→ Guardado: ${outPath}`);

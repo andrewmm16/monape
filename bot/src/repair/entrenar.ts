@@ -27,6 +27,8 @@ import { rehearseOnAdapter } from "./trial";
  * historial, se rompe el portal (`renombrar_campo`), se consulta al modelo CON la memoria del historial, se ensaya, se
  * auto-aplica y se verifica; la propuesta verificada se guarda. Así la memoria crece y se ve si el modelo empieza a
  * proponer «de memoria» el selector que ya funcionó. Tope de consultas al modelo para no vaciar el plan.
+ *
+ * Uso: npm run bot:entrenar [-- --portal <nombre>] [--max-consultas <n>] [--salida <informe.md>] [--state <carpeta>]
  */
 
 const BUILDERS: Record<PortalSlug, new (context: BrowserContext, baseUrl: string, timeoutMs?: number) => PortalAdapter> = {

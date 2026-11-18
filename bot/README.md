@@ -150,6 +150,7 @@ Copie `bot/env.example` a `.env.bot` (en la raíz; está ignorado por git). `POR
 ## Comandos
 
 - `npm run bot:fake-portal`: levanta los cinco portales ficticios y el panel de la demo en `http://127.0.0.1:4010` (puerto con `BOT_FAKE_PORTAL_PORT`). Con `-- --entrenar` (o `BOT_FAKE_MUTATE_MINUTES`) además cambian de estructura solos (y se restablecen solos): ver «Entrenamiento con cambios automáticos».
+- `npm run bot:entrenar`: entrena la memoria de la reparación asistida contra los portales ficticios (rompe un campo, consulta al modelo con el historial, ensaya y guarda lo que funcionó; las propuestas se aprueban solas **solo aquí**). Requiere `BOT_REPAIR_PROVIDER` y `BOT_REPAIR_MAX_PER_DAY>0`. Opciones: `-- --portal <nombre>`, `--max-consultas <n>` (100 por defecto), `--salida` y `--state` (por defecto en `bot/.state/`).
 - `npm run bot:training-report`: informe de entrenamiento (cambios del mutador cruzados con los incidentes del robot; solo lectura). `-- --cada <minutos>` lo repinta cada tanto (modo vigilancia, `Ctrl+C` para salir).
 - `npm run bot:login`: abre el navegador del robot para iniciar sesión a mano (con varios portales, una pestaña por portal).
 - `npm run bot:whatsapp-login`: vincula WhatsApp con el robot (una vez).

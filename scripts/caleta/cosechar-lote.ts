@@ -24,10 +24,16 @@ function parsearArgs(args: string[]): Opciones {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     const valor = args[i + 1];
-    if (a === "--entrada" && valor) (opts.entrada = resolve(cwd(), valor)), i++;
-    else if (a === "--salida" && valor) (opts.salida = resolve(cwd(), valor)), i++;
-    else if (a === "--pausa" && valor) (opts.pausaMs = Math.max(0, Number(valor) || 0)), i++;
-    else if (a === "--ayuda" || a === "-h") {
+    if (a === "--entrada" && valor) {
+      opts.entrada = resolve(cwd(), valor);
+      i++;
+    } else if (a === "--salida" && valor) {
+      opts.salida = resolve(cwd(), valor);
+      i++;
+    } else if (a === "--pausa" && valor) {
+      opts.pausaMs = Math.max(0, Number(valor) || 0);
+      i++;
+    } else if (a === "--ayuda" || a === "-h") {
       stdout.write(
         "Uso: npm run caleta:lote-cv -- [--entrada <carpeta>] [--salida <archivo.json>] [--pausa <ms>]\n",
       );

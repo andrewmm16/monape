@@ -30,10 +30,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const vacanteArg = process.argv.find((a) => a.startsWith('--vacante='))?.split('=')[1];
 const limiteArg = parseInt(process.argv.find((a) => a.startsWith('--limite='))?.split('=')[1] ?? '', 10);

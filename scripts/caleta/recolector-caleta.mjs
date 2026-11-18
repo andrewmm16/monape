@@ -127,54 +127,7 @@ function score(snippet, requirements) {
 async function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
 function jitter(a, b) { return a + Math.random() * (b - a); }
 
-async function googleSearch(page, query, { paginas = 2 } = {}) {
-  const todos = [];
-  let bloqueado = false;
-  for (let p = 0; p < paginas; p++) {
-    const start = p * 10;
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=es&gl=pe&num=20&start=${start}`;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await pause(jitter(1800, 3300));
-
-    const bloq = await page.evaluate(() => {
-      const t = document.body?.innerText || '';
-      return /unusual traffic|detectado tráfico inusual|not a robot|sorry\/index/i.test(t);
-    });
-    if (bloq) { bloqueado = true; break; }
-
-    const hits = await page.evaluate(() => {
-      const out = [];
-      // Google resultado orgánico: div.g con un <a href> y un <h3>
-      const nodes = document.querySelectorAll('div.g, div.tF2Cxc, div.MjjYud');
-      nodes.forEach(n => {
-        const a = n.querySelector('a[href^="http"]');
-        const h3 = n.querySelector('h3');
-        if (!a || !h3) return;
-        const titulo = h3.innerText || h3.textContent || '';
-        let url = a.href;
-        // Google a veces envuelve: /url?q=...&sa=...
-        if (/^https?:\/\/[^/]*google\.(com|com\.pe)\/url\?/.test(url)) {
-          try {
-            const u = new URL(url);
-            const q = u.searchParams.get('q');
-            if (q) url = q;
-          } catch {}
-        }
-        // Snippet: suele ser un <div> hermano con class VwiC3b, yXK7lf, lEBKkf, etc.
-        const snippetEl = n.querySelector('[data-sncf], .VwiC3b, .yXK7lf, .lEBKkf, .st, .IsZvec');
-        const snippet = snippetEl ? (snippetEl.innerText || snippetEl.textContent || '').trim() : '';
-        out.push({ titulo, url, snippet });
-      });
-      return out;
-    });
-    todos.push(...hits);
-    if (p < paginas - 1) await pause(jitter(2500, 4500));
-  }
-  return { bloqueado, hits: todos };
-}
-
-async function ddgSearch(page, query, { paginas = 1 } = {}) {
-  const todos = [];
+async function ddgSearch(page, query) {
   let bloqueado = false;
   // DuckDuckGo HTML (sin JS): más tolerante, acepta site:
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=pe-es`;
@@ -211,8 +164,8 @@ async function ddgSearch(page, query, { paginas = 1 } = {}) {
 }
 
 /** DuckDuckGo HTML es la ruta por defecto (destinada a scraping). */
-async function search(page, query, opts = {}) {
-  const d = await ddgSearch(page, query, opts);
+async function search(page, query) {
+  const d = await ddgSearch(page, query);
   return { fuente: 'ddg', ...d };
 }
 
@@ -245,7 +198,7 @@ async function enriquecerContacto(page, persona) {
   ];
   const resultado = { telefono: null, correo: null, cip: null, fuentes: [] };
   for (const q of dorks) {
-    const { bloqueado, hits } = await search(page, q, { paginas: 1 });
+    const { bloqueado, hits } = await search(page, q);
     if (bloqueado) break;
     for (const h of hits.slice(0, 5)) {
       const txt = `${h.titulo} ${h.snippet}`;
@@ -295,7 +248,7 @@ async function main() {
     // Fase 1: barrer queries (Google primero, DDG fallback)
     for (const q of vac.queries) {
       console.log(`[Q] ${q}`);
-      const { bloqueado, hits, fuente } = await search(page, q, { paginas: 2 });
+      const { bloqueado, hits, fuente } = await search(page, q);
       console.log(`  fuente=${fuente} hits=${hits.length} bloqueado=${bloqueado}`);
       if (bloqueado) {
         console.log('  ⚠️ Bloqueado. Pausa 60s.');

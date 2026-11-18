@@ -17,6 +17,9 @@
 # testing
 /coverage
 
+# CV de la demo: los genera `npx tsx --conditions=react-server --env-file-if-exists=.env.local scripts/generar-demo-puestos.ts`
+/cv-prueba/demo/
+
 # respaldos de la base y de los CV (datos personales: nunca al repositorio)
 /respaldos/
 

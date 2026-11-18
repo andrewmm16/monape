@@ -20,7 +20,6 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -90,17 +89,12 @@ async function descargarPDF(url) {
   const nombre = `${hash}.pdf`;
   const destino = path.join(PDFS, nombre);
   if (fs.existsSync(destino) && fs.statSync(destino).size > 1024) return destino;
-  const r = await axios.get(url, {
-    headers: { 'User-Agent': UA },
-    responseType: 'arraybuffer',
-    timeout: 45000,
-    maxRedirects: 10,
-    validateStatus: () => true,
-  });
-  if (r.status !== 200 || !r.data || r.data.byteLength < 1024) {
-    throw new Error(`HTTP ${r.status} tamaño=${r.data?.byteLength}`);
+  const r = await fetch(url, { headers: { 'User-Agent': UA }, redirect: 'follow', signal: AbortSignal.timeout(45000) });
+  const data = r.status === 200 ? new Uint8Array(await r.arrayBuffer()) : null;
+  if (!data || data.byteLength < 1024) {
+    throw new Error(`HTTP ${r.status} tamaño=${data?.byteLength}`);
   }
-  fs.writeFileSync(destino, Buffer.from(r.data));
+  fs.writeFileSync(destino, Buffer.from(data));
   return destino;
 }
 
