@@ -358,6 +358,42 @@ describe("cierre con la evaluación", () => {
     expect(await jobRow(id)).toMatchObject({ status: "completado", evaluation_id: evaluationId, error_code: null });
   });
 
+  it("la evaluación con IA es segunda opinión: no desplaza a la del motor del mismo CV y criterios", async () => {
+    const { applicationId, requirementId, criteriaVersion } = await setup();
+    const recordRules = () =>
+      asActor(db, user(rrhh), () =>
+        db.query<{ id: string }>(
+          `select public.record_evaluation($1, null, $2, 'reglas', 'reglas-v11', 'v1', null, 100, 100, 100,
+             'alta'::public.compatibility_level, 'Resumen ficticio', array[]::text[], null, $3::jsonb) as id`,
+          [
+            applicationId,
+            criteriaVersion,
+            JSON.stringify([{ requirement_id: requirementId, assessment: "acreditado", evidence: [{ quote: "Excel avanzado" }], rationale: "Motor." }]),
+          ],
+        ),
+      ).then((r) => r.rows[0]!.id);
+    const latest = async () =>
+      (await db.query<{ latest_evaluation_id: string }>("select latest_evaluation_id from public.applications where id = $1", [applicationId]))
+        .rows[0]!.latest_evaluation_id;
+
+    const rules = await recordRules();
+    expect(await latest()).toBe(rules);
+
+    const id = (await request(applicationId))!;
+    await claimJob(id);
+    const inputSha = sha("texto enviado");
+    await start(id, inputSha, criteriaVersion);
+    const aiEvaluation = await complete(completeArgs(id, criteriaVersion, requirementId, inputSha));
+
+    // La de IA queda registrada (y su trabajo cerrado), pero la vigente sigue siendo la del motor.
+    expect(await jobRow(id)).toMatchObject({ status: "completado", evaluation_id: aiEvaluation });
+    expect(await latest()).toBe(rules);
+
+    // Una evaluación nueva del motor sí pasa a ser la vigente.
+    const rulesAgain = await recordRules();
+    expect(await latest()).toBe(rulesAgain);
+  });
+
   it("rechaza el cierre si el texto o los criterios cambiaron desde la reserva", async () => {
     const { applicationId, requirementId, criteriaVersion } = await setup();
     const id = (await request(applicationId))!;

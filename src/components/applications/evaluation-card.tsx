@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AssessmentBadge, CompatibilityBadge } from "@/components/common/badges";
 import { EmptyState } from "@/components/common/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -98,11 +99,59 @@ function Quote({ text, terms }: { text: string; terms: string[] }) {
   );
 }
 
+type Assessment = Item["assessment"];
+const isToConfirm = (a: Assessment) => a === "pendiente_verificacion" || a === "sin_evidencia";
+
+/**
+ * Cómo se relaciona la opinión de la IA con la del motor en un requisito:
+ * - «distinta»: otro veredicto que cambia el puntaje (acredita, no cumple…);
+ * - «indicio»: el motor no encontró nada y la IA ve un indicio (paráfrasis): no cambia el puntaje;
+ * - null: coinciden, o solo cambia «pendiente» ↔ «sin evidencia» sin indicio nuevo.
+ */
+function secondOpinionKind(engine: Assessment, ai: Assessment): "distinta" | "indicio" | null {
+  if (engine === ai) return null;
+  if (isToConfirm(engine) && isToConfirm(ai)) return engine === "sin_evidencia" ? "indicio" : null;
+  return "distinta";
+}
+
+/** Lo que opina la IA de un requisito cuando no coincide con el motor. */
+function SecondOpinionNote({ item, kind }: { item: Item; kind: "distinta" | "indicio" }) {
+  const evidence = (Array.isArray(item.evidence) ? item.evidence : []) as Evidence[];
+  return (
+    <div
+      className={cn(
+        "space-y-1.5 rounded-md border border-dashed p-2",
+        kind === "distinta" ? "border-brand/50 bg-brand/5" : "border-muted-foreground/30",
+      )}
+    >
+      <p className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+        {kind === "distinta" ? (
+          <>
+            La IA opina distinto: <AssessmentBadge assessment={item.assessment} />
+          </>
+        ) : (
+          "La IA ve un indicio (no cambia el puntaje):"
+        )}
+      </p>
+      {evidence.map((e, index) =>
+        e.quote ? (
+          <blockquote key={index} className="border-l-2 border-brand/40 pl-2 text-xs italic">
+            {e.quote}
+          </blockquote>
+        ) : null,
+      )}
+      {item.rationale ? <p className="text-xs text-muted-foreground">{item.rationale}</p> : null}
+    </div>
+  );
+}
+
 export function EvaluationCard({
   applicationId,
   evaluation,
   items,
   history,
+  isCurrent,
+  secondOpinion = null,
   currentCriteriaVersion,
   canReview,
   verifications = [],
@@ -111,6 +160,10 @@ export function EvaluationCard({
   evaluation: Evaluation | null;
   items: Item[];
   history: Evaluation[];
+  /** ¿Es la evaluación vigente (la principal, del motor)? Por defecto, la más reciente. */
+  isCurrent?: boolean;
+  /** Segunda opinión con IA del mismo CV y criterios (solo sobre la evaluación del motor). */
+  secondOpinion?: { evaluation: Evaluation; items: Item[] } | null;
   currentCriteriaVersion: number;
   canReview: boolean;
   verifications?: Verification[];
@@ -132,19 +185,40 @@ export function EvaluationCard({
   }
 
   const outdated = evaluation.criteria_version < currentCriteriaVersion;
-  // Solo se verifica sobre la evaluación más reciente y con criterios vigentes.
-  const canVerify = canReview && !outdated && history[0]?.id === evaluation.id;
+  // Solo se verifica sobre la evaluación vigente (la del motor) y con criterios vigentes.
+  const canVerify = canReview && !outdated && (isCurrent ?? history[0]?.id === evaluation.id);
   const currentVerification = new Map(verifications.map((v) => [v.requirement_id, v]));
   // Avisos de la lectura del CV evaluado (texto oculto, relleno de palabras clave, OCR…).
   const resumeWarnings = evaluation.resume?.resume_extractions?.warnings ?? [];
+  // Segunda opinión de la IA, requisito por requisito. Lo verificado por RRHH ya no se compara.
+  const aiByRequirement = new Map(
+    (secondOpinion?.items ?? []).flatMap((i) => (i.requirement_id ? [[i.requirement_id, i] as const] : [])),
+  );
+  const compared = items.filter((i) => !i.verification_source && i.requirement_id && aiByRequirement.has(i.requirement_id));
+  const kindOf = (i: Item) => secondOpinionKind(i.assessment, aiByRequirement.get(i.requirement_id!)!.assessment);
+  const differing = compared.filter((i) => kindOf(i) === "distinta");
+  const hints = compared.filter((i) => kindOf(i) === "indicio");
+  const isAiEvaluation = evaluation.method === "ia";
 
   return (
     <Card>
       <CardHeader className="gap-2">
         <CardTitle className="flex flex-wrap items-center gap-2">
           Cumplimiento del puesto <CompatibilityBadge level={evaluation.level} />
+          {isAiEvaluation ? <Badge variant="outline">Segunda opinión con IA</Badge> : null}
         </CardTitle>
-        <CardDescription>Referencia para RRHH: la decisión final es de una persona.</CardDescription>
+        <CardDescription>
+          {isAiEvaluation ? (
+            <>
+              Evaluación con IA: segunda opinión sobre la del motor de reglas.{" "}
+              <Link href={`/postulaciones/${applicationId}`} className="underline underline-offset-4">
+                Volver a la evaluación del motor
+              </Link>
+            </>
+          ) : (
+            "Referencia para RRHH: la decisión final es de una persona."
+          )}
+        </CardDescription>
         {outdated ? (
           <p className="text-sm text-warning-foreground">
             Los criterios de la vacante cambiaron después de esta evaluación. Vuelva a evaluar.
@@ -154,6 +228,25 @@ export function EvaluationCard({
       <CardContent className="space-y-6">
         <ScoreMeter score={evaluation.score} potential={evaluation.score_potential} />
         <p className="text-sm">{evaluation.summary}</p>
+        {secondOpinion && compared.length > 0 ? (
+          <div className="rounded-md border border-dashed border-brand/50 bg-brand/5 px-3 py-2 text-sm">
+            <p>
+              <span className="font-medium">Segunda opinión de la IA</span> ({formatDateTime(secondOpinion.evaluation.created_at)}):{" "}
+              {differing.length === 0
+                ? `coincide con el motor en los ${compared.length} requisitos sin verificar.`
+                : `opina distinto en ${differing.length} de ${compared.length} requisitos (marcados abajo). El puntaje es el del motor: verifique esos requisitos para decidir.`}
+              {hints.length > 0
+                ? ` Además ve indicios en ${hints.length} requisito${hints.length === 1 ? "" : "s"} que el CV no menciona con esas palabras.`
+                : ""}
+            </p>
+            <Link
+              href={`/postulaciones/${applicationId}?evaluacion=${secondOpinion.evaluation.id}`}
+              className="text-xs underline underline-offset-4"
+            >
+              Ver la evaluación completa de la IA
+            </Link>
+          </div>
+        ) : null}
         {resumeWarnings.length > 0 ? (
           <Alert>
             <AlertTitle>Avisos sobre el CV evaluado</AlertTitle>
@@ -181,6 +274,8 @@ export function EvaluationCard({
               const hasVerification = verified || Boolean(verification);
               const found = mentionedTerms(item.rationale);
               const searched = searchedTerms(item.rationale);
+              const aiItem = item.requirement_id ? aiByRequirement.get(item.requirement_id) : undefined;
+              const aiKind = aiItem ? secondOpinionKind(item.assessment, aiItem.assessment) : null;
               return (
                 <li key={item.id} className="overflow-hidden rounded-md border">
                   <div className="grid sm:grid-cols-2 sm:divide-x">
@@ -238,6 +333,7 @@ export function EvaluationCard({
                       ) : !verified && item.rationale ? (
                         <p className="text-sm text-muted-foreground">{item.rationale}</p>
                       ) : null}
+                      {!verified && aiKind && aiItem ? <SecondOpinionNote item={aiItem} kind={aiKind} /> : null}
                       {canVerify && item.requirement_id ? (
                         <div className="flex flex-wrap gap-2 pt-1">
                           <VerifyRequirementDialog

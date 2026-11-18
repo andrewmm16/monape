@@ -41,6 +41,8 @@ const serverEnvSchema = z
     AI_WORKER_SECRET: optionalText,
     // Tras cada evaluación del motor, con `claude-cli`: nada, solo los casos dudosos o todas.
     AI_AUTO_ENQUEUE: z.enum(["off", "dudosos", "todos"]).default("dudosos"),
+    // Con `dudosos`: % de las evaluaciones SIN dudas que también van a la IA (muestra de control).
+    AI_CONTROL_SAMPLE_PERCENT: z.coerce.number().int().min(0).max(100).default(10),
     // Parte pública (2.9): apagada por defecto. Encendida, exige URL y empresa.
     PUBLIC_JOBS_ENABLED: booleanFlag,
     PUBLIC_SITE_URL: optionalUrl,

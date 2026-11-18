@@ -93,12 +93,25 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const newerResume =
     currentResume && application.resume && currentResume.id !== application.resume.id ? currentResume : null;
   const requested = typeof search.evaluacion === "string" ? evaluations.find((e) => e.id === search.evaluacion) : undefined;
-  const selected = requested ?? evaluations[0] ?? null;
-  const items = selected ? await listEvaluationItems(supabase, selected.id) : [];
+  // El motor de reglas es la evaluación principal; la de IA es una segunda opinión que
+  // se muestra DENTRO de la del motor (llega minutos después y no debe reemplazarla).
+  const main = evaluations.find((e) => e.method === "reglas") ?? evaluations[0] ?? null;
+  const selected = requested ?? main;
+  // La segunda opinión: la última evaluación con IA del mismo CV y los mismos criterios.
+  const secondOpinionEvaluation =
+    selected?.method === "reglas"
+      ? (evaluations.find(
+          (e) => e.method === "ia" && e.resume_id === selected.resume_id && e.criteria_version === selected.criteria_version,
+        ) ?? null)
+      : null;
+  const [items, secondOpinionItems] = await Promise.all([
+    selected ? listEvaluationItems(supabase, selected.id) : Promise.resolve([]),
+    secondOpinionEvaluation ? listEvaluationItems(supabase, secondOpinionEvaluation.id) : Promise.resolve([]),
+  ]);
 
-  // Los borradores de observación y de motivo usan siempre la evaluación más
-  // reciente, aunque en el historial se esté consultando otra.
-  const latest = evaluations[0] ?? null;
+  // Los borradores de observación y de motivo usan siempre la evaluación principal
+  // más reciente, aunque en el historial se esté consultando otra.
+  const latest = main;
   const latestItems = !latest ? [] : latest.id === selected?.id ? items : await listEvaluationItems(supabase, latest.id);
   // Solo los campos que usan los borradores: el formulario de estado los
   // recibe en el navegador.
@@ -236,6 +249,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             evaluation={selected}
             items={items}
             history={evaluations}
+            isCurrent={selected?.id === main?.id}
+            secondOpinion={secondOpinionEvaluation ? { evaluation: secondOpinionEvaluation, items: secondOpinionItems } : null}
             currentCriteriaVersion={application.vacancy.criteria_version}
             canReview={can(user.role, "evaluations:review")}
             verifications={verifications}

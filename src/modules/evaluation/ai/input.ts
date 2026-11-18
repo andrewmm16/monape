@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { RequirementInput } from "../types";
+import type { EngineNotes } from "./engine-notes";
 import { buildUserMessage, SYSTEM_PROMPT } from "./prompt";
 import { redactContactData } from "./redact";
 import { aiOutputSchema } from "./response";
@@ -25,6 +26,8 @@ export function buildAiInput(input: {
   requirements: RequirementInput[];
   fullText: string;
   maxChars: number;
+  /** Dudas del motor de reglas (engine-notes.ts). No entran en la huella: solo el texto del CV. */
+  engineNotes?: EngineNotes;
 }): AiInput {
   // Minimización: no se envían datos de contacto ni el nombre del archivo.
   let evaluatedText = redactContactData(input.fullText);
@@ -37,7 +40,12 @@ export function buildAiInput(input: {
     evaluatedText,
     textTruncated,
     system: SYSTEM_PROMPT,
-    userMessage: buildUserMessage({ vacancyTitle: input.vacancyTitle, requirements: input.requirements, resumeText: evaluatedText }),
+    userMessage: buildUserMessage({
+      vacancyTitle: input.vacancyTitle,
+      requirements: input.requirements,
+      resumeText: evaluatedText,
+      engineNotes: input.engineNotes,
+    }),
     inputSha256: createHash("sha256").update(evaluatedText).digest("hex"),
   };
 }

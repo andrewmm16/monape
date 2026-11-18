@@ -47,6 +47,7 @@ import { claimAiJob, reportAiJob, reportAiWorkerStatus } from "@/modules/evaluat
 import { getAiAvailability } from "@/modules/evaluation/ai/availability";
 import { isDoubtful } from "@/modules/evaluation/ai/doubtful";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "@/modules/evaluation/ai/input";
+import { PROMPT_VERSION } from "@/modules/evaluation/ai/prompt";
 import { ResumeTextUnavailableError } from "@/modules/evaluation/context";
 
 const requirements: RequirementInput[] = [
@@ -314,6 +315,9 @@ describe("API del worker: reclamo", () => {
     expect(body.job).toMatchObject({ id: JOB, claimToken: TOKEN, attempt: 1, model: "claude-opus-5-5", effort: "medium" });
     expect(body.job.prompt).toContain("<cv>");
     expect(body.job.prompt).not.toContain("ana.ficticia@correo.test");
+    // Las dudas del motor van al prompt (v2): el inglés no aparece en el CV → nota bajo su requisito.
+    const prompt = String(body.job.prompt);
+    expect(prompt.slice(prompt.indexOf(`id: ${R2}`), prompt.indexOf("<cv>"))).toContain("nota del motor:");
     expect(JSON.stringify(body.job.schema)).toContain("evidence_quotes");
     expect(rpcCalls("ai_start_job")).toEqual([
       { p_job_id: JOB, p_claim_token: TOKEN, p_input_sha256: sentSha(), p_criteria_version: 2 },
@@ -362,7 +366,7 @@ describe("API del worker: resultado", () => {
       p_claim_token: TOKEN,
       p_resume_id: "res-1",
       p_criteria_version: 2,
-      p_method_version: "ia-prompt-v1",
+      p_method_version: PROMPT_VERSION,
       p_model: "claude-opus-5-5",
       p_score: 62.5,
       p_level: "parcial",

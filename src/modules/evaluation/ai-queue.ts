@@ -5,7 +5,7 @@ import { AppError, logServerError, toAppError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database, Tables } from "@/types/database";
 import { getAiAvailability } from "./ai/availability";
-import { isDoubtful } from "./ai/doubtful";
+import { inControlSample, isDoubtful, type DoubtExtras } from "./ai/doubtful";
 import type { EvaluationResult, RequirementInput } from "./types";
 
 type AnyClient = AppSupabaseClient | SupabaseClient<Database>;
@@ -45,7 +45,9 @@ export async function requestAiEvaluation(supabase: AppSupabaseClient, applicati
 
 /**
  * Tras una evaluación del motor: encola la segunda opinión con IA según
- * AI_AUTO_ENQUEUE (solo con la cola habilitada). Nunca hace fallar la
+ * AI_AUTO_ENQUEUE (solo con la cola habilitada). Con «dudosos» va lo dudoso
+ * (ver doubtReasons, incluidas las dudas concretas del motor) y una muestra de
+ * control de lo demás (AI_CONTROL_SAMPLE_PERCENT). Nunca hace fallar la
  * evaluación del motor: un error se registra y se sigue.
  */
 export async function autoEnqueueAfterRules(
@@ -54,6 +56,10 @@ export async function autoEnqueueAfterRules(
     applicationId: string;
     result: Pick<EvaluationResult, "level" | "scores" | "items">;
     requirements: Pick<RequirementInput, "id" | "priority">[];
+    /** Valoraciones del motor con sus marcas de duda (`signal`). */
+    engineItems?: DoubtExtras["engineItems"];
+    /** El CV tiene señales de relleno de palabras clave. */
+    suspiciousText?: boolean;
     system?: boolean;
   },
 ): Promise<void> {
@@ -61,7 +67,13 @@ export async function autoEnqueueAfterRules(
     const env = getServerEnv();
     const availability = getAiAvailability(env);
     if (!availability.available || !availability.queued || env.AI_AUTO_ENQUEUE === "off") return;
-    if (env.AI_AUTO_ENQUEUE === "dudosos" && !isDoubtful(input.result, input.requirements)) return;
+    if (
+      env.AI_AUTO_ENQUEUE === "dudosos" &&
+      !isDoubtful(input.result, input.requirements, { engineItems: input.engineItems, suspiciousText: input.suspiciousText }) &&
+      !inControlSample(input.applicationId, env.AI_CONTROL_SAMPLE_PERCENT)
+    ) {
+      return;
+    }
 
     const { error } = input.system
       ? await supabase.rpc("enqueue_system_ai_evaluation", { p_application_id: input.applicationId })

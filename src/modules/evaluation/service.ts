@@ -5,12 +5,14 @@ import { AppError, toAppError } from "@/lib/errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/types/database";
+import { detectKeywordStuffing, summarizeStuffing } from "@/modules/resumes/keyword-stuffing";
 import { autoEnqueueAfterRules } from "./ai-queue";
 import { assembleEvaluation } from "./assemble";
 import { loadEvaluationContext } from "./context";
 import { detectDateSignalNotes } from "./date-consistency";
 import { requestAnthropicAssessment } from "./ai/anthropic";
 import { getAiAvailability } from "./ai/availability";
+import { engineNotesForText } from "./ai/engine-notes";
 import { buildAiInput } from "./ai/input";
 import { PROMPT_VERSION } from "./ai/prompt";
 import { interpretAiResponse, InvalidAiResponseError } from "./ai/response";
@@ -112,6 +114,7 @@ export async function evaluateApplication(
       requirements,
       fullText,
       maxChars: env.AI_MAX_INPUT_CHARS,
+      engineNotes: engineNotesForText(fullText, requirements, referenceDate),
     });
     evaluatedText = input.evaluatedText;
     textTruncated = input.textTruncated;
@@ -158,11 +161,14 @@ export async function evaluateApplication(
   });
 
   // Segunda opinión con IA en cola (según AI_AUTO_ENQUEUE). Nunca hace fallar al motor.
+  // `items` conserva las dudas del motor (signal), que el resultado ensamblado no guarda.
   if (method === "reglas") {
     await autoEnqueueAfterRules(supabase, {
       applicationId: context.applicationId,
       result,
       requirements,
+      engineItems: items,
+      suspiciousText: summarizeStuffing(detectKeywordStuffing(fullText)) !== null,
       system: options.system,
     });
   }

@@ -10,6 +10,7 @@ import { escapeHtml } from "@/modules/notifications/email/templates/html";
 import { httpStatusOf, json } from "@/modules/portal-bot/auth";
 import { assembleEvaluation } from "./assemble";
 import { getAiAvailability } from "./ai/availability";
+import { engineNotesForText } from "./ai/engine-notes";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "./ai/input";
 import { PROMPT_VERSION } from "./ai/prompt";
 import { interpretAiResponse, InvalidAiResponseError } from "./ai/response";
@@ -217,12 +218,18 @@ function aiSettings() {
   return { env, availability: getAiAvailability(env) };
 }
 
+/**
+ * Prompt del trabajo: CV + requisitos + las dudas del motor de reglas sobre ese
+ * mismo texto (el motor decide; la IA resuelve lo que el motor no pudo). Las notas
+ * no entran en la huella, así que recalcularlas al recibir el resultado no la cambia.
+ */
 function inputFor(context: EvaluationContext, maxChars: number) {
   return buildAiInput({
     vacancyTitle: context.vacancyTitle,
     requirements: context.requirements,
     fullText: context.fullText,
     maxChars,
+    engineNotes: engineNotesForText(context.fullText, context.requirements),
   });
 }
 
