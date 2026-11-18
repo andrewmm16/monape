@@ -62,6 +62,15 @@ export type ItemAssessment = {
   cvAssessment?: Assessment;
   /** Con una verificación de RRHH: el motivo original del CV (o del motor). */
   cvRationale?: string;
+  /**
+   * Quién resolvió una duda del motor: la IA (segunda opinión que cuenta en el
+   * puntaje) o una regla aprendida. Sin valor: el motor solo.
+   */
+  resolvedBy?: "ia" | "regla_aprendida";
+  /** Con `resolvedBy`: lo que había dicho el motor antes. */
+  engineAssessment?: Assessment;
+  /** Con `resolvedBy: "regla_aprendida"`: la regla aplicada. */
+  learnedRuleId?: string;
 };
 
 export type Scores = {

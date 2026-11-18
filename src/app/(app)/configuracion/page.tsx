@@ -27,6 +27,13 @@ export default async function ConfigIndexPage() {
       description: "Versiones del aviso que se muestra a los postulantes en la página pública.",
     });
   }
+  if (can(user.role, "users:manage")) {
+    options.push({
+      href: "/configuracion/aprendizaje-motor",
+      title: "Aprendizaje del motor",
+      description: "Lo que el motor de reglas aprendió de la IA y cuánto depende todavía de ella. Puede deshacer cualquier regla.",
+    });
+  }
   if (options.length === 0) notFound();
 
   return (

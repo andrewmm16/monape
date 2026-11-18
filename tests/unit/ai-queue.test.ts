@@ -17,11 +17,17 @@ const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   admins: [] as { email: string | null }[],
   sendEmail: vi.fn(),
+  /** Regla aprendida reservada para el segundo juez (tabla learned_equivalences), o null. */
+  judgment: null as Record<string, unknown> | null,
+  recordAssembled: vi.fn(),
 }));
 
 vi.mock("@/lib/env", () => ({ getServerEnv: () => mocks.env }));
 vi.mock("@/modules/notifications/email/client", () => ({ sendEmail: (...args: unknown[]) => mocks.sendEmail(...args) }));
-vi.mock("@/modules/evaluation/service", () => ({ listVerifications: async () => [] }));
+vi.mock("@/modules/evaluation/service", () => ({
+  listVerifications: async () => [],
+  recordAssembledEvaluation: (...args: unknown[]) => mocks.recordAssembled(...args),
+}));
 vi.mock("@/modules/evaluation/context", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/evaluation/context")>()),
   loadEvaluationContext: (...args: unknown[]) => mocks.load(...args),
@@ -34,7 +40,10 @@ vi.mock("@/lib/supabase/admin", () => ({
       chain.select = () => chain;
       chain.eq = () => chain;
       chain.is = () => chain;
-      chain.maybeSingle = async () => ({ data: mocks.job, error: null });
+      chain.in = () => chain;
+      chain.maybeSingle = async () => ({ data: table === "learned_equivalences" ? mocks.judgment : mocks.job, error: null });
+      // Reglas aprendidas activas: ninguna en estas pruebas.
+      if (table === "learned_equivalences") chain.then = (resolve: (value: unknown) => void) => resolve({ data: [], error: null });
       // Lista de administradores (alertas): la consulta se espera directamente.
       if (table === "profiles") chain.then = (resolve: (value: unknown) => void) => resolve({ data: mocks.admins, error: null });
       return chain;
@@ -58,6 +67,7 @@ const CV = "Analista con Excel avanzado y tablas dinámicas. Contacto: ana.ficti
 
 const context = () => ({
   applicationId: APP,
+  candidateId: "cand-1",
   vacancyTitle: "Analista de datos",
   criteriaVersion: 2,
   requirements,
@@ -94,6 +104,8 @@ beforeEach(() => {
     AI_MAX_INPUT_CHARS: 30_000,
   };
   mocks.job = null;
+  mocks.judgment = null;
+  mocks.recordAssembled.mockReset().mockResolvedValue("eval-reglas-relevo");
   mocks.admins = [];
   mocks.sendEmail.mockReset().mockResolvedValue({ sent: true });
   mocks.load.mockReset().mockResolvedValue(context());
@@ -324,6 +336,37 @@ describe("API del worker: reclamo", () => {
     ]);
   });
 
+  it("sin CV en cola, entrega al segundo juez una regla aprendida (con su modelo y a ciegas)", async () => {
+    mocks.env.AI_LEARN_MIN_CONFIRMATIONS = 5;
+    mocks.env.AI_JUDGE_MODEL = "claude-opus-5-5";
+    mocks.rpc.mockImplementation(async (name: string) =>
+      name === "learn_claim_judgment"
+        ? {
+            data: [
+              {
+                equivalence_id: JOB,
+                judge_token: TOKEN,
+                attempts: 1,
+                requirement_category: "experiencia",
+                requirement_description: "Supervisión de obras",
+                cv_term_display: "Asistente de Residencia",
+                verdict: "equivale",
+                votes: 5,
+              },
+            ],
+            error: null,
+          }
+        : { data: name === "ai_claim_job" ? [] : null, error: null },
+    );
+    const body = (await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json()) as { job: Record<string, unknown> };
+    expect(body.job).toMatchObject({ id: JOB, claimToken: TOKEN, attempt: 1, model: "claude-opus-5-5" });
+    expect(String(body.job.prompt)).toContain("«Asistente de Residencia»");
+    expect(String(body.job.prompt)).not.toMatch(/votos|la IA/);
+
+    mocks.env.AI_LEARN_MIN_CONFIRMATIONS = 0; // sin aprendizaje no hay juicios
+    expect(await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json()).toEqual({ job: null });
+  });
+
   it("cierra con error los trabajos sin texto legible y sigue con el siguiente", async () => {
     let claims = 0;
     mocks.rpc.mockImplementation(async (name: string) => {
@@ -375,6 +418,69 @@ describe("API del worker: resultado", () => {
     expect(args!.p_items).toEqual([
       expect.objectContaining({ requirement_id: R1, assessment: "acreditado", evidence: [{ quote: "Excel avanzado" }] }),
       expect.objectContaining({ requirement_id: R2, assessment: "sin_evidencia" }),
+    ]);
+  });
+
+  it("tras la IA: el motor la usa en lo que dudó (nueva evaluación del motor, vigente) y registra los votos", async () => {
+    mocks.env.AI_RELAY_SCORE = true;
+    mocks.env.AI_LEARN_MIN_CONFIRMATIONS = 5;
+    mocks.job = reserved();
+    const output = {
+      items: [
+        validOutput.items[0],
+        { ...validOutput.items[1], equivalence: { cv_term: "finanzas", equivalent: true } },
+      ],
+    };
+    expect(await (await reportAiJob(ok(output, { model: "claude-haiku-5-5" }), JOB)).json()).toEqual({
+      status: "completado",
+      evaluationId: "eval-ia-1",
+    });
+
+    // Relevo: evaluación del motor (sistema) con la IA en lo dudoso.
+    const [, relay] = mocks.recordAssembled.mock.calls[0] as [unknown, { result: { method: string; methodVersion: string; items: { resolvedBy?: string }[] }; system: boolean }];
+    expect(relay.system).toBe(true);
+    expect(relay.result.method).toBe("reglas");
+    expect(relay.result.methodVersion).toBe(`reglas-v11+${PROMPT_VERSION}`);
+    expect(relay.result.items.map((i) => i.resolvedBy)).toEqual(["ia", "ia"]);
+
+    // Voto: el inglés no aparece en el CV (duda de vocabulario) y la IA señaló un término literal.
+    expect(rpcCalls("learn_record_vote")).toEqual([
+      expect.objectContaining({ p_cv_term: "finanzas", p_candidate_id: "cand-1", p_application_id: APP, p_equivalent: true, p_min_confirmations: 5 }),
+    ]);
+  });
+
+  it("sin AI_RELAY_SCORE la IA no cuenta en el puntaje (solo se muestra)", async () => {
+    mocks.env.AI_RELAY_SCORE = false;
+    mocks.job = reserved();
+    await reportAiJob(ok(validOutput), JOB);
+    expect(mocks.recordAssembled).not.toHaveBeenCalled();
+  });
+
+  it("un fallo al registrar el relevo no hace fallar el cierre del trabajo", async () => {
+    mocks.env.AI_RELAY_SCORE = true;
+    mocks.recordAssembled.mockRejectedValue(new Error("BD caída"));
+    mocks.job = reserved();
+    expect(await (await reportAiJob(ok(validOutput), JOB)).json()).toEqual({ status: "completado", evaluationId: "eval-ia-1" });
+  });
+
+  it("segundo juez: su resultado activa o rechaza la regla; con límite o error se libera la reserva", async () => {
+    mocks.judgment = { id: JOB };
+    mocks.rpc.mockImplementation(async (name: string) =>
+      name === "learn_report_judgment" ? { data: "activa", error: null } : { data: null, error: null },
+    );
+    expect(await (await reportAiJob(ok({ equivalent: true, reason: "Es lo mismo." }, { model: "claude-opus-5-5" }), JOB)).json()).toEqual({
+      status: "activa",
+    });
+    expect(rpcCalls("learn_report_judgment")).toEqual([
+      { p_id: JOB, p_token: TOKEN, p_equivalent: true, p_reason: "Es lo mismo.", p_model: "claude-opus-5-5" },
+    ]);
+    expect(rpcCalls("ai_complete_job")).toEqual([]);
+
+    await reportAiJob(req("/x", { outcome: "limite", claimToken: TOKEN, errorCode: "limite_plan" }), JOB);
+    await reportAiJob(ok({ equivalent: "quizás" }), JOB); // salida inválida: se reintenta
+    expect(rpcCalls("learn_release_judgment")).toEqual([
+      { p_id: JOB, p_token: TOKEN },
+      { p_id: JOB, p_token: TOKEN },
     ]);
   });
 

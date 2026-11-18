@@ -1,14 +1,16 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { getServerEnv } from "@/lib/env";
-import { AppError, toAppError } from "@/lib/errors";
+import { AppError, logServerError, toAppError } from "@/lib/errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/types/database";
 import { detectKeywordStuffing, summarizeStuffing } from "@/modules/resumes/keyword-stuffing";
 import { autoEnqueueAfterRules } from "./ai-queue";
 import { assembleEvaluation } from "./assemble";
-import { loadEvaluationContext } from "./context";
+import { loadEvaluationContext, type EvaluationContext } from "./context";
+import { hasRelayedItems, relayToAi } from "./ai/relay";
+import { loadActiveLearnedRules } from "./learning";
 import { detectDateSignalNotes } from "./date-consistency";
 import { requestAnthropicAssessment } from "./ai/anthropic";
 import { getAiAvailability } from "./ai/availability";
@@ -17,8 +19,8 @@ import { buildAiInput } from "./ai/input";
 import { PROMPT_VERSION } from "./ai/prompt";
 import { interpretAiResponse, InvalidAiResponseError } from "./ai/response";
 import { evaluateWithRules, RULE_ENGINE_VERSION } from "./rule-engine";
-import type { EvaluationMethod, EvaluationResult, ItemAssessment } from "./types";
-import { applyVerifications, type RequirementVerification } from "./verifications";
+import type { EvaluationMethod, EvaluationResult, Evidence, ItemAssessment } from "./types";
+import { applyVerifications, restoreCvItems, type RequirementVerification } from "./verifications";
 
 export { CRITERIA_NOT_APPROVED_MESSAGE, ResumeTextUnavailableError } from "./context";
 
@@ -35,6 +37,56 @@ async function countAiEvaluationsLast24h(supabase: AppSupabaseClient): Promise<n
     .gte("created_at", since);
   if (error) throw toAppError(error);
   return count ?? 0;
+}
+
+/**
+ * Última evaluación con IA del mismo CV y la misma versión de criterios (la
+ * segunda opinión), con sus valoraciones originales (sin verificaciones), o null.
+ * Nunca lanza: sin segunda opinión, el motor solo.
+ */
+export async function loadSecondOpinion(
+  supabase: AppSupabaseClient | SupabaseClient<Database>,
+  context: Pick<EvaluationContext, "applicationId" | "resumeId" | "criteriaVersion">,
+): Promise<{ methodVersion: string; model: string | null; items: ItemAssessment[] } | null> {
+  try {
+    const { data: evaluation, error } = await supabase
+      .from("candidate_evaluations")
+      .select("id, method_version, model")
+      .eq("application_id", context.applicationId)
+      .eq("method", "ia")
+      .eq("resume_id", context.resumeId)
+      .eq("criteria_version", context.criteriaVersion)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!evaluation) return null;
+    const { data: rows, error: itemsError } = await supabase
+      .from("candidate_evaluation_items")
+      .select("requirement_id, assessment, cv_assessment, rationale, cv_rationale, evidence")
+      .eq("evaluation_id", evaluation.id);
+    if (itemsError) throw itemsError;
+    const items = restoreCvItems(
+      (rows ?? []).flatMap((row) =>
+        row.requirement_id
+          ? [
+              {
+                requirementId: row.requirement_id,
+                assessment: row.assessment,
+                cvAssessment: row.cv_assessment,
+                rationale: row.rationale,
+                cvRationale: row.cv_rationale,
+                evidence: (Array.isArray(row.evidence) ? row.evidence : []) as Evidence[],
+              },
+            ]
+          : [],
+      ),
+    );
+    return { methodVersion: evaluation.method_version, model: evaluation.model, items };
+  } catch (error) {
+    logServerError("evaluations.second_opinion", error);
+    return null;
+  }
 }
 
 /** Verificaciones vigentes de la postulación, con el nombre de quien las registró. */
@@ -93,10 +145,26 @@ export async function evaluateApplication(
   let model: string | null = null;
   let textTruncated = false;
   let evaluatedText = fullText;
+  // Lo que el motor aprendió de la IA (reglas activas para estos requisitos).
+  const learned = await loadActiveLearnedRules(supabase, requirements);
+  // Valoraciones del motor con sus marcas de duda, antes de cualquier relevo.
+  let engineItems: ItemAssessment[] = [];
 
   if (method === "reglas") {
-    items = evaluateWithRules(fullText, requirements, { referenceDate });
+    items = evaluateWithRules(fullText, requirements, { referenceDate, learned });
+    engineItems = items;
     methodVersion = RULE_ENGINE_VERSION;
+    // Si ya hay una segunda opinión de la IA del mismo CV y criterios, releva al motor
+    // en lo que duda (así «Volver a evaluar» no pierde lo que resolvió la IA).
+    if (getServerEnv().AI_RELAY_SCORE) {
+      const second = await loadSecondOpinion(supabase, context);
+      const relayed = second ? relayToAi(items, second.items) : items;
+      if (second && hasRelayedItems(relayed)) {
+        items = relayed;
+        methodVersion = `${RULE_ENGINE_VERSION}+${second.methodVersion}`;
+        model = second.model;
+      }
+    }
   } else {
     const env = getServerEnv();
     const availability = getAiAvailability(env);
@@ -114,7 +182,7 @@ export async function evaluateApplication(
       requirements,
       fullText,
       maxChars: env.AI_MAX_INPUT_CHARS,
-      engineNotes: engineNotesForText(fullText, requirements, referenceDate),
+      engineNotes: engineNotesForText(fullText, requirements, referenceDate, learned),
     });
     evaluatedText = input.evaluatedText;
     textTruncated = input.textTruncated;
@@ -167,7 +235,7 @@ export async function evaluateApplication(
       applicationId: context.applicationId,
       result,
       requirements,
-      engineItems: items,
+      engineItems,
       suspiciousText: summarizeStuffing(detectKeywordStuffing(fullText)) !== null,
       system: options.system,
     });
@@ -211,6 +279,9 @@ export async function recordAssembledEvaluation(
       rationale: item.rationale,
       ...(item.cvAssessment ? { cv_assessment: item.cvAssessment } : {}),
       ...(item.cvRationale ? { cv_rationale: item.cvRationale } : {}),
+      ...(item.resolvedBy ? { resolved_by: item.resolvedBy } : {}),
+      ...(item.engineAssessment ? { engine_assessment: item.engineAssessment } : {}),
+      ...(item.learnedRuleId ? { learned_equivalence_id: item.learnedRuleId } : {}),
     })) as Json,
   };
   const { data: evaluationId, error: recordError } = input.system

@@ -52,7 +52,7 @@ async function rebuildCurrentEvaluation(supabase: AppSupabaseClient, application
       .order("created_at"),
     supabase
       .from("candidate_evaluation_items")
-      .select("requirement_id, assessment, cv_assessment, rationale, cv_rationale, evidence")
+      .select("requirement_id, assessment, cv_assessment, rationale, cv_rationale, evidence, resolved_by, engine_assessment, learned_equivalence_id")
       .eq("evaluation_id", evaluation.id),
   ]);
   if (requirementsError) throw toAppError(requirementsError);
@@ -78,6 +78,9 @@ async function rebuildCurrentEvaluation(supabase: AppSupabaseClient, application
             rationale: row.rationale,
             cvRationale: row.cv_rationale,
             evidence: (Array.isArray(row.evidence) ? row.evidence : []) as Evidence[],
+            resolvedBy: row.resolved_by === "ia" || row.resolved_by === "regla_aprendida" ? row.resolved_by : null,
+            engineAssessment: row.engine_assessment,
+            learnedRuleId: row.learned_equivalence_id,
           },
         ]
       : [],

@@ -25,6 +25,8 @@ export class ResumeTextUnavailableError extends AppError {
 /** Todo lo que se necesita para evaluar una postulación, leído de la base de datos. */
 export type EvaluationContext = {
   applicationId: string;
+  /** Para contar CV distintos al aprender de la IA (learned_equivalence_votes). */
+  candidateId: string;
   vacancyTitle: string;
   criteriaVersion: number;
   requirements: RequirementInput[];
@@ -98,6 +100,7 @@ export async function loadEvaluationContext(
 
   return {
     applicationId: application.id,
+    candidateId: application.candidate_id,
     vacancyTitle: vacancy.title,
     criteriaVersion: vacancy.criteria_version,
     requirements,

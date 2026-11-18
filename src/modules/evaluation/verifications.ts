@@ -57,6 +57,10 @@ export type StoredEvaluationItem = {
   /** Motivo original del CV; nulo si el ítem no estaba verificado (o es anterior a esta columna). */
   cvRationale: string | null;
   evidence: ItemAssessment["evidence"];
+  /** Quién resolvió la duda del motor (IA o regla aprendida); nulo si fue el motor. */
+  resolvedBy?: ItemAssessment["resolvedBy"] | null;
+  engineAssessment?: ItemAssessment["assessment"] | null;
+  learnedRuleId?: string | null;
 };
 
 const CV_RATIONALE_MARK = "Según el CV: ";
@@ -83,6 +87,9 @@ export function restoreCvItems(stored: StoredEvaluationItem[]): ItemAssessment[]
     assessment: item.cvAssessment ?? item.assessment,
     evidence: item.evidence,
     rationale: originalRationale(item),
+    ...(item.resolvedBy ? { resolvedBy: item.resolvedBy } : {}),
+    ...(item.resolvedBy && item.engineAssessment ? { engineAssessment: item.engineAssessment } : {}),
+    ...(item.resolvedBy === "regla_aprendida" && item.learnedRuleId ? { learnedRuleId: item.learnedRuleId } : {}),
   }));
 }
 

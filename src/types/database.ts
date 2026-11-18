@@ -521,14 +521,17 @@ export type Database = {
           cv_assessment: Database["public"]["Enums"]["requirement_assessment"] | null
           cv_rationale: string | null
           description: string
+          engine_assessment: Database["public"]["Enums"]["requirement_assessment"] | null
           evaluation_id: string
           evidence: Json
           id: string
           is_essential: boolean
+          learned_equivalence_id: string | null
           position: number
           priority: Database["public"]["Enums"]["requirement_priority"]
           rationale: string
           requirement_id: string | null
+          resolved_by: string | null
           verification_note: string | null
           verification_source: Database["public"]["Enums"]["verification_source"] | null
           verified_at: string | null
@@ -541,14 +544,17 @@ export type Database = {
           cv_assessment?: Database["public"]["Enums"]["requirement_assessment"] | null
           cv_rationale?: string | null
           description: string
+          engine_assessment?: Database["public"]["Enums"]["requirement_assessment"] | null
           evaluation_id: string
           evidence?: Json
           id?: string
           is_essential: boolean
+          learned_equivalence_id?: string | null
           position?: number
           priority: Database["public"]["Enums"]["requirement_priority"]
           rationale: string
           requirement_id?: string | null
+          resolved_by?: string | null
           verification_note?: string | null
           verification_source?: Database["public"]["Enums"]["verification_source"] | null
           verified_at?: string | null
@@ -561,14 +567,17 @@ export type Database = {
           cv_assessment?: Database["public"]["Enums"]["requirement_assessment"] | null
           cv_rationale?: string | null
           description?: string
+          engine_assessment?: Database["public"]["Enums"]["requirement_assessment"] | null
           evaluation_id?: string
           evidence?: Json
           id?: string
           is_essential?: boolean
+          learned_equivalence_id?: string | null
           position?: number
           priority?: Database["public"]["Enums"]["requirement_priority"]
           rationale?: string
           requirement_id?: string | null
+          resolved_by?: string | null
           verification_note?: string | null
           verification_source?: Database["public"]["Enums"]["verification_source"] | null
           verified_at?: string | null
@@ -581,6 +590,13 @@ export type Database = {
             columns: ["evaluation_id"]
             isOneToOne: false
             referencedRelation: "candidate_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_evaluation_items_learned_equivalence_id_fkey"
+            columns: ["learned_equivalence_id"]
+            isOneToOne: false
+            referencedRelation: "learned_equivalences"
             referencedColumns: ["id"]
           },
           {
@@ -1408,6 +1424,141 @@ export type Database = {
           position?: number
         }
         Relationships: []
+      }
+      learned_equivalence_votes: {
+        Row: {
+          application_id: string | null
+          candidate_id: string
+          created_at: string
+          equivalence_id: string
+          equivalent: boolean
+          rationale: string
+        }
+        Insert: {
+          application_id?: string | null
+          candidate_id: string
+          created_at?: string
+          equivalence_id: string
+          equivalent: boolean
+          rationale?: string
+        }
+        Update: {
+          application_id?: string | null
+          candidate_id?: string
+          created_at?: string
+          equivalence_id?: string
+          equivalent?: boolean
+          rationale?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learned_equivalence_votes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learned_equivalence_votes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learned_equivalence_votes_equivalence_id_fkey"
+            columns: ["equivalence_id"]
+            isOneToOne: false
+            referencedRelation: "learned_equivalences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learned_equivalences: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          cv_term: string
+          cv_term_display: string
+          id: string
+          judge_attempts: number
+          judge_claimed_at: string | null
+          judge_equivalent: boolean | null
+          judge_model: string | null
+          judge_reason: string | null
+          judge_token: string | null
+          judged_at: string | null
+          requirement_category: Database["public"]["Enums"]["requirement_category"]
+          requirement_description: string
+          requirement_key: string
+          status: string
+          status_changed_at: string
+          status_changed_by: string | null
+          status_reason: string | null
+          updated_at: string
+          verdict: string | null
+          votes_no: number
+          votes_yes: number
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          cv_term: string
+          cv_term_display: string
+          id?: string
+          judge_attempts?: number
+          judge_claimed_at?: string | null
+          judge_equivalent?: boolean | null
+          judge_model?: string | null
+          judge_reason?: string | null
+          judge_token?: string | null
+          judged_at?: string | null
+          requirement_category: Database["public"]["Enums"]["requirement_category"]
+          requirement_description: string
+          requirement_key: string
+          status?: string
+          status_changed_at?: string
+          status_changed_by?: string | null
+          status_reason?: string | null
+          updated_at?: string
+          verdict?: string | null
+          votes_no?: number
+          votes_yes?: number
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          cv_term?: string
+          cv_term_display?: string
+          id?: string
+          judge_attempts?: number
+          judge_claimed_at?: string | null
+          judge_equivalent?: boolean | null
+          judge_model?: string | null
+          judge_reason?: string | null
+          judge_token?: string | null
+          judged_at?: string | null
+          requirement_category?: Database["public"]["Enums"]["requirement_category"]
+          requirement_description?: string
+          requirement_key?: string
+          status?: string
+          status_changed_at?: string
+          status_changed_by?: string | null
+          status_reason?: string | null
+          updated_at?: string
+          verdict?: string | null
+          votes_no?: number
+          votes_yes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learned_equivalences_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -2444,6 +2595,51 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      learn_claim_judgment: {
+        Args: never
+        Returns: {
+          equivalence_id: string | null
+          judge_token: string | null
+          attempts: number | null
+          requirement_category: Database["public"]["Enums"]["requirement_category"] | null
+          requirement_description: string | null
+          cv_term_display: string | null
+          verdict: string | null
+          votes: number | null
+        }[]
+      }
+      learn_record_vote: {
+        Args: {
+          p_requirement_key: string | null
+          p_category: Database["public"]["Enums"]["requirement_category"] | null
+          p_description: string | null
+          p_cv_term: string | null
+          p_cv_term_display: string | null
+          p_candidate_id: string | null
+          p_application_id: string | null
+          p_equivalent: boolean | null
+          p_rationale: string | null
+          p_min_confirmations: number | null
+        }
+        Returns: string
+      }
+      learn_release_judgment: {
+        Args: {
+          p_id: string | null
+          p_token: string | null
+        }
+        Returns: undefined
+      }
+      learn_report_judgment: {
+        Args: {
+          p_id: string | null
+          p_token: string | null
+          p_equivalent: boolean | null
+          p_reason: string | null
+          p_model: string | null
+        }
+        Returns: string
+      }
       log_candidate_message: {
         Args: {
           p_application_id: string | null
@@ -2775,6 +2971,13 @@ export type Database = {
           p_interview_id: string | null
           p_lat: number | null
           p_lng: number | null
+        }
+        Returns: undefined
+      }
+      set_learned_equivalence_active: {
+        Args: {
+          p_id: string | null
+          p_active: boolean | null
         }
         Returns: undefined
       }

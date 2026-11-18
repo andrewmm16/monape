@@ -102,9 +102,9 @@ describe("notas del motor para la IA", () => {
   });
 });
 
-describe("prompt v3", () => {
-  it("sube la versión y explica cómo usar las notas del motor", () => {
-    expect(PROMPT_VERSION).toBe("ia-prompt-v3");
+describe("prompt (desde v3)", () => {
+  it("explica cómo usar las notas del motor", () => {
+    expect(PROMPT_VERSION).toMatch(/^ia-prompt-v[3-9]$/);
     expect(SYSTEM_PROMPT).toMatch(/nota del motor/);
     expect(SYSTEM_PROMPT).toMatch(/puede estar equivocada/);
   });

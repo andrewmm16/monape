@@ -102,6 +102,13 @@ function Quote({ text, terms }: { text: string; terms: string[] }) {
 type Assessment = Item["assessment"];
 const isToConfirm = (a: Assessment) => a === "pendiente_verificacion" || a === "sin_evidencia";
 
+const ENGINE_LABELS: Record<Assessment, string> = {
+  acreditado: "acreditado",
+  no_cumplido: "no cumplido",
+  pendiente_verificacion: "por confirmar",
+  sin_evidencia: "sin evidencia",
+};
+
 /**
  * Cómo se relaciona la opinión de la IA con la del motor en un requisito:
  * - «distinta»: otro veredicto que cambia el puntaje (acredita, no cumple…);
@@ -199,6 +206,8 @@ export function EvaluationCard({
   const differing = compared.filter((i) => kindOf(i) === "distinta");
   const hints = compared.filter((i) => kindOf(i) === "indicio");
   const isAiEvaluation = evaluation.method === "ia";
+  const resolvedByAi = items.filter((i) => !i.verification_source && i.resolved_by === "ia").length;
+  const resolvedByRules = items.filter((i) => !i.verification_source && i.resolved_by === "regla_aprendida").length;
 
   return (
     <Card>
@@ -228,6 +237,17 @@ export function EvaluationCard({
       <CardContent className="space-y-6">
         <ScoreMeter score={evaluation.score} potential={evaluation.score_potential} />
         <p className="text-sm">{evaluation.summary}</p>
+        {resolvedByAi + resolvedByRules > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {resolvedByAi > 0
+              ? `La IA resolvió ${resolvedByAi} duda${resolvedByAi === 1 ? "" : "s"} del motor y ya cuenta${resolvedByAi === 1 ? "" : "n"} en el puntaje.`
+              : ""}
+            {resolvedByAi > 0 && resolvedByRules > 0 ? " " : ""}
+            {resolvedByRules > 0
+              ? `${resolvedByRules} requisito${resolvedByRules === 1 ? " se resolvió" : "s se resolvieron"} con reglas que el motor aprendió de la IA.`
+              : ""}
+          </p>
+        ) : null}
         {secondOpinion && compared.length > 0 ? (
           <div className="rounded-md border border-dashed border-brand/50 bg-brand/5 px-3 py-2 text-sm">
             <p>
@@ -236,7 +256,7 @@ export function EvaluationCard({
                 ? hints.length === 0
                   ? `coincide con el motor en los ${compared.length} requisitos sin verificar.`
                   : `no contradice al motor en ninguno de los ${compared.length} requisitos sin verificar.`
-                : `opina distinto en ${differing.length} de ${compared.length} requisitos (marcados abajo). El puntaje es el del motor: verifique esos requisitos para decidir.`}
+                : `opina distinto en ${differing.length} requisito${differing.length === 1 ? "" : "s"} que el motor resolvió sin dudas (marcado${differing.length === 1 ? "" : "s"} abajo). No cambia${differing.length === 1 ? "" : "n"} el puntaje: verifíquelo${differing.length === 1 ? "" : "s"} para decidir.`}
               {hints.length > 0
                 ? ` Además ve indicios en ${hints.length} requisito${hints.length === 1 ? "" : "s"} que el CV no menciona con esas palabras.`
                 : ""}
@@ -276,6 +296,7 @@ export function EvaluationCard({
               const hasVerification = verified || Boolean(verification);
               const found = mentionedTerms(item.rationale);
               const searched = searchedTerms(item.rationale);
+              const resolved = !verified && Boolean(item.resolved_by);
               const aiItem = item.requirement_id ? aiByRequirement.get(item.requirement_id) : undefined;
               const aiKind = aiItem ? secondOpinionKind(item.assessment, aiItem.assessment) : null;
               return (
@@ -307,6 +328,11 @@ export function EvaluationCard({
                             <AssessmentBadge assessment={item.assessment} />
                           </span>
                         )}
+                        {resolved ? (
+                          <Badge variant="outline" className="border-brand/40 text-xs">
+                            {item.resolved_by === "ia" ? "Resuelto por la IA" : "Regla aprendida"}
+                          </Badge>
+                        ) : null}
                       </div>
                       {verified && item.verification_source ? (
                         <p className="text-sm">
@@ -314,7 +340,22 @@ export function EvaluationCard({
                           {item.verifier?.full_name ?? "RRHH"}: <span className="whitespace-pre-wrap">«{item.verification_note}»</span>
                         </p>
                       ) : null}
-                      {evidence.length > 0 ? (
+                      {resolved ? (
+                        // La IA o una regla aprendida resolvió una duda del motor: se muestra por qué.
+                        <div className="space-y-1.5">
+                          {evidence.map((e, index) => (
+                            <blockquote key={index} className="border-l-2 border-brand/40 pl-2 text-xs italic">
+                              <Quote text={e.quote ?? ""} terms={[...(e.matched ?? []), ...found]} />
+                            </blockquote>
+                          ))}
+                          <p className="text-sm text-muted-foreground">{item.rationale}</p>
+                          {item.engine_assessment && item.engine_assessment !== item.assessment ? (
+                            <p className="text-xs text-muted-foreground">
+                              El motor solo lo había dejado como «{ENGINE_LABELS[item.engine_assessment]}».
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : evidence.length > 0 ? (
                         <div className="space-y-1.5">
                           {evidence.map((e, index) => (
                             <blockquote key={index} className="border-l-2 border-brand/40 pl-2 text-xs italic">

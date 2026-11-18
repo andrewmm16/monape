@@ -78,7 +78,7 @@ describe("tarjeta del motor con la segunda opinión de la IA", () => {
   it("resume dónde opina distinto y dónde ve indicios, sin contar lo verificado por RRHH", () => {
     const html = render(true);
     expect(html).toContain("Segunda opinión de la IA");
-    expect(html).toContain("opina distinto en 1 de 3 requisitos");
+    expect(html).toContain("opina distinto en 1 requisito que el motor resolvió sin dudas");
     expect(html).toContain("Además ve indicios en 1 requisito");
     expect(html).toContain("/postulaciones/app-1?evaluacion=ev-ia");
   });
@@ -104,6 +104,29 @@ describe("tarjeta del motor con la segunda opinión de la IA", () => {
     expect(html).toContain("no contradice al motor en ninguno de los 3 requisitos");
     expect(html).toContain("Además ve indicios en 1 requisito");
     expect(html).not.toContain("La IA opina distinto");
+  });
+
+  it("marca lo que resolvió la IA o una regla aprendida, con lo que había dicho el motor", () => {
+    const html = renderToStaticMarkup(
+      createElement(EvaluationCard, {
+        applicationId: "app-1",
+        evaluation: evaluation("ev-reglas", "reglas") as never,
+        items: [
+          { ...item("a", "acreditado", "Resuelto por la IA (el motor lo dejó por confirmar): cargo equivalente."), resolved_by: "ia", engine_assessment: "pendiente_verificacion" },
+          { ...item("b", "acreditado", "Regla aprendida: «Asistente de Residencia» cuenta."), resolved_by: "regla_aprendida", engine_assessment: "pendiente_verificacion" },
+          item("c", "acreditado", "motor-c"),
+        ] as never,
+        history: [evaluation("ev-reglas", "reglas")] as never,
+        isCurrent: true,
+        currentCriteriaVersion: 1,
+        canReview: false,
+      }),
+    );
+    expect(html).toContain("La IA resolvió 1 duda del motor y ya cuenta en el puntaje.");
+    expect(html).toContain("1 requisito se resolvió con reglas que el motor aprendió de la IA.");
+    expect(html).toContain("Resuelto por la IA");
+    expect(html).toContain("Regla aprendida");
+    expect(html.match(/El motor solo lo había dejado como «por confirmar»/g)).toHaveLength(2);
   });
 
   it("sin segunda opinión, la tarjeta no menciona a la IA", () => {

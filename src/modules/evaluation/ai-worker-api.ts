@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { getServerEnv } from "@/lib/env";
 import { AppError, logServerError } from "@/lib/errors";
@@ -12,8 +13,10 @@ import { assembleEvaluation } from "./assemble";
 import { getAiAvailability } from "./ai/availability";
 import { engineNotesForText } from "./ai/engine-notes";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "./ai/input";
+import { buildJudgePrompt, JUDGE_JSON_SCHEMA, JUDGE_SYSTEM_PROMPT, parseJudgeOutput } from "./ai/judge";
 import { PROMPT_VERSION } from "./ai/prompt";
-import { interpretAiResponse, InvalidAiResponseError } from "./ai/response";
+import { hasRelayedItems, relayToAi } from "./ai/relay";
+import { extractEquivalenceVotes, interpretAiResponse, InvalidAiResponseError } from "./ai/response";
 import {
   APPLICATION_NOT_FOUND_MESSAGE,
   CRITERIA_NOT_APPROVED_MESSAGE,
@@ -23,7 +26,10 @@ import {
   type EvaluationContext,
 } from "./context";
 import { detectDateSignalNotes } from "./date-consistency";
-import { listVerifications } from "./service";
+import { loadActiveLearnedRules, recordEquivalenceVotes } from "./learning";
+import { evaluateWithRules, RULE_ENGINE_VERSION } from "./rule-engine";
+import { listVerifications, recordAssembledEvaluation } from "./service";
+import type { ItemAssessment } from "./types";
 import { applyVerifications } from "./verifications";
 
 /**
@@ -220,17 +226,133 @@ function aiSettings() {
 
 /**
  * Prompt del trabajo: CV + requisitos + las dudas del motor de reglas sobre ese
- * mismo texto (el motor decide; la IA resuelve lo que el motor no pudo). Las notas
- * no entran en la huella, así que recalcularlas al recibir el resultado no la cambia.
+ * mismo texto, con lo que ya aprendió (el motor decide; la IA resuelve lo que el
+ * motor no pudo). Las notas no entran en la huella, así que recalcularlas al
+ * recibir el resultado no la cambia.
  */
-function inputFor(context: EvaluationContext, maxChars: number) {
+async function inputFor(admin: AdminClient, context: EvaluationContext, maxChars: number) {
+  const learned = await loadActiveLearnedRules(admin, context.requirements);
   return buildAiInput({
     vacancyTitle: context.vacancyTitle,
     requirements: context.requirements,
     fullText: context.fullText,
     maxChars,
-    engineNotes: engineNotesForText(context.fullText, context.requirements),
+    engineNotes: engineNotesForText(context.fullText, context.requirements, new Date(), learned),
   });
+}
+
+/**
+ * Cuando no hay CV en cola: una regla aprendida que espera al segundo juez, con
+ * el mismo formato de un trabajo (el worker solo transporta). Null si no hay.
+ */
+async function claimJudgment(admin: AdminClient, judgeModel: string) {
+  const { data, error } = await admin.rpc("learn_claim_judgment");
+  if (error) throw error;
+  const task = data?.[0];
+  if (!task?.equivalence_id || !task.judge_token || !task.requirement_category || !task.requirement_description || !task.cv_term_display) {
+    return null;
+  }
+  return {
+    id: task.equivalence_id,
+    claimToken: task.judge_token,
+    attempt: Math.max(1, task.attempts ?? 1),
+    model: judgeModel,
+    effort: AI_EFFORT,
+    system: JUDGE_SYSTEM_PROMPT,
+    prompt: buildJudgePrompt({
+      category: task.requirement_category,
+      description: task.requirement_description,
+      term: task.cv_term_display,
+    }),
+    schema: JUDGE_JSON_SCHEMA,
+  };
+}
+
+/**
+ * Resultado de una tarea de juicio, o null si `jobId` no es una (es un CV).
+ * Con «ok» la regla se activa (el juez coincide) o se rechaza; con límite o
+ * error la reserva se libera y se reintenta más tarde.
+ */
+async function reportJudgment(
+  admin: AdminClient,
+  jobId: string,
+  report: z.infer<typeof reportBody>,
+): Promise<Response | null> {
+  const { data: rule, error } = await admin
+    .from("learned_equivalences")
+    .select("id")
+    .eq("id", jobId)
+    .eq("judge_token", report.claimToken)
+    .maybeSingle();
+  if (error) throw error;
+  if (!rule) return null;
+  const judged = report.outcome === "ok" ? parseJudgeOutput(report.output) : null;
+  if (report.outcome !== "ok" || !judged) {
+    const { error: releaseError } = await admin.rpc("learn_release_judgment", { p_id: jobId, p_token: report.claimToken });
+    if (releaseError) throw releaseError;
+    return json(200, { status: "pendiente" });
+  }
+  const { data: status, error: reportError } = await admin.rpc("learn_report_judgment", {
+    p_id: jobId,
+    p_token: report.claimToken,
+    p_equivalent: judged.equivalent,
+    p_reason: judged.reason,
+    p_model: report.model ?? getServerEnv().AI_JUDGE_MODEL,
+  });
+  if (reportError) throw reportError;
+  return json(200, { status: status ?? "ignorado" });
+}
+
+/**
+ * Tras registrar la segunda opinión: el motor aprende (votos de la IA) y, si
+ * AI_RELAY_SCORE, se registra la evaluación del motor con la IA relevándolo en lo
+ * que dudó (pasa a ser la vigente: ranking, listados). Nunca hace fallar el
+ * cierre del trabajo: la evaluación con IA ya quedó registrada.
+ */
+async function learnAndRelay(
+  admin: AdminClient,
+  input: { context: EvaluationContext; aiItems: ItemAssessment[]; rawOutput: unknown; evaluatedText: string; model: string | null },
+): Promise<void> {
+  try {
+    const env = getServerEnv();
+    const { context } = input;
+    const learned = await loadActiveLearnedRules(admin, context.requirements);
+    const referenceDate = new Date();
+    const engineItems = evaluateWithRules(context.fullText, context.requirements, { referenceDate, learned });
+
+    await recordEquivalenceVotes(admin, {
+      candidateId: context.candidateId,
+      applicationId: context.applicationId,
+      requirements: context.requirements,
+      engineItems,
+      votes: extractEquivalenceVotes(input.rawOutput, context.requirements, input.evaluatedText),
+      minConfirmations: env.AI_LEARN_MIN_CONFIRMATIONS,
+    });
+
+    if (!env.AI_RELAY_SCORE) return;
+    const relayed = relayToAi(engineItems, input.aiItems);
+    if (!hasRelayedItems(relayed)) return;
+    const result = assembleEvaluation({
+      method: "reglas",
+      methodVersion: `${RULE_ENGINE_VERSION}+${PROMPT_VERSION}`,
+      model: input.model,
+      requirements: context.requirements,
+      items: applyVerifications(relayed, await listVerifications(admin, context.applicationId)),
+      textWasCorrected: context.textWasCorrected,
+      textTruncated: false,
+      signalNotes: detectDateSignalNotes(context.fullText, referenceDate),
+    });
+    await recordAssembledEvaluation(admin, {
+      applicationId: context.applicationId,
+      resumeId: context.resumeId,
+      criteriaVersion: context.criteriaVersion,
+      result,
+      inputSha256: createHash("sha256").update(context.fullText).digest("hex"),
+      system: true,
+    });
+  } catch (error) {
+    logServerError("ai_worker.learn_relay", error);
+  }
 }
 
 /**
@@ -253,11 +375,15 @@ export async function claimAiJob(request: Request): Promise<Response> {
       const { data, error } = await admin.rpc("ai_claim_job");
       if (error) throw error;
       const job = data?.[0];
-      if (!job?.job_id || !job.application_id || !job.claim_token) return json(200, { job: null });
+      if (!job?.job_id || !job.application_id || !job.claim_token) {
+        // Sin CV en cola: si hay una regla aprendida esperando al segundo juez, se entrega esa.
+        const judgment = env.AI_LEARN_MIN_CONFIRMATIONS >= 2 ? await claimJudgment(admin, env.AI_JUDGE_MODEL) : null;
+        return json(200, { job: judgment });
+      }
 
       try {
         const context = await loadEvaluationContext(admin, job.application_id);
-        const input = inputFor(context, env.AI_MAX_INPUT_CHARS);
+        const input = await inputFor(admin, context, env.AI_MAX_INPUT_CHARS);
         const { error: startError } = await admin.rpc("ai_start_job", {
           p_job_id: job.job_id,
           p_claim_token: job.claim_token,
@@ -310,6 +436,10 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
     const report = body.data;
     const token = report.claimToken;
 
+    // ¿Es una tarea del segundo juez (regla aprendida) y no un CV?
+    const judged = await reportJudgment(admin, jobId, report);
+    if (judged) return judged;
+
     if (report.outcome === "limite") {
       return json(200, { status: await release(admin, jobId, token, "limite", report.errorCode, report.retryAt ?? null) });
     }
@@ -339,7 +469,7 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
     }
 
     // El CV o los criterios cambiaron desde la reserva: se vuelve a preparar.
-    const input = inputFor(context, env.AI_MAX_INPUT_CHARS);
+    const input = await inputFor(admin, context, env.AI_MAX_INPUT_CHARS);
     if (input.inputSha256 !== job.input_sha256 || context.criteriaVersion !== job.criteria_version) {
       return json(200, { status: await release(admin, jobId, token, "reprogramar") });
     }
@@ -352,6 +482,8 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
       return json(200, { status: await release(admin, jobId, token, "reintentar", "respuesta_invalida") });
     }
 
+    // Lo que dijo la IA, antes de aplicar lo que verificó RRHH (para el relevo del motor).
+    const aiItems = items;
     // Lo que RRHH comprobó después del CV prevalece, sin perder la valoración original.
     items = applyVerifications(items, await listVerifications(admin, job.application_id));
     const result = assembleEvaluation({
@@ -401,6 +533,7 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
       }
       throw completeError;
     }
+    await learnAndRelay(admin, { context, aiItems, rawOutput: report.output, evaluatedText: input.evaluatedText, model: result.model });
     return json(200, { status: "completado", evaluationId });
   } catch (error) {
     logServerError("ai_worker.report", error);

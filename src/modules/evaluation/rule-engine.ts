@@ -1,4 +1,5 @@
 import { conjunctTerms } from "./conjunctions";
+import { applyLearnedRules, groupLearnedRules, requirementKey, type LearnedRule } from "./learned";
 import { coreTerms, relatedListTerms } from "./related";
 import { equivalentsFor } from "./synonyms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
@@ -1336,7 +1337,11 @@ export function maskReferences(text: string): string {
 export function evaluateWithRules(
   original: string,
   requirements: RequirementInput[],
-  options: { referenceDate?: Date } = {},
+  options: {
+    referenceDate?: Date;
+    /** Reglas aprendidas activas (learned.ts). Sin ellas, el motor de siempre. */
+    learned?: LearnedRule[];
+  } = {},
 ): ItemAssessment[] {
   const referenceDate = options.referenceDate ?? new Date();
   const text = maskReferences(original);
@@ -1344,5 +1349,11 @@ export function evaluateWithRules(
   // Las líneas, secciones y entradas se calculan una sola vez y solo si algún requisito lo necesita.
   let index: ExperienceIndex | undefined;
   const experienceIndex = () => (index ??= buildExperienceIndex(text, referenceDate));
-  return requirements.map((requirement) => evaluateRequirement(text, haystack, requirement, referenceDate, experienceIndex));
+  const evaluate = (requirement: RequirementInput) => evaluateRequirement(text, haystack, requirement, referenceDate, experienceIndex);
+  const learned = groupLearnedRules(options.learned ?? []);
+  return requirements.map((requirement) => {
+    const base = evaluate(requirement);
+    const rules = learned.get(requirementKey(requirement));
+    return rules ? applyLearnedRules(base, requirement, rules, evaluate) : base;
+  });
 }

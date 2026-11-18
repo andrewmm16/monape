@@ -1,4 +1,5 @@
 import { detectKeywordStuffing, summarizeStuffing } from "@/modules/resumes/keyword-stuffing";
+import type { LearnedRule } from "../learned";
 import { evaluateWithRules } from "../rule-engine";
 import type { EngineSignal, ItemAssessment, RequirementInput } from "../types";
 import { redactContactData } from "./redact";
@@ -62,9 +63,23 @@ export function hasEngineDoubt(item: Pick<ItemAssessment, "assessment" | "signal
  * Arma las notas a partir de las valoraciones del motor. Puro y determinista.
  * Las notas pasan por la misma redacción de datos de contacto que el CV.
  */
-export function buildEngineNotes(items: ItemAssessment[], options: { stuffingWarning?: string | null } = {}): EngineNotes {
+export function buildEngineNotes(
+  items: ItemAssessment[],
+  options: { stuffingWarning?: string | null; learned?: LearnedRule[] } = {},
+): EngineNotes {
   const perRequirement: Record<string, string> = {};
+  const rules = new Map((options.learned ?? []).map((rule) => [rule.id, rule]));
   for (const item of items) {
+    // Control de una regla aprendida: si la IA opina lo contrario, la regla se suspende sola.
+    const rule = item.resolvedBy === "regla_aprendida" && item.learnedRuleId ? rules.get(item.learnedRuleId) : undefined;
+    if (rule) {
+      perRequirement[item.requirementId] = redactContactData(
+        `Control de una regla aprendida: el motor resolvió este requisito porque aprendió que «${rule.termDisplay}» ${
+          rule.verdict === "equivale" ? "cuenta" : "no cuenta"
+        } como lo que pide. Comprueba con el CV si es correcto y devuelve «${rule.termDisplay}» en equivalence.`,
+      );
+      continue;
+    }
     if (!hasEngineDoubt(item)) continue;
     const question = item.signal
       ? SIGNAL_QUESTIONS[item.signal]
@@ -101,7 +116,8 @@ export function engineNotesForText(
   fullText: string,
   requirements: RequirementInput[],
   referenceDate: Date = new Date(),
+  learned: LearnedRule[] = [],
 ): EngineNotes {
-  const items = evaluateWithRules(fullText, requirements, { referenceDate });
-  return buildEngineNotes(items, { stuffingWarning: summarizeStuffing(detectKeywordStuffing(fullText)) });
+  const items = evaluateWithRules(fullText, requirements, { referenceDate, learned });
+  return buildEngineNotes(items, { stuffingWarning: summarizeStuffing(detectKeywordStuffing(fullText)), learned });
 }
