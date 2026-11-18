@@ -4,7 +4,7 @@ Aplicación web privada para el área de Recursos Humanos: vacantes con criterio
 
 > **Principio rector:** la plataforma asiste a RRHH; nunca selecciona ni rechaza a nadie por sí sola. Todos los candidatos son visibles y cada evaluación muestra criterios, evidencias y limitaciones. La plataforma puede **sugerir** un estado a partir de la compatibilidad, pero el estado del proceso solo cambia cuando una persona lo revisa y lo guarda.
 
-**Estado: Etapa 1 implementada** (ver [qué incluye](#qué-incluye-la-etapa-1) y [docs/pendientes.md](docs/pendientes.md)). De la Etapa 2 están terminadas la carga masiva de CV con bandeja de entrada y las páginas públicas de vacantes con su feed. El flujo principal se probó de punta a punta contra **Supabase local (Docker)**; aún no contra un proyecto en la nube (ver [docs/informe-pruebas.md](docs/informe-pruebas.md)). Lo que falta está en [docs/pendientes.md](docs/pendientes.md). Para una explicación sin tecnicismos, con un caso de uso completo, ver [docs/como-funciona.md](docs/como-funciona.md).
+**Estado (18/11/2026):** las Etapas 1 a 3 están implementadas: captación (formulario, carga masiva, Talent.com, páginas públicas), evaluación por reglas con IA como segunda opinión, entrevistas con avisos y recordatorios, base de talentos, reportes, correo y auditoría. De la Etapa 4 hay respaldo y restauración probados en local, limpieza de archivos y plazo de conservación (ver [qué incluye la Etapa 1](#qué-incluye-la-etapa-1) y [docs/pendientes.md](docs/pendientes.md)). Todo se probó de punta a punta contra **Supabase local (Docker)**; aún no contra un proyecto en la nube (ver [docs/informe-pruebas.md](docs/informe-pruebas.md)). Lo que falta está en [docs/pendientes.md](docs/pendientes.md). Para una explicación sin tecnicismos, con un caso de uso completo, ver [docs/como-funciona.md](docs/como-funciona.md).
 
 ### Ejecutar en local con Docker
 
@@ -75,7 +75,8 @@ Detalle completo en [`.env.example`](.env.example).
 | `PUBLIC_JOBS_ENABLED`, `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME`, `PUBLIC_COMPANY_WEBSITE`, `PUBLIC_COMPANY_LOGO_URL` | servidor | Páginas públicas de vacantes, JSON-LD y feed (2.9). Apagadas por defecto; encendidas exigen URL del sitio y nombre de la empresa |
 | `TALENT_APPLY_ENABLED`, `TALENT_APPLY_SECRET`, `TALENT_FEED_TOKEN` | servidor | Recepción de Talent Apply y su feed (2.10). Apagada por defecto (las rutas `/api/integraciones/talent/*` responden 404); encendida exige `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME` y dos secretos de al menos 32 caracteres |
 | `PUBLIC_APPLY_ENABLED`, `INTAKE_HASH_SECRET` | servidor | Formulario público de postulación (2.2) en `/empleos/<vacante>`. Apagado por defecto (se mantiene el botón deshabilitado); encendido exige `PUBLIC_JOBS_ENABLED=true`, `SUPABASE_SECRET_KEY` y un secreto de al menos 32 caracteres que firma los desafíos anti-abuso y deriva (HMAC) el identificador de límite por IP. Solo se ofrece con un aviso de privacidad vigente |
-| `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_DELIVERY_MODE` | servidor | Etapa 3 (aún no usadas) |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_DELIVERY_MODE` | servidor | Correo a candidatos y entrevistadores con Resend. En `test` (por defecto) no se envía nada; ver [docs/configuracion-correo.md](docs/configuracion-correo.md) |
+| `CRON_SECRET` | **solo servidor** | Enciende las tareas programadas `/api/tareas/*`: recordatorios de entrevista y limpieza de CV huérfanos (ver [docs/despliegue.md](docs/despliegue.md)) |
 
 La aplicación nunca expone variables sin prefijo `NEXT_PUBLIC_` al navegador; `npm run test:secrets` lo verifica sobre el build.
 

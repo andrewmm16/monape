@@ -20,8 +20,29 @@ Cada entorno tiene sus **propias claves**. Nunca reutilice la clave secreta de p
    - Variables de IA solo si corresponde (ver [configuracion-ia.md](configuracion-ia.md)). Con `AI_PROVIDER=claude-cli`, `AI_WORKER_SECRET` (*Sensitive*) y el worker desplegado en una máquina siempre encendida ([ia-worker/README.md](../ia-worker/README.md)).
    - Parte pública y formulario: `PUBLIC_JOBS_ENABLED`, `PUBLIC_SITE_URL`, `PUBLIC_COMPANY_NAME`, `PUBLIC_APPLY_ENABLED` e `INTAKE_HASH_SECRET` (*Sensitive*, 32 caracteres o más). El formulario solo se enciende con el aviso de privacidad activado en «Configuración → Privacidad».
    - Talent.com, solo si se activa: ver [configuracion-talent.md](configuracion-talent.md).
+   - `CRON_SECRET` (*Sensitive*, 32 caracteres o más): enciende las tareas programadas (sección siguiente).
 3. Añada `https://<dominio>/auth/confirm` a las *Redirect URLs* de Supabase y ajuste la *Site URL*.
 4. Despliegue y ejecute las comprobaciones de la sección siguiente.
+
+### Tareas programadas (cron)
+
+`vercel.json` programa dos rutas que Vercel Cron llama con `Authorization: Bearer <CRON_SECRET>`. Sin `CRON_SECRET`, responden 404 y no hacen nada.
+
+| Ruta | Horario (UTC) | Qué hace |
+|---|---|---|
+| `/api/tareas/recordatorios-entrevista` | `0 13 * * *` (08:00 de Lima) | Envía el recordatorio de las entrevistas de las próximas 24 h a la persona candidata y a los entrevistadores con correo. No recuerda una entrevista agendada o cambiada hace menos de 12 h, porque la invitación acaba de llegar. Cada recordatorio sale una sola vez por entrevista, fecha y destinatario. |
+| `/api/tareas/limpieza-cv` | `0 9 * * *` (04:00 de Lima) | Borra del bucket los CV que nada referencia: candidato o CV eliminado, o subida sin registrar. Deja un margen de 48 h. Con `?simular=1` solo cuenta. |
+
+- **Frecuencia:** las dos tareas se pueden ejecutar con cualquier frecuencia sin duplicar trabajo. En el plan Pro, `0 * * * *` (cada hora) da recordatorios más parejos, unas 24 h antes.
+- **Sin Vercel Cron:** cualquier programador sirve, por ejemplo `pg_cron` + `pg_net` en Supabase, GitHub Actions o el Programador de tareas de Windows:
+  ```bash
+  curl -H "Authorization: Bearer $CRON_SECRET" https://<dominio>/api/tareas/recordatorios-entrevista
+  ```
+- **Respuesta:** solo contadores, nunca datos personales. En modo de correo `test` los recordatorios responden `{"status":"omitida"}` y no reservan nada.
+
+### Respaldos
+
+Ver [respaldo-y-restauracion.md](respaldo-y-restauracion.md) (`scripts/respaldo/`). Haga un respaldo antes de cada despliegue con migraciones y ensaye la restauración en *staging*.
 
 ### Consideraciones
 
@@ -49,6 +70,8 @@ npm run test:secrets              # con las variables secretas del entorno carga
 - [ ] RRHH no ve la sección Usuarios; una cuenta creada desde el panel de Supabase nace desactivada.
 - [ ] La descarga de CV genera URL firmada de corta duración y un registro en `audit_logs`.
 - [ ] `tests/e2e/flujo-rrhh.spec.ts` ejecutado contra *staging*.
+- [ ] **Tareas programadas:** en Vercel → *Cron Jobs*, las dos tareas figuran y su última ejecución respondió 200. `curl` sin el secreto responde 404.
+- [ ] **Respaldo:** se hizo uno de *staging* y se restauró sobre un proyecto vacío ([respaldo-y-restauracion.md](respaldo-y-restauracion.md)).
 - [ ] **Lectura de CV en Vercel:** subir un PDF real en *staging* y comprobar que el texto se extrae. La extracción corre en un `worker_threads`; si el worker no arrancara, todos los CV quedarían como «Extracción fallida» sin otro error visible.
 - [ ] **Formulario público en *staging*:** postular sin sesión desde el celular y comprobar que la postulación llega a la bandeja con su referencia, su evaluación y sus constancias. Comprobar también que la respuesta no envía cookies.
 - [ ] **Google:** validar una página de vacante con la prueba de resultados enriquecidos y enviar el sitemap en Search Console.

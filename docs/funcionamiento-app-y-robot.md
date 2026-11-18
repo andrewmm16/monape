@@ -134,6 +134,8 @@ la PC del robot). Esto aplica a **sesión vencida** (`sesion_expirada`) y a un e
 
 ## 6. Qué se eliminó al quitar el CAPTCHA (y cómo reconstruirlo)
 
+> **Histórico (12/11/2026).** Después, el manejo de CAPTCHA se volvió a incorporar con otro diseño (`bot/src/captcha/`): ver [escalado-captcha.md](escalado-captcha.md). Esta sección queda como registro de lo que se quitó entonces; no describe el código actual.
+
 El **12/11/2026** se eliminó toda referencia al CAPTCHA del proyecto, incluida la
 **funcionalidad** (detección, selector, simulación y tests), por pedido expreso. Se
 **conservó** el estado genérico `verificacion_requerida` y el mecanismo de relevo.
@@ -203,8 +205,9 @@ comentario; la columna `reason` **no** restringe valores por lista (valida el fo
 
 ### 6.3. Verificación tras la eliminación
 
-- `npm run typecheck`: sin errores atribuibles a este cambio (el único error es
-  preexistente y ajeno: `fs-extra` sin tipos en `mercado/src/importarCaleta.ts`).
+- `npm run typecheck`: sin errores atribuibles a este cambio (el único error era
+  preexistente y ajeno: `fs-extra` sin tipos en `mercado/src/importarCaleta.ts`, un
+  borrador sin uso que se eliminó el 18/11/2026).
 - Tests de los proyectos `unit` y `bot`: **1260 pasan**. Los 3 fallos restantes son de
   `tests/unit/caleta-lector-cv-lote.test.ts` por el directorio `cv-prueba/` borrado del
   repo — sin relación con el CAPTCHA.

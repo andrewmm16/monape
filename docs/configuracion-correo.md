@@ -1,30 +1,41 @@
 # Configuración de correo
 
-## Hoy (Etapa 1)
+Estado al 18/11/2026.
 
-La aplicación **no envía correos propios**. Los únicos correos son los de Supabase Auth:
+## Correos de la aplicación (Resend)
 
-- invitación de usuarios internos;
-- recuperación de contraseña.
+La aplicación envía sus propios correos con Resend, desde el servidor (`src/modules/notifications/email/`):
 
-Para producción configure un SMTP propio en Supabase (**Authentication → Emails → SMTP Settings**). Opción recomendada, coherente con el resto del proyecto: **SMTP de Resend**.
+| Correo | Destinatario | Cuándo |
+|---|---|---|
+| Acuse de postulación | Persona candidata | Al postular por el formulario público |
+| Cambio de estado (entrevista, seleccionado, no seleccionado) | Persona candidata | Cuando RRHH guarda el cambio. Usa las plantillas editables de «Configuración → Plantillas de correo» |
+| Entrevista agendada, reprogramada o cancelada | Persona candidata y **entrevistadores** con correo | Al agendar, reprogramar o cancelar. Los correos de los entrevistadores se escriben en el formulario de la entrevista |
+| Recordatorio de entrevista | Persona candidata y entrevistadores | Tarea programada diaria (`/api/tareas/recordatorios-entrevista`, ver [despliegue.md](despliegue.md#tareas-programadas-cron)). Sale una vez por entrevista, fecha y destinatario |
+| Invitación de la base de talentos | Candidatos del histórico | Desde la vacante, «Invitar por correo». Exige el buzón de respuestas configurado |
+| Mensaje a la persona candidata | Persona candidata | Desde la postulación |
 
-1. Cree una cuenta en Resend y **verifique el dominio remitente** (registros SPF y DKIM; recomendable DMARC).
-2. Genere una clave con permiso de envío.
-3. En Supabase: host `smtp.resend.com`, puerto `465`, usuario `resend`, contraseña = clave de Resend, remitente en el dominio verificado.
-4. Envíe una invitación de prueba a una cuenta interna y verifique recepción, remitente y que el enlace lleve a `/auth/confirm`.
+Variables (ver `.env.example`):
+- `EMAIL_DELIVERY_MODE=test` (por defecto): no se envía nada. Así corren el desarrollo y las pruebas.
+- `EMAIL_DELIVERY_MODE=live`: envío real. Exige `RESEND_API_KEY` y `EMAIL_FROM`.
 
-No se ha verificado ningún dominio ni credencial de Resend en este entorno.
+Los registros del servidor guardan solo identificadores y el estado del envío, nunca la dirección ni el contenido.
 
-## Etapa 3 (pendiente)
+### Pendiente para producción
 
-Módulo de notificaciones a candidatos con Resend desde el servidor:
+1. **Verificar el dominio remitente en Resend** (registros SPF y DKIM; recomendable DMARC). Con el remitente de pruebas `onboarding@resend.dev`, Resend solo entrega a la dirección de la cuenta dueña, así que a los candidatos no les llega nada.
+2. Definir `EMAIL_FROM` con ese dominio, por ejemplo `RRHH <rrhh@dominio-verificado>`.
+3. Configurar el **buzón de respuestas** en «Configuración → Plantillas de correo», porque las invitaciones piden responder.
 
-- plantillas editables (recepción de postulación, entrevista, seleccionado, no seleccionado, feedback, actualización de estado);
-- aprobación de RRHH obligatoria antes de entrevistas, resultados y feedback; nunca un rechazo automático por compatibilidad baja;
-- bandeja de pendientes/aprobados/enviados/fallidos, previsualización, reintentos controlados y envíos por lote con confirmación de destinatarios;
-- claves de idempotencia por mensaje;
-- webhooks de Resend para registrar entregado/rebotado/rechazado (no se marcará «entregado» solo porque la API aceptó el envío);
-- `EMAIL_DELIVERY_MODE=test` en desarrollo: registra el mensaje sin enviarlo.
+## Correos de Supabase Auth
 
-Variables reservadas en `.env.example`: `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_DELIVERY_MODE`.
+Invitación de usuarios internos y recuperación de contraseña. Para producción, configure un SMTP propio en Supabase (**Authentication → Emails → SMTP Settings**). La opción coherente con lo anterior es el **SMTP de Resend**:
+
+1. Use el mismo dominio verificado.
+2. En Supabase: host `smtp.resend.com`, puerto `465`, usuario `resend`, contraseña = clave de Resend y remitente en el dominio verificado.
+3. Envíe una invitación de prueba a una cuenta interna y verifique la recepción, el remitente y que el enlace lleve a `/auth/confirm`.
+
+## Ideas no implementadas
+
+- Webhooks de Resend para registrar entregado, rebotado o rechazado. Hoy «enviado» significa que la API aceptó el envío.
+- Bandeja de envíos con aprobación previa y reintentos manuales.
