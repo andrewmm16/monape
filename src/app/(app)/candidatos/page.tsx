@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { ArchiveIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { z } from "zod";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
@@ -42,6 +42,13 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/candi
                   <SearchIcon /> Pool de talento
                 </Link>
               </Button>
+              {can(user.role, "candidates:anonymize") ? (
+                <Button asChild variant="outline">
+                  <Link href="/candidatos/conservacion">
+                    <ArchiveIcon /> Plazo de conservación
+                  </Link>
+                </Button>
+              ) : null}
               <Button asChild>
                 <Link href="/candidatos/nuevo">
                   <PlusIcon /> Registrar candidato

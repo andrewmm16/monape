@@ -315,3 +315,25 @@ export async function addApplication(candidateId: string, vacancyId: string): Pr
     "Postulación registrada.",
   );
 }
+
+/**
+ * Plazo de conservación: anonimiza a un candidato sin actividad (irreversible).
+ * La BD comprueba que no tenga postulaciones en curso y deja la auditoría; los
+ * archivos de sus CV los borra la tarea de limpieza de CV.
+ */
+export async function anonymizeCandidate(candidateId: string): Promise<ActionResult> {
+  return runAction(
+    "candidates.anonymize",
+    async () => {
+      await requirePermission("candidates:anonymize");
+      const id = parseInput(z.uuid(), candidateId);
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase.rpc("anonymize_candidate", { p_candidate_id: id });
+      if (error) throw toAppError(error);
+      revalidatePath("/candidatos/conservacion");
+      revalidatePath(`/candidatos/${id}`);
+      return null;
+    },
+    "Candidato anonimizado.",
+  );
+}

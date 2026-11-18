@@ -443,6 +443,7 @@ function describeText(entry: AuditEntry, metadata: Record<string, unknown>): str
   if (action === "cv_descargado") return "Descargó un CV";
   if (action === "reporte_exportado") return "Exportó un reporte de postulaciones a CSV";
   if (action === "delete_requested") return "Pidió eliminar definitivamente a un usuario";
+  if (action === "candidato_anonimizado") return "Anonimizó a un candidato por el plazo de conservación";
   if (action === "carga_masiva") return "Cargó una postulación en lote";
   if (action === "integracion_postulacion") return "Recibió una postulación por una integración";
   if (action === "formulario_postulacion") return "Recibió una postulación por el formulario en línea";

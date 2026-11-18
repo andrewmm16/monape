@@ -72,3 +72,26 @@ export async function findDuplicates(
   if (error) throw toAppError(error);
   return data;
 }
+
+/** Plazos que se pueden elegir en «Plazo de conservación» (meses sin actividad). */
+export const RETENTION_MONTHS = [12, 18, 24, 36, 60] as const;
+export const DEFAULT_RETENTION_MONTHS = 24;
+
+/** Candidatos sin actividad en `months` meses y sin postulación en curso (solo administración). */
+export async function listInactiveCandidates(supabase: AppSupabaseClient, months: number) {
+  const { data, error } = await supabase.rpc("list_inactive_candidates", { p_months: months, p_limit: 200 });
+  if (error) throw toAppError(error);
+  return (data ?? []).flatMap((row) =>
+    row.candidate_id && row.last_activity
+      ? [
+          {
+            id: row.candidate_id,
+            fullName: row.full_name ?? "Candidato",
+            lastActivity: row.last_activity,
+            applications: row.applications ?? 0,
+            poolConsent: (row.pool_consent ?? "sin") as "consiente" | "revocado" | "sin",
+          },
+        ]
+      : [],
+  );
+}

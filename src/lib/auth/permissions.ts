@@ -15,6 +15,8 @@ export const PERMISSIONS = {
   "vacancies:manage": ["admin", "rrhh"],
   "vacancies:delete": ["admin"],
   "candidates:manage": ["admin", "rrhh"],
+  // Plazo de conservación: anonimizar es irreversible.
+  "candidates:anonymize": ["admin"],
   // Reclutador Caleta: sourcing de prospectos. Lo comparten admin y rrhh; el rol
   // reclutador_caleta solo tiene este permiso (no gestiona candidatos ni deriva).
   "caleta:use": ["admin", "rrhh", "reclutador_caleta"],
