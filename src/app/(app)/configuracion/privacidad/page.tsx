@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { PlusIcon } from "lucide-react";
+import { AccessDenied } from "@/components/common/access-denied";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { NoticeEditorDialog } from "@/components/privacy/notice-editor-dialog";
@@ -21,8 +21,9 @@ export const metadata: Metadata = { title: "Aviso de privacidad" };
 
 export default async function PrivacySettingsPage() {
   const user = await requirePageUser();
-  // Solo administración: para el resto la página no existe.
-  if (!can(user.role, "privacy:manage")) notFound();
+  if (!can(user.role, "privacy:manage")) {
+    return <AccessDenied message="Solo la administración gestiona el aviso de privacidad." />;
+  }
   const supabase = await createSupabaseServerClient();
   const notices = await listPrivacyNotices(supabase);
 

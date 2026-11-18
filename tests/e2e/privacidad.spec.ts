@@ -99,9 +99,9 @@ test("RRHH entra a Configuración solo por las plantillas de correo y no accede 
   await expect(page.getByRole("link", { name: /^Plantillas de correo/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /^Aviso de privacidad/ })).toHaveCount(0);
   const response = await page.goto("/configuracion/privacidad");
-  // El acceso se deniega con «no encontrado». El código HTTP es 200 porque
-  // (app)/loading.tsx ya empezó a enviar la respuesta cuando la página decide notFound().
+  // Igual que Usuarios y Auditoría: «Acceso restringido». El código HTTP es 200 porque
+  // (app)/loading.tsx ya empezó a enviar la respuesta (Next no puede cambiarlo después).
   expect(response?.status()).toBeLessThan(500);
-  await expect(page.getByRole("heading", { name: "Página no encontrada" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Acceso restringido" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Aviso de privacidad", level: 1 })).toHaveCount(0);
 });

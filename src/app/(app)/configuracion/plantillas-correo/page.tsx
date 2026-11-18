@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { AccessDenied } from "@/components/common/access-denied";
 import { PageHeader } from "@/components/common/page-header";
 import { ReplyToForm } from "@/components/email-templates/reply-to-form";
 import { TemplateEditor } from "@/components/email-templates/template-editor";
@@ -26,7 +26,9 @@ const INVITATION_EXTRAS = {
 
 export default async function EmailTemplatesPage() {
   const user = await requirePageUser();
-  if (!can(user.role, "email_templates:manage")) notFound();
+  if (!can(user.role, "email_templates:manage")) {
+    return <AccessDenied message="Su rol no gestiona las plantillas de correo." />;
+  }
   const supabase = await createSupabaseServerClient();
   const [edited, replyTo] = await Promise.all([listEditedTemplates(supabase), getEmailReplyTo(supabase)]);
 

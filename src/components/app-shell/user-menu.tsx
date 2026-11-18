@@ -18,7 +18,8 @@ export function UserMenu({ name, email, roleLabel }: { name: string; email: stri
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="max-w-56 gap-2" aria-label="Menú de usuario">
           <UserIcon />
-          <span className="truncate">{name}</span>
+          {/* En celulares solo el ícono: con el nombre, la barra superior se salía de la pantalla. */}
+          <span className="hidden truncate sm:inline">{name}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
