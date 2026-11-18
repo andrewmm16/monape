@@ -125,7 +125,7 @@ export function StatusForm({
             <FieldDescription className="flex items-start gap-1.5">
               <SparklesIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>
-                Sugerido según la {suggestion.basis}. Revise el estado, el motivo y la observación antes de guardar.
+                Sugerido según {suggestion.basis}. Revise el estado, el motivo y la observación antes de guardar.
               </span>
             </FieldDescription>
           ) : null}

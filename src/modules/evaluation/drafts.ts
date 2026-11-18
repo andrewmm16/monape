@@ -136,7 +136,7 @@ export function suggestStatus(input: DraftInput, current: Status): StatusSuggest
   if (status === current) return null;
   return {
     status,
-    basis: `${COMPATIBILITY_LEVEL_LABELS[evaluation.level]} (${percent(evaluation.score)} acreditado) en la evaluación del ${formatDate(evaluation.created_at)}`,
+    basis: `la evaluación del ${formatDate(evaluation.created_at)}: «${COMPATIBILITY_LEVEL_LABELS[evaluation.level]}» (${percent(evaluation.score)} acreditado)`,
   };
 }
 

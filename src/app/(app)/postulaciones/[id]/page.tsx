@@ -174,8 +174,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         }
       />
 
-      <div className="mx-auto max-w-3xl">
-        <div className="space-y-6">
+      {/* Pantalla ancha: a la izquierda lo que dice la evaluación; a la derecha la decisión y el seguimiento. */}
+      <div className="mx-auto grid max-w-3xl gap-6 xl:max-w-none xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
+        <div className="min-w-0 space-y-6">
           {canEvaluate ? (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -265,6 +266,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             verifications={verifications}
           />
           {interviewGuide ? <InterviewGuideCard guide={interviewGuide} /> : null}
+        </div>
+
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Estado del proceso</CardTitle>

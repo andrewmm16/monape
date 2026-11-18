@@ -95,7 +95,7 @@ describe("suggestStatus", () => {
 
   it("explica en qué se basa la sugerencia", () => {
     expect(suggestStatus(input({ score: 85, level: "alta" }, STRONG), "nuevo")?.basis).toBe(
-      `Cumple los requisitos (85 % acreditado) en la evaluación del ${formatDate(CREATED_AT)}`,
+      `la evaluación del ${formatDate(CREATED_AT)}: «Cumple los requisitos» (85 % acreditado)`,
     );
   });
 
