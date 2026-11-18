@@ -17,6 +17,9 @@
 # testing
 /coverage
 
+# respaldos de la base y de los CV (datos personales: nunca al repositorio)
+/respaldos/
+
 # next.js
 /.next/
 /out/

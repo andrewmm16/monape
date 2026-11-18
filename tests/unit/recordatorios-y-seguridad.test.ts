@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { reminderSentFor } from "@/modules/interviews/queries";
 import { interviewFormSchema, parseInterviewerEmails } from "@/modules/interviews/schemas";
 import { buildInterviewerEmail } from "@/modules/notifications/email/templates/interview-interviewer";
+import { countCopyRows } from "../../scripts/respaldo/comun";
 
 describe("correos de los entrevistadores", () => {
   const base = { date: "2026-12-01", time: "10:00", durationMinutes: "45", modality: "virtual" as const, location: "https://meet.example/a" };
@@ -53,5 +54,19 @@ describe("recordatorio enviado", () => {
     expect(reminderSentFor(at, [{ scheduled_at: at, recipient: "jefa@empresa.pe", outcome: "enviado" }])).toBe(false);
     expect(reminderSentFor(at, [{ scheduled_at: "2026-11-30T15:00:00Z", recipient: "candidato", outcome: "enviado" }])).toBe(false);
     expect(reminderSentFor(at, [{ scheduled_at: at, recipient: "candidato", outcome: "enviando" }])).toBe(false);
+  });
+});
+
+describe("respaldo: filas por tabla del volcado", () => {
+  it("cuenta las filas de cada bloque COPY", () => {
+    const sql = [
+      'COPY "public"."candidates" ("id", "full_name") FROM stdin;',
+      "1\tAna",
+      "2\tLuis",
+      "\\.",
+      'COPY "auth"."users" ("id") FROM stdin;',
+      "\\.",
+    ].join("\n");
+    expect(countCopyRows(sql)).toEqual({ "public.candidates": 2, "auth.users": 0 });
   });
 });
