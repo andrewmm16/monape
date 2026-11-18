@@ -57,9 +57,8 @@ export function SourcesChart({ sources }: { sources: SourceRow[] }) {
               strokeDasharray={`${arc.dash} ${arc.rest}`}
               strokeDashoffset={-arc.offset}
             >
-              <title>
-                {CANDIDATE_SOURCE_LABELS[arc.source]}: {rows.find((row) => row.source === arc.source)?.candidates ?? 0}
-              </title>
+              {/* Un solo texto: React 19 exige que <title> tenga un único hijo de texto (si no, falla la hidratación). */}
+              <title>{`${CANDIDATE_SOURCE_LABELS[arc.source]}: ${rows.find((row) => row.source === arc.source)?.candidates ?? 0}`}</title>
             </circle>
           ))}
         </g>
