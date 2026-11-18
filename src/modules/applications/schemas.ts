@@ -20,7 +20,7 @@ export const SELECTABLE_STATUSES = [
 ] as const satisfies readonly Enums<"application_status">[];
 
 /** Estados antiguos que ya no se ofrecen ni se filtran. */
-const LEGACY_STATUSES: readonly Enums<"application_status">[] = ["preseleccionado", "en_reserva"];
+export const LEGACY_STATUSES: readonly Enums<"application_status">[] = ["preseleccionado", "en_reserva"];
 
 /** Estados que exigen motivo (también lo verifica la base de datos). */
 export const STATUSES_REQUIRING_REASON = ["no_seleccionado", "retirado"] as const;

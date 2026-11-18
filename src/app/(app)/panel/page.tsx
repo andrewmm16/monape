@@ -22,6 +22,7 @@ import { getDashboardSummary } from "@/modules/dashboard/queries";
 import { countOpenAiJobs, describeAiWorker, getAiWorkerStatus } from "@/modules/evaluation/ai-queue";
 import { getAiStatus } from "@/modules/evaluation/service";
 import { listPendingOpinions } from "@/modules/notifications/queries";
+import { LEGACY_STATUSES } from "@/modules/applications/schemas";
 import { Constants } from "@/types/database";
 
 export const metadata: Metadata = { title: "Panel" };
@@ -76,10 +77,10 @@ export default async function DashboardPage() {
       : Promise.resolve({ notice: null, openJobs: 0 }),
   ]);
 
-  const byStatus = Constants.public.Enums.application_status.map((status) => ({
-    status,
-    total: summary.applications_by_status[status] ?? 0,
-  }));
+  const byStatus = Constants.public.Enums.application_status
+    .map((status) => ({ status, total: summary.applications_by_status[status] ?? 0 }))
+    // Los estados antiguos ya no se ofrecen: solo aparecen si aún queda alguien en ellos.
+    .filter(({ status, total }) => total > 0 || !LEGACY_STATUSES.includes(status));
   const inProcess = byStatus.filter((s) => !FINAL_STATUSES.has(s.status)).reduce((sum, s) => sum + s.total, 0);
   const maxStage = Math.max(1, ...byStatus.map((s) => s.total));
 
@@ -137,7 +138,12 @@ export default async function DashboardPage() {
           value={summary.pending_evaluations}
           hint="Sin evaluación o con criterios actualizados"
         />
-        <StatTile label="Revisiones pendientes" value={summary.pending_reviews} hint="Evaluaciones sin revisión de RRHH" />
+        <StatTile
+          label="Postulaciones nuevas"
+          value={summary.applications_by_status.nuevo ?? 0}
+          hint="Aún sin revisar: ver la bandeja"
+          href="/postulaciones"
+        />
       </section>
 
       {summary.vacancies_pending_criteria > 0 ? (
@@ -158,8 +164,8 @@ export default async function DashboardPage() {
           <CardContent>
             <ul className="space-y-3">
               {byStatus.map(({ status, total }) => (
-                <li key={status} className="grid grid-cols-[10rem_1fr_2.5rem] items-center gap-3 text-sm">
-                  <span className="truncate text-muted-foreground">{APPLICATION_STATUS_LABELS[status]}</span>
+                <li key={status} className="grid grid-cols-[8.5rem_1fr_2.5rem] items-center gap-3 text-sm sm:grid-cols-[12rem_1fr_2.5rem]">
+                  <span className="leading-tight text-muted-foreground">{APPLICATION_STATUS_LABELS[status]}</span>
                   <span className="h-2 rounded-full bg-muted" aria-hidden>
                     <span
                       className="block h-2 rounded-full bg-brand"
@@ -185,14 +191,14 @@ export default async function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vacante</TableHead>
-                    <TableHead className="text-right">Candidatos</TableHead>
-                    <TableHead className="text-right">Sin evaluar</TableHead>
+                    <TableHead className="text-right max-sm:w-16 max-sm:whitespace-normal">Candidatos</TableHead>
+                    <TableHead className="text-right max-sm:w-16 max-sm:whitespace-normal">Sin evaluar</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {summary.candidates_per_vacancy.map((vacancy) => (
                     <TableRow key={vacancy.id}>
-                      <TableCell className="max-w-56 truncate">
+                      <TableCell className="whitespace-normal">
                         <Link href={`/vacantes/${vacancy.id}`} className="font-medium hover:underline">
                           {vacancy.title}
                         </Link>
@@ -277,17 +283,6 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         ) : null}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximos módulos</CardTitle>
-            <CardDescription>Indicadores que se habilitarán cuando existan sus módulos.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Feedback pendiente de aprobación — módulo de feedback (Etapa 2).</p>
-            <p>Correos pendientes, enviados o fallidos — bandeja de notificaciones (Etapa 3).</p>
-          </CardContent>
-        </Card>
       </div>
     </>
   );
