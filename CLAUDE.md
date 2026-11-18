@@ -14,6 +14,9 @@ Aplicación web privada para el área de **Recursos Humanos**: vacantes con crit
   - `npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck`
   - `npm run test` (o `test:unit` / `test:db` / `test:bot` / `test:e2e` / `test:secrets`)
   - `npx supabase start` + `npm run db:seed` para el entorno local (Docker).
+  - **Servidores locales:** `scripts\servidores.cmd [estado|iniciar|detener|reiniciar|log] [todos|dev|demo|ia] [-Construir]`. `dev` = next dev en el puerto 3999; `demo` = build de producción en el 3100 (`reiniciar demo -Construir` recompila; ojo, el build incluye lo que haya sin commitear en la carpeta); `ia` = worker de IA (apunta a `IA_WORKER_APP_URL` de `.env.ia-worker`). Mira `estado` antes de `npm install` o de recompilar.
+  - **Migraciones en la base local:** si aplicas una a mano (`psql -1 < archivo.sql`), regístrala después con `npx supabase migration repair --status applied <versión>` para que el historial siga cuadrando.
+  - **IA:** `npm run medir:ia` (Haiku contra la vara del banco; `--desde` re-analiza sin gastar plan) y `npm run vigilar:ia` (la misma medición enviada a la app; ver `docs/configuracion-ia.md`).
 - **Subsistemas:** `src/` (app web), `bot/` (automatización de portales), `correo/` (ingesta por correo), `mercado/` y `scripts/caleta/` (sourcing de candidatos), `supabase/` (migraciones y RLS).
 
 ## Convenciones

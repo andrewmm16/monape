@@ -47,6 +47,7 @@ Estado a la Etapa 1, incluidas las correcciones de la revisión independiente de
 | Validación de extensión, tipo declarado, tamaño, firma y estructura | `src/modules/resumes/file-validation.ts` | Unitaria |
 | PDF: rechazo de JavaScript, acciones de lanzamiento, adjuntos, XFA (incl. nombres ofuscados) | ídem | Unitaria |
 | PDF: el análisis excluye el contenido binario de los *streams* (evita falsos positivos con fotos) | ídem | Unitaria (100 PDF con imagen aleatoria) |
+| PDF: los *object streams* (`/Type /ObjStm`, diccionarios comprimidos desde PDF 1.5) sí se descomprimen y se revisan, con tope de 8 MB por stream y 16 MB en total; uno que no se puede revisar (otro filtro, datos dañados, bomba de compresión) se rechaza | ídem | Unitaria (script oculto, nombre ofuscado, otro filtro, bomba de 40 MB) + los 180 PDF del repositorio aceptados (18/11/2026) |
 | DOCX: rechazo de macros, objetos incrustados, plantillas externas; presupuestos de entradas y tamaño verificados **antes** de descomprimir cada entrada (zip bomb, entradas duplicadas o superpuestas) | `src/modules/resumes/docx.ts` | Unitaria (zip bomb de 40 entradas superpuestas) |
 | Extracción con límite de tiempo, sin ejecutar el documento; DOCX reempaquetado solo con partes de texto | `src/modules/resumes/extraction.ts` | Unitaria |
 | Descarga: sesión + RLS + límite + auditoría obligatoria y, solo después, URL firmada de 60 s con `Content-Disposition: attachment` | `src/app/api/resumes/[id]/download/route.ts` | Unitaria (orden verificado) + E2E (401) |
@@ -90,4 +91,4 @@ Estado a la Etapa 1, incluidas las correcciones de la revisión independiente de
 
 ## Pendientes de seguridad
 
-Ver [pendientes.md](pendientes.md): extracción de PDF en un *worker* aislado con límites de memoria/tiempo, antivirus/escaneo de archivos en un servicio aislado, MFA para administradores (descartada por ahora: solo si se pide), pruebas contra un Supabase real (incluido el ensayo de [respaldo y restauración](respaldo-y-restauracion.md) en la nube), política de incidentes formal, revisión de retención de logs de proveedores, carga directa a Storage para archivos > 4 MB, OCR en entorno aislado.
+Ver [pendientes.md](pendientes.md): extracción de PDF en un *worker* aislado con límites de memoria/tiempo, MFA para administradores (descartada por ahora: solo si se pide), pruebas contra un Supabase real (incluido el ensayo de [respaldo y restauración](respaldo-y-restauracion.md) en la nube), simulacro de la [política de incidentes](politica-incidentes.md), revisión de retención de logs de proveedores, carga directa a Storage para archivos > 4 MB, OCR en entorno aislado.

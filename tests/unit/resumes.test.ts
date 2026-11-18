@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { crc32, deflateRawSync } from "node:zlib";
+import { crc32, deflateRawSync, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { strToU8 } from "fflate";
 import { extractResume } from "@/modules/resumes/extraction";
@@ -54,6 +54,21 @@ function pdfWithBinaryStream(size: number): Uint8Array {
   const head = Buffer.from("%PDF-1.7\n1 0 obj\n<< /Type /XObject /Subtype /Image /Filter /DCTDecode >>\nstream\n");
   const tail = Buffer.from("\nendstream\nendobj\ntrailer\n<< /Root 2 0 R >>\n%%EOF\n");
   return new Uint8Array(Buffer.concat([head, randomBytes(size - head.length - tail.length), tail]));
+}
+
+/**
+ * PDF válido con un object stream (/Type /ObjStm) añadido antes de %%EOF: los
+ * diccionarios de adentro viajan comprimidos, así que no se ven en el texto del archivo.
+ */
+async function pdfWithObjectStream(objects: string, options: { filter?: string | null; type?: string } = {}): Promise<Uint8Array> {
+  const base = Buffer.from(await makePdf(["Ana Ficticia"]));
+  const eof = base.lastIndexOf("%%EOF");
+  const filter = options.filter === undefined ? "/FlateDecode" : options.filter;
+  const data = filter === "/FlateDecode" ? deflateSync(Buffer.from(objects, "latin1")) : Buffer.from(objects, "latin1");
+  const dict = `<< ${options.type ?? "/Type /ObjStm"} /N 1 /First 4${filter ? ` /Filter ${filter}` : ""} /Length ${data.length} >>`;
+  return new Uint8Array(
+    Buffer.concat([base.subarray(0, eof), Buffer.from(`5 0 obj\n${dict}\nstream\n`, "latin1"), data, Buffer.from("\nendstream\nendobj\n%%EOF\n")]),
+  );
 }
 
 const asFile = (bytes: Uint8Array, name: string, declaredType: string) => ({
@@ -120,6 +135,33 @@ describe("validación de archivos de CV", () => {
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.reason).toMatch(/anómalo/);
     expect(Date.now() - started).toBeLessThan(3000);
+  });
+
+  it("rechaza scripts escondidos en un object stream comprimido (antes era un punto ciego)", async () => {
+    for (const hidden of ["<< /S /JavaScript /JS (app.alert(1)) >>", "<< /S /J#61vaScript /JS (x) >>", "<< /Type /Action /S /Launch /F (cmd.exe) >>"]) {
+      const result = validateResumeFile(asFile(await pdfWithObjectStream(`6 0 ${hidden}`), "cv.pdf", "application/pdf"));
+      expect(result).toEqual({ ok: false, reason: expect.stringMatching(/contenido activo/) });
+    }
+    // El diccionario del object stream también puede venir ofuscado.
+    const obfuscatedType = await pdfWithObjectStream("6 0 << /S /JavaScript >>", { type: "/Ty#70e /Obj#53tm" });
+    expect(validateResumeFile(asFile(obfuscatedType, "cv.pdf", "application/pdf")).ok).toBe(false);
+  });
+
+  it("acepta object streams normales (fuentes, páginas) sin falsos positivos", async () => {
+    const normal = await pdfWithObjectStream("6 0 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> 7 0 << /Type /Page /Parent 2 0 R >>");
+    expect(validateResumeFile(asFile(normal, "cv.pdf", "application/pdf"))).toMatchObject({ ok: true });
+    const uncompressed = await pdfWithObjectStream("6 0 << /Type /Font /BaseFont /Arial >>", { filter: null });
+    expect(validateResumeFile(asFile(uncompressed, "cv.pdf", "application/pdf"))).toMatchObject({ ok: true });
+  });
+
+  it("rechaza object streams que no se pueden inspeccionar y bombas de compresión", async () => {
+    const otherFilter = await pdfWithObjectStream("6 0 << /Type /Font >>", { filter: "/LZWDecode" });
+    expect(validateResumeFile(asFile(otherFilter, "cv.pdf", "application/pdf"))).toEqual({ ok: false, reason: expect.stringMatching(/no se puede revisar/) });
+    const started = Date.now();
+    const bomb = await pdfWithObjectStream(" ".repeat(40 * 1024 * 1024));
+    expect(bomb.length).toBeLessThan(4 * 1024 * 1024);
+    expect(validateResumeFile(asFile(bomb, "cv.pdf", "application/pdf"))).toEqual({ ok: false, reason: expect.stringMatching(/no se puede revisar/) });
+    expect(Date.now() - started).toBeLessThan(5000);
   });
 
   it("no confunde datos binarios de imágenes con contenido activo", () => {
