@@ -233,7 +233,9 @@ export function EvaluationCard({
             <p>
               <span className="font-medium">Segunda opinión de la IA</span> ({formatDateTime(secondOpinion.evaluation.created_at)}):{" "}
               {differing.length === 0
-                ? `coincide con el motor en los ${compared.length} requisitos sin verificar.`
+                ? hints.length === 0
+                  ? `coincide con el motor en los ${compared.length} requisitos sin verificar.`
+                  : `no contradice al motor en ninguno de los ${compared.length} requisitos sin verificar.`
                 : `opina distinto en ${differing.length} de ${compared.length} requisitos (marcados abajo). El puntaje es el del motor: verifique esos requisitos para decidir.`}
               {hints.length > 0
                 ? ` Además ve indicios en ${hints.length} requisito${hints.length === 1 ? "" : "s"} que el CV no menciona con esas palabras.`

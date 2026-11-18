@@ -7,8 +7,8 @@
 // No toca la base de datos. Consume del plan de Claude: imprime lo previsto y espera 5 s.
 //
 // Uso:
-//   npm run medir:ia                                   (todos los puestos, claude-opus-5-5)
-//   npm run medir:ia -- --puesto 2 --modelo claude-sonnet-5-5 --concurrencia 3
+//   npm run medir:ia                                   (todos los puestos, claude-haiku-5-5, el de producción)
+//   npm run medir:ia -- --puesto 2 --modelo claude-opus-5-5 --concurrencia 3
 //   npm run medir:ia -- --max 4 --salida informe.md
 //   npm run medir:ia -- --guardar crudo.json           (guarda las respuestas de la IA)
 //   npm run medir:ia -- --desde crudo.json             (re-analiza SIN llamar a la IA: no gasta plan)
@@ -43,7 +43,7 @@ function opcion(nombre: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
-const MODELO = opcion("modelo") ?? "claude-opus-5-5";
+const MODELO = opcion("modelo") ?? "claude-haiku-5-5";
 const CONCURRENCIA = Math.min(4, Math.max(1, Number(opcion("concurrencia") ?? 2)));
 const PUESTO = opcion("puesto") ? Number(opcion("puesto")) : undefined;
 const MAX = opcion("max") ? Number(opcion("max")) : undefined;

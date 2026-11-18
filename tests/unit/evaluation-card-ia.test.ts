@@ -47,7 +47,7 @@ const item = (requirementId: string, assessment: Assessment, rationale: string, 
   verifier: verified ? { full_name: "RRHH" } : null,
 });
 
-function render(withSecondOpinion: boolean) {
+function render(withSecondOpinion: boolean, aiOnA: Assessment = "acreditado") {
   const engine = [
     item("a", "pendiente_verificacion", "motor-a"), // la IA acredita: opina distinto
     item("b", "sin_evidencia", "motor-b"), // la IA ve un indicio
@@ -55,7 +55,7 @@ function render(withSecondOpinion: boolean) {
     item("d", "acreditado", "motor-d", true), // verificado por RRHH: ya no se compara
   ];
   const ai = [
-    item("a", "acreditado", "ia-a"),
+    item("a", aiOnA, "ia-a"),
     item("b", "pendiente_verificacion", "ia-b"),
     item("c", "acreditado", "ia-c"),
     item("d", "no_cumplido", "ia-d"),
@@ -97,6 +97,13 @@ describe("tarjeta del motor con la segunda opinión de la IA", () => {
 
   it("sobre la evaluación vigente del motor se puede verificar, aunque la de IA sea más reciente", () => {
     expect(render(true)).toContain("Verificar");
+  });
+
+  it("si solo ve indicios, no dice que «coincide» en todo: dice que no contradice al motor", () => {
+    const html = render(true, "pendiente_verificacion");
+    expect(html).toContain("no contradice al motor en ninguno de los 3 requisitos");
+    expect(html).toContain("Además ve indicios en 1 requisito");
+    expect(html).not.toContain("La IA opina distinto");
   });
 
   it("sin segunda opinión, la tarjeta no menciona a la IA", () => {
