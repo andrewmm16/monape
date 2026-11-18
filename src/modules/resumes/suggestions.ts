@@ -17,6 +17,13 @@ export type SuggestedFields = {
 export const SUGGESTIONS_VERSION = "sugerencias-v1";
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+/**
+ * Correo con la arroba mal leída por el OCR: «2a», «©», «®», «(a)», «[a]», «(at)» o
+ * una arroba separada por espacios. Solo antes de proveedores de correo conocidos,
+ * para no inventar correos donde no los hay. Se usa si no hay ningún correo normal.
+ */
+const OCR_EMAIL =
+  /([A-Za-z0-9._%+-]{2,64}?)(?:\s*(?:2a|©|®|\(a\)|\[a\]|\(at\)|\[at\])\s*|\s+@\s*|\s*@\s+)((?:gmail|hotmail|outlook|yahoo|live|icloud|msn|protonmail|proton)\.(?:com\.pe|com|es|pe|me))\b/i;
 const LINKEDIN = /(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[A-Za-z0-9\-_%]+\/?/i;
 const PHONE_CANDIDATES = /\+?\(?\d[\d\s().-]{6,18}\d/g;
 
@@ -61,7 +68,18 @@ export function suggestFields(text: string): SuggestedFields {
   const result: SuggestedFields = { skills: [] };
 
   const email = EMAIL.exec(text);
-  if (email) result.email = { value: email[0], evidence: snippetAround(text, email.index, email[0].length) };
+  if (email) {
+    result.email = { value: email[0], evidence: snippetAround(text, email.index, email[0].length) };
+  } else {
+    // La cita muestra lo que leyó el OCR, para que RRHH compare antes de aceptarlo.
+    const ocr = OCR_EMAIL.exec(text);
+    if (ocr) {
+      result.email = {
+        value: `${ocr[1]}@${ocr[2]!.toLowerCase()}`,
+        evidence: snippetAround(text, ocr.index, ocr[0].length),
+      };
+    }
+  }
 
   const linkedin = LINKEDIN.exec(text);
   if (linkedin) {

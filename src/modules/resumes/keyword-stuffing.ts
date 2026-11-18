@@ -17,6 +17,15 @@
 export const REPEAT_MIN_COUNT = 12;
 /** …y al menos esta proporción de las palabras con contenido del CV. */
 export const REPEAT_MIN_SHARE = 0.04;
+/**
+ * Uso natural, no relleno: la palabra aparece sobre todo en frases (líneas de al menos
+ * tantas palabras), como mucho dos veces por línea. Es el caso de la profesión de la
+ * persona («música» en el CV de un músico); el relleno se concentra en listas, en
+ * líneas cortas o muchas veces en la misma línea.
+ */
+export const PROSE_MIN_WORDS = 8;
+export const NATURAL_PROSE_SHARE = 0.75;
+export const NATURAL_MAX_PER_LINE = 2;
 /** La misma palabra seguida tantas veces («SAP SAP SAP»). */
 export const CONSECUTIVE_MIN = 3;
 /** Ítems sueltos en listas a partir de los cuales se mira el respaldo… */
@@ -49,6 +58,13 @@ const COMMON = new Set(
     "mes", "meses", "nivel", "area", "areas", "equipo", "apoyo", "control", "elaboracion", "responsable", "funciones",
     "logros", "habilidades", "formacion", "educacion", "perfil", "resumen", "profesional", "laboral", "idiomas",
     "nativo", "basico", "intermedio", "avanzado", "curso", "cursos", "peru", "lima", "s.a.c", "sac", "eirl",
+    // Palabras vacías de otros idiomas (CV en inglés, francés, portugués, alemán o italiano).
+    "from", "that", "this", "was", "were", "has", "have", "had", "are", "his", "her", "its", "their", "they",
+    "them", "our", "your", "you", "who", "which", "also", "into", "than", "then", "not", "but", "all", "per",
+    "des", "les", "une", "pour", "dans", "avec", "sur", "par", "aux", "est", "qui", "pas", "plus", "son", "ses",
+    "leur", "cette", "ces", "ete", "uma", "dos", "das", "nas", "nos", "pelo", "pela", "nao", "sem", "sao", "foi",
+    "tambem", "der", "die", "und", "von", "mit", "den", "dem", "ein", "eine", "einer", "auf", "fur", "als", "bei",
+    "nach", "aus", "wurde", "sich", "ist", "sie", "della", "delle", "dei", "degli", "nel", "nella", "che", "sono",
   ].map(fold),
 );
 
@@ -108,21 +124,35 @@ export function detectKeywordStuffing(text: string): StuffingSignals {
   const lines = text.split("\n");
   const surface = new Map<string, string>();
   const counts = new Map<string, number>();
+  /** Por palabra: apariciones dentro de frases y máximo en una misma línea. */
+  const inProse = new Map<string, number>();
+  const maxPerLine = new Map<string, number>();
   let total = 0;
   const consecutive = new Set<string>();
   let previous = "";
   let run = 0;
-  for (const match of text.matchAll(WORD)) {
-    const key = fold(match[0]);
-    run = key === previous ? run + 1 : 1;
-    previous = key;
-    if (key.length < 3 || COMMON.has(key) || /^\d+$/.test(key)) continue;
-    if (run >= CONSECUTIVE_MIN) consecutive.add(surface.get(key) ?? match[0]);
-    total += 1;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-    if (!surface.has(key)) surface.set(key, match[0]);
+  for (const line of lines) {
+    const words = [...line.matchAll(WORD)];
+    const prose = words.length >= PROSE_MIN_WORDS;
+    const inLine = new Map<string, number>();
+    for (const match of words) {
+      const key = fold(match[0]);
+      run = key === previous ? run + 1 : 1;
+      previous = key;
+      if (key.length < 3 || COMMON.has(key) || /^\d+$/.test(key)) continue;
+      if (run >= CONSECUTIVE_MIN) consecutive.add(surface.get(key) ?? match[0]);
+      total += 1;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      if (prose) inProse.set(key, (inProse.get(key) ?? 0) + 1);
+      inLine.set(key, (inLine.get(key) ?? 0) + 1);
+      if (!surface.has(key)) surface.set(key, match[0]);
+    }
+    for (const [key, n] of inLine) maxPerLine.set(key, Math.max(maxPerLine.get(key) ?? 0, n));
   }
+  const natural = (key: string, count: number) =>
+    (inProse.get(key) ?? 0) / count >= NATURAL_PROSE_SHARE && (maxPerLine.get(key) ?? 0) <= NATURAL_MAX_PER_LINE;
   const repeated = [...counts.entries()]
+    .filter(([key, count]) => !natural(key, count))
     .map(([key, count]) => ({ term: surface.get(key) ?? key, count, share: total === 0 ? 0 : count / total }))
     .filter((r) => r.count >= REPEAT_MIN_COUNT && r.share >= REPEAT_MIN_SHARE)
     .sort((a, b) => b.count - a.count);
