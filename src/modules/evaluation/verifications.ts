@@ -61,6 +61,9 @@ export type StoredEvaluationItem = {
   resolvedBy?: ItemAssessment["resolvedBy"] | null;
   engineAssessment?: ItemAssessment["assessment"] | null;
   learnedRuleId?: string | null;
+  /** Guía de entrevista: duda del motor y pregunta de la IA (nulas en evaluaciones anteriores). */
+  signal?: ItemAssessment["signal"] | null;
+  interviewQuestion?: string | null;
 };
 
 const CV_RATIONALE_MARK = "Según el CV: ";
@@ -90,6 +93,8 @@ export function restoreCvItems(stored: StoredEvaluationItem[]): ItemAssessment[]
     ...(item.resolvedBy ? { resolvedBy: item.resolvedBy } : {}),
     ...(item.resolvedBy && item.engineAssessment ? { engineAssessment: item.engineAssessment } : {}),
     ...(item.resolvedBy === "regla_aprendida" && item.learnedRuleId ? { learnedRuleId: item.learnedRuleId } : {}),
+    ...(item.signal ? { signal: item.signal } : {}),
+    ...(item.interviewQuestion ? { interviewQuestion: item.interviewQuestion } : {}),
   }));
 }
 

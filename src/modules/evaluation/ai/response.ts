@@ -13,6 +13,8 @@ export const aiOutputSchema = z.object({
       rationale: z.string(),
       // Desde ia-prompt-v4: el término del CV que resolvió la duda del motor (para que el motor aprenda).
       equivalence: z.object({ cv_term: z.string(), equivalent: z.boolean() }).nullable().optional(),
+      // Desde ia-prompt-v5: pregunta para confirmar en la entrevista lo que el CV no acredita.
+      interview_question: z.string().nullable().optional(),
     }),
   ),
 });
@@ -29,6 +31,14 @@ export class InvalidAiResponseError extends Error {
 const MAX_QUOTES = 3;
 const MAX_QUOTE_LENGTH = 300;
 const MAX_RATIONALE_LENGTH = 600;
+const MAX_QUESTION_LENGTH = 300;
+
+/** La pregunta de entrevista de la IA, limpia y acotada (vacía → sin pregunta). */
+function interviewQuestionOf(raw: string | null | undefined): string | undefined {
+  const question = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (question.length < 8) return undefined;
+  return question.length > MAX_QUESTION_LENGTH ? `${question.slice(0, MAX_QUESTION_LENGTH - 1)}…` : question;
+}
 
 /**
  * Valida la respuesta del modelo y la contrasta con el texto realmente
@@ -87,11 +97,13 @@ export function interpretAiResponse(
       notes.push("Requisito legal o esencial: debe verificarse con documentos.");
     }
 
+    const interviewQuestion = interviewQuestionOf(item.interview_question);
     return {
       requirementId: requirement.id,
       assessment,
       evidence: verified.map((quote) => ({ quote })),
       rationale: [rationale, ...notes].join(" "),
+      ...(interviewQuestion ? { interviewQuestion } : {}),
     };
   });
 }

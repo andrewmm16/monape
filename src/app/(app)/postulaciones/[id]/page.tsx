@@ -11,6 +11,7 @@ import {
 import { consolidateScorecards, type ScorecardEntry } from "@/modules/scorecards/consolidation";
 import { listApplicationScorecards } from "@/modules/scorecards/queries";
 import { EvaluationCard } from "@/components/applications/evaluation-card";
+import { InterviewGuideCard } from "@/components/applications/interview-guide-card";
 import { NoteForm } from "@/components/applications/note-form";
 import { KillerAnswersCard } from "@/components/applications/killer-answers-card";
 import { StatusForm } from "@/components/applications/status-form";
@@ -24,7 +25,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
-import { AppError } from "@/lib/errors";
+import { AppError, logServerError } from "@/lib/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, REVIEW_OUTCOME_LABELS, SYSTEM_ACTOR_LABEL } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -45,6 +46,7 @@ import { formatInterviewDateTime } from "@/modules/interviews/datetime";
 import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
 import { getAiStatus } from "@/modules/evaluation/service";
+import { loadInterviewGuide } from "@/modules/evaluation/interview-guide-data";
 
 export const metadata: Metadata = { title: "Postulación" };
 
@@ -143,6 +145,13 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const aiJob = aiQueued ? describeAiJob(await getLatestAiJob(supabase, application.id), formatDateTime) : null;
   // Con un trabajo abierto, avisa si el worker no está atendiendo la cola (caído o en pausa).
   const aiWorkerNotice = aiJob?.active ? describeAiWorker(await getAiWorkerStatus(supabase), formatDateTime) : null;
+  // Guía de entrevista: lo que falta confirmar. Si falla, la página sigue sin ella.
+  const interviewGuide = canManage
+    ? await loadInterviewGuide(supabase, application.id).catch((error: unknown) => {
+        logServerError("applications.interview_guide", error);
+        return null;
+      })
+    : null;
 
   return (
     <>
@@ -255,6 +264,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             canReview={can(user.role, "evaluations:review")}
             verifications={verifications}
           />
+          {interviewGuide ? <InterviewGuideCard guide={interviewGuide} /> : null}
           <Card>
             <CardHeader>
               <CardTitle>Estado del proceso</CardTitle>

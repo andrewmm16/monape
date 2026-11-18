@@ -1,6 +1,7 @@
 import "server-only";
-import { toAppError } from "@/lib/errors";
+import { logServerError, toAppError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
+import { loadInterviewGuide } from "@/modules/evaluation/interview-guide-data";
 import { listRequirements } from "@/modules/vacancies/queries";
 import type { Enums } from "@/types/database";
 import type { InterviewRequirement } from "./schemas";
@@ -113,13 +114,27 @@ export async function listInterviewRequirements(
       if (item.requirement_id) assessed.set(item.requirement_id, { assessment: item.assessment, verified: item.verification_source !== null });
     }
   }
-  return requirements.map((requirement) => ({
-    id: requirement.id,
-    description: requirement.description,
-    priority: requirement.priority,
-    assessment: assessed.get(requirement.id)?.assessment ?? null,
-    verified: assessed.get(requirement.id)?.verified ?? false,
-  }));
+  // Guía de entrevista: lo que falta confirmar va primero, en su orden, con su pregunta.
+  // Si no se puede armar, el diálogo sigue con la lista simple de requisitos.
+  const guide = await loadInterviewGuide(supabase, interview.application_id).catch((guideError: unknown) => {
+    logServerError("interviews.guide", guideError);
+    return null;
+  });
+  const order = new Map((guide ?? []).map((q, index) => [q.requirementId, index]));
+  const byGuide = new Map((guide ?? []).map((q) => [q.requirementId, q]));
+  return requirements
+    .map((requirement) => {
+      const q = byGuide.get(requirement.id);
+      return {
+        id: requirement.id,
+        description: requirement.description,
+        priority: requirement.priority,
+        assessment: assessed.get(requirement.id)?.assessment ?? null,
+        verified: assessed.get(requirement.id)?.verified ?? false,
+        guide: q ? { question: q.question, passIf: q.passIf, source: q.source } : null,
+      };
+    })
+    .sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
 }
 
 export type InterviewSummary = {

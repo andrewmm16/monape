@@ -546,6 +546,18 @@ export function RecordResultDialog({
                           {requirement.assessment ? ASSESSMENT_LABELS[requirement.assessment] : "sin evaluación"}
                           {requirement.verified ? " (verificada por RRHH)" : ""}
                         </div>
+                        {requirement.guide ? (
+                          <div className="space-y-0.5 rounded bg-muted/60 px-2 py-1.5 text-xs" data-testid="interview-guide-question">
+                            <p>
+                              <span className="font-medium">Pregunte: </span>
+                              {requirement.guide.question}
+                            </p>
+                            <p className="text-muted-foreground">
+                              <span className="font-medium text-foreground">Cumple si: </span>
+                              {requirement.guide.passIf}
+                            </p>
+                          </div>
+                        ) : null}
                         <div className="grid gap-2 sm:grid-cols-[11rem_1fr]">
                           <NativeSelect
                             aria-label={`Resultado de «${requirement.description}»`}

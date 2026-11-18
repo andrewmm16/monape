@@ -561,6 +561,7 @@ export type Database = {
           evaluation_id: string
           evidence: Json
           id: string
+          interview_question: string | null
           is_essential: boolean
           learned_equivalence_id: string | null
           position: number
@@ -568,6 +569,7 @@ export type Database = {
           rationale: string
           requirement_id: string | null
           resolved_by: string | null
+          signal: string | null
           verification_note: string | null
           verification_source: Database["public"]["Enums"]["verification_source"] | null
           verified_at: string | null
@@ -584,6 +586,7 @@ export type Database = {
           evaluation_id: string
           evidence?: Json
           id?: string
+          interview_question?: string | null
           is_essential: boolean
           learned_equivalence_id?: string | null
           position?: number
@@ -591,6 +594,7 @@ export type Database = {
           rationale: string
           requirement_id?: string | null
           resolved_by?: string | null
+          signal?: string | null
           verification_note?: string | null
           verification_source?: Database["public"]["Enums"]["verification_source"] | null
           verified_at?: string | null
@@ -607,6 +611,7 @@ export type Database = {
           evaluation_id?: string
           evidence?: Json
           id?: string
+          interview_question?: string | null
           is_essential?: boolean
           learned_equivalence_id?: string | null
           position?: number
@@ -614,6 +619,7 @@ export type Database = {
           rationale?: string
           requirement_id?: string | null
           resolved_by?: string | null
+          signal?: string | null
           verification_note?: string | null
           verification_source?: Database["public"]["Enums"]["verification_source"] | null
           verified_at?: string | null

@@ -519,6 +519,7 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
         rationale: item.rationale,
         ...(item.cvAssessment ? { cv_assessment: item.cvAssessment } : {}),
         ...(item.cvRationale ? { cv_rationale: item.cvRationale } : {}),
+        ...(item.interviewQuestion ? { interview_question: item.interviewQuestion } : {}),
       })) as Json,
     });
     if (completeError) {

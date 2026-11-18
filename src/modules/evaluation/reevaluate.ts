@@ -9,7 +9,7 @@ import {
   recordAssembledEvaluation,
   ResumeTextUnavailableError,
 } from "./service";
-import type { Evidence, RequirementInput } from "./types";
+import { toEngineSignal, type Evidence, type RequirementInput } from "./types";
 import { rebuildItems, type StoredEvaluationItem } from "./verifications";
 
 export type ReevaluationOutcome = { reevaluated: boolean; notice: string | null };
@@ -52,7 +52,9 @@ async function rebuildCurrentEvaluation(supabase: AppSupabaseClient, application
       .order("created_at"),
     supabase
       .from("candidate_evaluation_items")
-      .select("requirement_id, assessment, cv_assessment, rationale, cv_rationale, evidence, resolved_by, engine_assessment, learned_equivalence_id")
+      .select(
+        "requirement_id, assessment, cv_assessment, rationale, cv_rationale, evidence, resolved_by, engine_assessment, learned_equivalence_id, signal, interview_question",
+      )
       .eq("evaluation_id", evaluation.id),
   ]);
   if (requirementsError) throw toAppError(requirementsError);
@@ -81,6 +83,8 @@ async function rebuildCurrentEvaluation(supabase: AppSupabaseClient, application
             resolvedBy: row.resolved_by === "ia" || row.resolved_by === "regla_aprendida" ? row.resolved_by : null,
             engineAssessment: row.engine_assessment,
             learnedRuleId: row.learned_equivalence_id,
+            signal: toEngineSignal(row.signal),
+            interviewQuestion: row.interview_question,
           },
         ]
       : [],

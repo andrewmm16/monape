@@ -53,13 +53,32 @@ export type EngineSignal =
   /** El CV niega expresamente lo pedido con otras palabras («sin experiencia en reclamos»). reglas-v12. */
   | "negacion_explicita";
 
+const ENGINE_SIGNALS: ReadonlySet<string> = new Set<EngineSignal>([
+  "cargo_relacionado",
+  "habilidad_relacionada",
+  "mencion_dudosa",
+  "nivel_inferior",
+  "nivel_no_declarado",
+  "fechas_no_cuadran",
+  "solo_capacitacion",
+  "posible_errata",
+  "negacion_explicita",
+]);
+
+/** La marca de duda guardada en la base, si es una conocida (las desconocidas se ignoran). */
+export function toEngineSignal(value: string | null | undefined): EngineSignal | undefined {
+  return value && ENGINE_SIGNALS.has(value) ? (value as EngineSignal) : undefined;
+}
+
 export type ItemAssessment = {
   requirementId: string;
   assessment: Assessment;
   evidence: Evidence[];
   rationale: string;
-  /** Duda concreta del motor (ver EngineSignal). Solo en memoria: no se persiste. */
+  /** Duda concreta del motor (ver EngineSignal). Se guarda desde 20261118200100 (guía de entrevista). */
   signal?: EngineSignal;
+  /** Pregunta de entrevista redactada por la IA para este requisito (ia-prompt-v5). */
+  interviewQuestion?: string;
   /** Con una verificación de RRHH: lo que dio el CV (o el motor) antes de aplicarla. */
   cvAssessment?: Assessment;
   /** Con una verificación de RRHH: el motivo original del CV (o del motor). */

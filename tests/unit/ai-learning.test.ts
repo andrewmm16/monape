@@ -225,7 +225,7 @@ describe("segundo juez y prompt v4", () => {
   });
 
   it("v4 pide el término que resolvió la duda", () => {
-    expect(PROMPT_VERSION).toBe("ia-prompt-v4");
+    expect(PROMPT_VERSION).toBe("ia-prompt-v5");
     expect(SYSTEM_PROMPT).toMatch(/"equivalence"/);
   });
 

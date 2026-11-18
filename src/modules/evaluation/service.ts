@@ -282,6 +282,8 @@ export async function recordAssembledEvaluation(
       ...(item.resolvedBy ? { resolved_by: item.resolvedBy } : {}),
       ...(item.engineAssessment ? { engine_assessment: item.engineAssessment } : {}),
       ...(item.learnedRuleId ? { learned_equivalence_id: item.learnedRuleId } : {}),
+      ...(item.signal ? { signal: item.signal } : {}),
+      ...(item.interviewQuestion ? { interview_question: item.interviewQuestion } : {}),
     })) as Json,
   };
   const { data: evaluationId, error: recordError } = input.system

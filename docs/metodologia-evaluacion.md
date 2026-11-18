@@ -54,7 +54,7 @@ Determinista: con el mismo texto, los mismos criterios y la misma fecha de evalu
 
 La búsqueda ignora mayúsculas, tildes y espacios, y respeta límites de palabra («SQL» no coincide en «MySQL»). Solo reconoce los términos configurados y las equivalencias curadas de `src/modules/evaluation/synonyms.ts` (ver «Equivalencias de evidencia (reglas-v5)»); no interpreta otros sinónimos, nivel de dominio ni contexto.
 
-### Asistente de IA (`ia-prompt-v3`, opcional): segunda opinión del motor
+### Asistente de IA (`ia-prompt-v5`, opcional): segunda opinión del motor
 
 El motor es la evaluación principal (la vigente: ranking, listados, verificaciones); la IA es una segunda opinión que se pide sola en los casos dudosos (incluidas las dudas concretas del motor y una muestra de control) y se muestra dentro de la tarjeta del motor, requisito por requisito. Nunca cambia el puntaje: RRHH decide verificando.
 
@@ -81,6 +81,7 @@ Con Haiku, la política «motor + IA en lo dudoso» rinde igual que con Opus. Ha
 
 - *Relevo:* la evaluación vigente es la del motor con la IA en los requisitos que dudó (la columna «Motor+IA» de la tabla). Cada requisito indica si lo resolvió la IA y qué había dicho el motor.
 - *Aprendizaje:* el motor aprende **vocabulario** (cargos o habilidades que equivalen o no, erratas, paráfrasis), no el juicio caso a caso (nivel por las tareas, menciones dudosas, alcance real). Una regla se activa con 2 CV distintos en el mismo sentido (5 hasta el 18/11: los votos de Haiku se equivocan juntos, así que más votos no daban más seguridad; el control independiente es el juez), ninguno en contra y el acuerdo de un segundo juez más capaz; se suspende sola si la IA o RRHH la contradicen. «Equivale» se aplica como una palabra clave más del requisito (el motor sigue calculando años y niveles); «no equivale» quita la duda y deja el requisito por confirmar sin consultar a la IA.
+- *Medición v5 (Haiku, 32 CV, 18/11; guía de entrevista):* Motor+IA 97–98 % e IA sola 89–90 % según la corrida (Haiku varía en ~8 casillas entre corridas, casi todas entre *pendiente* y *sin evidencia*); pregunta de entrevista en 157 de 158 requisitos no acreditados y en ninguno acreditado; ~17 s por CV (antes ~13 s: la salida es más larga). La justificación ya no menciona «la nota del motor» (en v4, 59 de 248 lo hacían).
 - *Medición v4 (Haiku, 32 CV):* IA sola 91 %; Motor+IA 94 % (99 % contando *pendiente* = *sin evidencia*), igual que v3. El banco tiene ~4 CV por puesto, así que con el mínimo de entonces (5) ninguna regla llegaba: la simulación de `medir:ia` muestra las candidatas. Haiku votó al revés que el juez en los dos cargos de obra («Asistente de Residencia» no cuenta, «Maestro de Obra» sí); Opus, como juez, decidió lo correcto en ambos: con Haiku, el segundo juez es imprescindible.
 
 **Prueba de punta a punta en la app y calibración (18/11/2026).** Con Playwright, como lo haría RRHH: 8 vacantes y sus requisitos creados por la interfaz, criterios aprobados, publicadas, los 32 CV por carga masiva (evaluación automática), la IA por la cola (Haiku, 30 evaluaciones, 0 errores), verificación de RRHH por la interfaz y página de aprendizaje. Primera medición: el motor solo y el vigente (motor + IA) empataban en 98 % contando *pendiente* = *sin evidencia*; la IA mandaba el 73 % de los CV y cambió el puntaje de 1 candidato de 25. Calibración aplicada (con el OK de Omar):
@@ -97,6 +98,16 @@ Con Haiku, la política «motor + IA en lo dudoso» rinde igual que con Opus. Ha
 | **Vigente (motor + IA)** | **100 %** | **100 %** |
 
 La IA cambió 9 casillas del motor, las 9 a mejor (todos los «no cumple» explícitos); 0 acreditaciones de más ni mérito perdido; el orden de los candidatos es correcto en los 8 puestos. Advertencias: (1) el banco es la «cancha de local» del motor (afinado 12 versiones sobre estos CV) y 5 casillas de la vara se decidieron el mismo día revisando desacuerdos con la IA; falta medir con CV que el motor nunca vio. (2) Reevaluar muchas postulaciones seguidas choca con el límite de 30 evaluaciones cada 10 minutos por usuario (protección esperada; para lotes, «Evaluar pendientes»).
+
+**Prueba con CV que el motor nunca vio (18/11/2026).** Set de demostración de Omar (`cv-prueba/demo`, ficticio): «Desarrollador Full Stack» (20 CV, 6 requisitos) y «Asistente de Recursos Humanos» (20 CV, 5 requisitos, creada por la interfaz con su ficha). Todo por la interfaz; la vara la propuso Opus **a ciegas** (sin ver al motor ni a Haiku, ~10 s por CV) y Omar decidió las 24 casillas dudosas por patrón: años justos cuando el CV solo da el año de inicio → cuenta si el perfil declara los años; legislación laboral deducida de tareas de planilla (CTS, gratificaciones, PLAME) → *pendiente*; «administración de personal» o «control de asistencia» no es gestión de planillas → *sin evidencia*; inducción u onboarding no es reclutamiento → *sin evidencia*; APIs REST sin Node ni PHP → *sin evidencia*.
+
+| CV nuevos (40 CV, 220 casillas) | Exacto | Contando *pendiente* = *sin evidencia* |
+|---|---:|---:|
+| Motor solo | 95,0 % | 99,5 % |
+| **Vigente (motor + IA)** | **95,5 %** | **100 %** |
+| IA sola (Haiku, 71 casillas) | 90,1 % | 100 % |
+
+A la IA fue el 33 % de los CV; cambió 1 casilla, a mejor. 0 acreditaciones de más, 0 mérito perdido y 0 inversiones de orden (contra el ajuste alto/medio/bajo que fijó Opus). El juez aprendió una regla nueva: «Administración de personal» **no** equivale a gestión de planillas. Advertencia: los CV de demo son de plantilla (las mismas frases se repiten entre CV), así que siguen siendo un caso fácil; los CV reales son más desordenados.
 
 ## 3. Puntuación (`scoring v1`)
 
@@ -135,6 +146,7 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
   - Nivel: un «no cumple» verificado en un requisito obligatorio impide el nivel «alta» y puede producir «baja». Es una decisión humana, no del motor.
   - Textos: el resumen y los borradores redactan lo verificado como comprobado, con su fuente, y nunca como «aparentemente».
   - Recalcular al verificar (migración `20261028001200`, `src/modules/evaluation/reevaluate.ts`): no se relee el CV ni se llama a la IA. Se parte de los ítems de la evaluación vigente, con la valoración y el motivo originales del CV (`cv_assessment`, `cv_rationale`). Se aplican las verificaciones actuales y se registra una evaluación nueva con el mismo método, versión, modelo, CV y huella del texto. Si no hay evaluación vigente, sus criterios son anteriores o sus ítems no coinciden con los requisitos, se evalúa con reglas.
+- **Guía de entrevista** (18/11/2026, `src/modules/evaluation/interview-guide.ts`): en la postulación y en «Registrar resultado», solo lo que el CV no acredita (más lo que el motor acreditó y la IA dejó en duda), obligatorios primero y lo parcial antes que lo que no aparece. Cada punto trae por qué se pregunta, la pregunta (de la IA si revisó el CV; si no, una plantilla según la duda del motor o la categoría) y qué cuenta como «cumple». Lo marcado en la entrevista se guarda como verificación con fuente «entrevista», recalcula la puntuación y suma votos al aprendizaje del motor. No descarta a nadie ni pregunta por características protegidas.
 - **Orden de «mejor opción»** en la comparación de candidatos (`src/modules/applications/ranking.ts`), aplicado en este orden:
   1. al final, quien tenga un obligatorio verificado como «no cumple»;
   2. después, las evaluaciones desactualizadas;

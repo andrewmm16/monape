@@ -171,4 +171,6 @@ export type InterviewRequirement = {
   assessment: Enums<"requirement_assessment"> | null;
   /** La valoración actual viene de una verificación de RRHH. */
   verified: boolean;
+  /** Guía de entrevista: qué preguntar y qué cuenta como «cumple» (solo lo que falta confirmar). */
+  guide?: { question: string; passIf: string; source: "ia" | "motor" } | null;
 };

@@ -33,7 +33,19 @@ export function assembleEvaluation(input: {
     scoringVersion: SCORING_VERSION,
     model: input.model,
     items: enriched.map(
-      ({ requirementId, assessment, evidence, rationale, cvAssessment, cvRationale, resolvedBy, engineAssessment, learnedRuleId }) => ({
+      ({
+        requirementId,
+        assessment,
+        evidence,
+        rationale,
+        cvAssessment,
+        cvRationale,
+        resolvedBy,
+        engineAssessment,
+        learnedRuleId,
+        signal,
+        interviewQuestion,
+      }) => ({
         requirementId,
         assessment,
         evidence,
@@ -43,6 +55,9 @@ export function assembleEvaluation(input: {
         ...(resolvedBy ? { resolvedBy } : {}),
         ...(resolvedBy && engineAssessment ? { engineAssessment } : {}),
         ...(resolvedBy === "regla_aprendida" && learnedRuleId ? { learnedRuleId } : {}),
+        // Para la guía de entrevista: la duda del motor y la pregunta de la IA.
+        ...(signal ? { signal } : {}),
+        ...(interviewQuestion ? { interviewQuestion } : {}),
       }),
     ),
     scores,

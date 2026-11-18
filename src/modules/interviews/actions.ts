@@ -5,8 +5,9 @@ import { z } from "zod";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
 import { AppError, logServerError, toAppError } from "@/lib/errors";
-import { APPLICATION_STATUS_LABELS } from "@/lib/labels";
+import { APPLICATION_STATUS_LABELS, VERIFICATION_SOURCE_LABELS } from "@/lib/labels";
 import { createSupabaseServerClient, type AppSupabaseClient } from "@/lib/supabase/server";
+import { learnFromVerifications } from "@/modules/evaluation/learning";
 import { reevaluateAfterVerification } from "@/modules/evaluation/reevaluate";
 import { limaToIso } from "./datetime";
 import { scheduleInterviewEmail } from "./emails";
@@ -218,6 +219,12 @@ export async function recordInterviewResult(input: RecordResultInput): Promise<A
         const outcome = await reevaluateAfterVerification(supabase, applicationId);
         reevaluated = outcome.reevaluated;
         notice = outcome.notice;
+        // Lo que RRHH confirmó en la entrevista también enseña al motor (igual que
+        // «Verificar»). Nunca hace fallar el registro del resultado.
+        await learnFromVerifications(
+          applicationId,
+          verifications.map((item) => ({ requirementId: item.requirementId, result: item.result, source: VERIFICATION_SOURCE_LABELS.entrevista })),
+        );
       }
       const { data: application } = await supabase.from("applications").select("status").eq("id", applicationId).maybeSingle();
       revalidateInterviews(applicationId);
