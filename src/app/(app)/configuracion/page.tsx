@@ -27,6 +27,13 @@ export default async function ConfigIndexPage() {
       description: "Versiones del aviso que se muestra a los postulantes en la página pública.",
     });
   }
+  if (can(user.role, "candidate_portal:manage")) {
+    options.push({
+      href: "/configuracion/portal-candidato",
+      title: "Portal del candidato",
+      description: "Enlace privado con el que cada persona consulta en qué etapa va su postulación.",
+    });
+  }
   if (can(user.role, "users:manage")) {
     options.push({
       href: "/configuracion/aprendizaje-motor",

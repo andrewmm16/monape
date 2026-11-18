@@ -15,6 +15,8 @@ import { ACTIVITY_COOKIE, IDLE_SIGN_OUT_PATH, isServerIdleExpired } from "@/lib/
  * /api/bot/* es la API del robot de portales: mismo esquema con PORTAL_BOT_SECRET.
  * /api/ia/* es la API del worker de IA (ia-worker/): mismo esquema con AI_WORKER_SECRET.
  * /api/tareas/* son las tareas programadas (cron): mismo esquema con CRON_SECRET.
+ * /seguimiento/<token> es el portal del candidato: responde 404 mientras esté
+ * apagado (Configuración → Portal del candidato) o si el enlace no existe.
  */
 const PUBLIC_PATHS = [
   "/ingresar",
@@ -29,6 +31,7 @@ const PUBLIC_PATHS = [
   "/api/bot",
   "/api/ia",
   "/api/tareas",
+  "/seguimiento",
   IDLE_SIGN_OUT_PATH,
 ];
 
@@ -51,7 +54,8 @@ function isCookielessPublicPath(pathname: string): boolean {
     pathname === "/api/evaluar-cv" ||
     pathname.startsWith("/api/bot/") ||
     pathname.startsWith("/api/ia/") ||
-    pathname.startsWith("/api/tareas/")
+    pathname.startsWith("/api/tareas/") ||
+    pathname.startsWith("/seguimiento/")
   );
 }
 

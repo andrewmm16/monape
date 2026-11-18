@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { ApplicationsSection } from "@/components/candidates/applications-section";
+import { isCandidatePortalEnabled } from "@/modules/candidate-portal/queries";
 import { CandidateDataCard } from "@/components/candidates/candidate-data-card";
 import { PrivacySection } from "@/components/candidates/privacy-section";
 import { ProfileItemsSection } from "@/components/candidates/profile-items-section";
@@ -143,6 +144,7 @@ export default async function CandidatePage({ params }: PageProps<"/candidatos/[
             applications={applications}
             openVacancies={openVacancies}
             canManage={can(user.role, "applications:manage")}
+            portalEnabled={await isCandidatePortalEnabled(supabase)}
           />
         </div>
         <div className="space-y-6">

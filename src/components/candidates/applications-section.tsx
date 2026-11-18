@@ -9,6 +9,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { formatDate } from "@/lib/format";
 import { isInProcess } from "@/modules/applications/schemas";
 import { addApplication } from "@/modules/candidates/actions";
+import { TrackingLinkButton } from "./tracking-link-button";
 import type { Enums } from "@/types/database";
 
 type Application = {
@@ -28,11 +29,14 @@ export function ApplicationsSection({
   applications,
   openVacancies,
   canManage,
+  portalEnabled = false,
 }: {
   candidateId: string;
   applications: Application[];
   openVacancies: { id: string; title: string }[];
   canManage: boolean;
+  /** Portal del candidato encendido: se ofrece el enlace de seguimiento. */
+  portalEnabled?: boolean;
 }) {
   const [vacancyId, setVacancyId] = useState("");
   const appliedIds = new Set(applications.map((a) => a.vacancy_id));
@@ -63,6 +67,7 @@ export function ApplicationsSection({
                 <div className="flex flex-wrap items-center gap-2">
                   <CompatibilityBadge level={application.level} />
                   {application.status ? <ApplicationStatusBadge status={application.status} /> : null}
+                  {canManage && portalEnabled && application.id ? <TrackingLinkButton applicationId={application.id} /> : null}
                 </div>
               </li>
             ))}
