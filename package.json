@@ -47,6 +47,7 @@
     "gold:motor": "tsx scripts/medir-motor/gold.ts",
     "medir:motor:adversario": "tsx scripts/medir-motor/adversario.ts",
     "medir:ia": "tsx --env-file-if-exists=.env.ia-worker scripts/medir-motor/ia.ts",
+    "vigilar:ia": "tsx --env-file-if-exists=.env.ia-worker scripts/vigilar-ia.ts",
     "informe:ia": "tsx --env-file-if-exists=.env.local scripts/medir-motor/discrepancias.ts",
     "medir:motor:legitimo": "tsx scripts/medir-motor/legitimo.ts",
     "medir:motor:escaneado": "tsx --conditions=react-server scripts/medir-motor/escaneado.ts",

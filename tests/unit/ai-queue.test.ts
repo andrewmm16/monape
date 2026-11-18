@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   /** Regla aprendida reservada para el segundo juez (tabla learned_equivalences), o null. */
   judgment: null as Record<string, unknown> | null,
   recordAssembled: vi.fn(),
+  /** Filas insertadas con el cliente de administración (vigilancia semanal). */
+  inserts: [] as { table: string; row: Record<string, unknown> }[],
 }));
 
 vi.mock("@/lib/env", () => ({ getServerEnv: () => mocks.env }));
@@ -41,6 +43,10 @@ vi.mock("@/lib/supabase/admin", () => ({
       chain.eq = () => chain;
       chain.is = () => chain;
       chain.in = () => chain;
+      chain.insert = async (row: Record<string, unknown>) => {
+        mocks.inserts.push({ table, row });
+        return { error: null };
+      };
       chain.maybeSingle = async () => ({ data: table === "learned_equivalences" ? mocks.judgment : mocks.job, error: null });
       // Reglas aprendidas activas: ninguna en estas pruebas.
       if (table === "learned_equivalences") chain.then = (resolve: (value: unknown) => void) => resolve({ data: [], error: null });
@@ -52,7 +58,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { AI_WORKER_OFFLINE_MS, describeAiJob, describeAiWorker } from "@/modules/evaluation/ai-queue";
-import { claimAiJob, reportAiJob, reportAiWorkerStatus } from "@/modules/evaluation/ai-worker-api";
+import { claimAiJob, reportAiJob, reportAiQualityCheck, reportAiWorkerStatus } from "@/modules/evaluation/ai-worker-api";
 import { getAiAvailability } from "@/modules/evaluation/ai/availability";
 import { isDoubtful } from "@/modules/evaluation/ai/doubtful";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "@/modules/evaluation/ai/input";
@@ -108,6 +114,7 @@ beforeEach(() => {
   mocks.judgment = null;
   mocks.recordAssembled.mockReset().mockResolvedValue("eval-reglas-relevo");
   mocks.admins = [];
+  mocks.inserts = [];
   mocks.sendEmail.mockReset().mockResolvedValue({ sent: true });
   mocks.load.mockReset().mockResolvedValue(context());
   mocks.rpc.mockReset().mockImplementation(async (name: string) => {
@@ -545,5 +552,60 @@ describe("API del worker: resultado", () => {
     expect(rpcCalls("ai_release_job")).toEqual([
       expect.objectContaining({ p_outcome: "reintentar", p_error_code: "registro_rechazado" }),
     ]);
+  });
+});
+
+describe("API del worker: vigilancia semanal de la IA", () => {
+  const report = (vara: Record<string, number> | null, extra: Record<string, unknown> = {}) => ({
+    modelo: "claude-haiku-5-5",
+    prompt: "ia-prompt-v5",
+    cv: 32,
+    fallos: 0,
+    inversionesIa: 1,
+    segundosPorCv: 17.4,
+    vara,
+    ...extra,
+  });
+  const good = { casillas: 248, motor: 0.96, ia: 0.89, motorIa: 0.97, motorIaLaxo: 0.97, iaLaxo: 0.94, iaAcreditoDeMas: 1 };
+
+  it("con el acierto de siempre la guarda como «ok» y no avisa a nadie", async () => {
+    mocks.admins = [{ email: "admin1@empresa.test" }];
+    const response = await reportAiQualityCheck(req("/api/ia/vigilancia", report(good)));
+    expect(await response.json()).toEqual({ status: "ok" });
+    expect(mocks.inserts).toEqual([
+      {
+        table: "ai_quality_checks",
+        row: expect.objectContaining({ model: "claude-haiku-5-5", prompt_version: "ia-prompt-v5", cells: 248, accuracy_relay_lenient: 0.97, ai_over_accredited: 1, status: "ok", reasons: [] }),
+      },
+    ]);
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("si baja el acierto o acredita de más, la guarda como «alerta» y avisa a administración con los motivos", async () => {
+    mocks.admins = [{ email: "admin1@empresa.test" }, { email: null }];
+    const response = await reportAiQualityCheck(req("/api/ia/vigilancia", report({ ...good, motorIaLaxo: 0.9, iaAcreditoDeMas: 4 })));
+    expect(await response.json()).toEqual({ status: "alerta" });
+    expect(mocks.inserts[0]!.row).toMatchObject({ status: "alerta" });
+    expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
+    const mail = mocks.sendEmail.mock.calls[0]![0] as { to: string; subject: string; text: string };
+    expect(mail.to).toBe("admin1@empresa.test");
+    expect(mail.text).toMatch(/bajó a 90,0 %/);
+    expect(mail.text).toMatch(/acreditó de más 4/);
+  });
+
+  it("una medición que no pudo correr (sin CV ni vara) también avisa", async () => {
+    mocks.admins = [{ email: "admin1@empresa.test" }];
+    const response = await reportAiQualityCheck(req("/api/ia/vigilancia", report(null, { prompt: "sin-medicion", cv: 0 })));
+    expect(await response.json()).toEqual({ status: "alerta" });
+    expect((mocks.inserts[0]!.row as { reasons: string[] }).reasons).toEqual([
+      "No se evaluó ningún CV.",
+      "No se pudo comparar con la vara (sin casillas).",
+    ]);
+  });
+
+  it("formato inválido → 422; sin el secreto → 404 (la API no existe)", async () => {
+    expect((await reportAiQualityCheck(req("/api/ia/vigilancia", { modelo: "x" }))).status).toBe(422);
+    expect((await reportAiQualityCheck(req("/api/ia/vigilancia", report(good), "otro"))).status).toBe(404);
+    expect(mocks.inserts).toEqual([]);
   });
 });

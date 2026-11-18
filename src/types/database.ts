@@ -88,6 +88,63 @@ export type Database = {
           },
         ]
       }
+      ai_quality_checks: {
+        Row: {
+          accuracy_ai: number | null
+          accuracy_engine: number | null
+          accuracy_relay: number | null
+          accuracy_relay_lenient: number | null
+          ai_over_accredited: number
+          cells: number
+          checked_at: string
+          cv_count: number
+          failures: number
+          id: string
+          model: string
+          order_inversions: number
+          prompt_version: string
+          reasons: string[]
+          seconds_per_cv: number | null
+          status: string
+        }
+        Insert: {
+          accuracy_ai?: number | null
+          accuracy_engine?: number | null
+          accuracy_relay?: number | null
+          accuracy_relay_lenient?: number | null
+          ai_over_accredited: number
+          cells: number
+          checked_at?: string
+          cv_count: number
+          failures: number
+          id?: string
+          model: string
+          order_inversions?: number
+          prompt_version: string
+          reasons?: string[]
+          seconds_per_cv?: number | null
+          status: string
+        }
+        Update: {
+          accuracy_ai?: number | null
+          accuracy_engine?: number | null
+          accuracy_relay?: number | null
+          accuracy_relay_lenient?: number | null
+          ai_over_accredited?: number
+          cells?: number
+          checked_at?: string
+          cv_count?: number
+          failures?: number
+          id?: string
+          model?: string
+          order_inversions?: number
+          prompt_version?: string
+          reasons?: string[]
+          seconds_per_cv?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
       ai_worker_status: {
         Row: {
           cli_version: string | null

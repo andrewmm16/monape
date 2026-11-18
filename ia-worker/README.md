@@ -100,6 +100,13 @@ raíz del repo y en el **Programador de tareas** cree una tarea «Al iniciar el 
 `cmd /c cd /d C:\ruta\al\repo && npm run ia:worker`. En *Configuración*, marque «Si la tarea
 no se ejecuta correctamente, reiniciarla cada 1 minuto». Solo sirve si la PC está siempre encendida.
 
+**Vigilancia semanal (recomendado).** En la misma máquina, `scripts\vigilancia-ia.cmd instalar`
+programa `npm run vigilar:ia` los lunes a las 08:00 (con la sesión del usuario). Mide al modelo
+contra la vara del banco (32 CV de prueba, ~5 min de plan) y envía el resumen a la app
+(`POST /api/ia/vigilancia`); si el acierto baja, la app avisa por correo a administración. `estado`
+muestra la tarea, `ahora` la corre en el momento y `quitar` la borra. Registro:
+`.servidores\vigilancia-ia.log`. En Linux, el equivalente es un `cron` semanal con `npm run vigilar:ia`.
+
 ## Variables del worker (`.env.ia-worker`)
 
 | Variable | Por defecto | Descripción |

@@ -13,6 +13,7 @@
 //   npm run medir:ia -- --guardar crudo.json           (guarda las respuestas de la IA)
 //   npm run medir:ia -- --desde crudo.json             (re-analiza SIN llamar a la IA: no gasta plan)
 //   npm run medir:ia -- --sin-notas                    (sin las dudas del motor en el prompt, para comparar)
+//   npm run medir:ia -- --resumen resumen.json         (cifras clave en JSON, para la vigilancia semanal)
 //
 // Dos verdades de contraste:
 //  1. El ORDEN de los candidatos de cada puesto (`ajuste` en datos.ts): un candidato
@@ -51,6 +52,20 @@ const MAX = opcion("max") ? Number(opcion("max")) : undefined;
 const SALIDA = opcion("salida");
 const GUARDAR = opcion("guardar");
 const DESDE = opcion("desde");
+const RESUMEN = opcion("resumen");
+
+/** Cifras contra la vara (fracciones de 0 a 1), para el resumen en JSON. */
+type VaraResumen = {
+  casillas: number;
+  motor: number;
+  ia: number;
+  motorIa: number;
+  /** Contando «pendiente» = «sin evidencia» (mismo efecto en el puntaje). */
+  motorIaLaxo: number;
+  iaLaxo: number;
+  /** El error más caro: la IA acredita lo que la vara no acredita. */
+  iaAcreditoDeMas: number;
+};
 const SIN_NOTAS = argv.includes("--sin-notas");
 const CLI = process.env.IA_WORKER_CLI_PATH || "claude";
 const TIMEOUT_MS = 480_000;
@@ -203,7 +218,7 @@ function grupoDe(m: ItemAssessment): string {
 }
 
 /** Requisito por requisito contra la vara, separado por tipo de duda del motor. */
-function informeVara(filas: Fila[], log: (s?: string) => void): void {
+function informeVara(filas: Fila[], log: (s?: string) => void): VaraResumen | null {
   const casillas: CasillaVara[] = [];
   let revisar = 0;
   for (const f of filas) {
@@ -229,7 +244,7 @@ function informeVara(filas: Fila[], log: (s?: string) => void): void {
       });
     }
   }
-  if (casillas.length === 0) return;
+  if (casillas.length === 0) return null;
 
   const pct = (a: number, n: number) => (n === 0 ? "  -  " : `${padIzq(((100 * a) / n).toFixed(0), 3)} %`);
   // Política real (ai/relay.ts): el motor decide; donde duda, cuenta la IA si dice «cumple» o «no cumple».
@@ -305,6 +320,17 @@ function informeVara(filas: Fila[], log: (s?: string) => void): void {
     for (const c of cs) log(`  - ${c.quien} [${grupoDe(c.motor)}] · vara: ${c.nota} · IA: ${c.iaMotivo}`);
   }
   log();
+
+  const frac = (f: (c: CasillaVara) => boolean) => casillas.filter(f).length / casillas.length;
+  return {
+    casillas: casillas.length,
+    motor: frac((c) => c.motor.assessment === c.vara),
+    ia: frac((c) => c.ia === c.vara),
+    motorIa: frac((c) => politica(c) === c.vara),
+    motorIaLaxo: frac((c) => equivale(politica(c), c.vara)),
+    iaLaxo: frac((c) => equivale(c.ia, c.vara)),
+    iaAcreditoDeMas: casillas.filter((c) => c.ia === "acreditado" && c.vara !== "acreditado").length,
+  };
 }
 
 /**
@@ -478,8 +504,25 @@ async function main(): Promise<void> {
   log(`- Tokens por CV: ${prom(ok.map((r) => r.entrada)).toFixed(0)} de entrada y ${prom(ok.map((r) => r.salida)).toFixed(0)} de salida (media)`);
   log(`- Total: ${totalSeg.toFixed(0)} s con ${CONCURRENCIA} en paralelo → ~${Math.round((filas.length / totalSeg) * 3600)} CV/hora a este ritmo`);
   log();
-  informeVara(filas, log);
+  const vara = informeVara(filas, log);
   informeAprendizaje(filas, log);
+
+  if (RESUMEN) {
+    const resumen = {
+      fecha: new Date().toISOString(),
+      modelo: MODELO,
+      prompt: PROMPT_VERSION,
+      conNotas,
+      cv: filas.length,
+      fallos: fallos.length,
+      inversionesMotor: invMotor,
+      inversionesIa: invIa,
+      segundosPorCv: Number(prom(ok.map((r) => r.segundos)).toFixed(1)),
+      vara,
+    };
+    await writeFile(RESUMEN, `${JSON.stringify(resumen, null, 2)}\n`, "utf8");
+    console.log(`Resumen guardado en ${RESUMEN}`);
+  }
 
   log("## Requisitos donde difieren");
   log();

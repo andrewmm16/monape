@@ -15,6 +15,7 @@ import { engineNotesForText } from "./ai/engine-notes";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "./ai/input";
 import { buildJudgePrompt, JUDGE_JSON_SCHEMA, JUDGE_SYSTEM_PROMPT, parseJudgeOutput } from "./ai/judge";
 import { PROMPT_VERSION } from "./ai/prompt";
+import { assessQuality, qualityReportSchema } from "./ai/quality";
 import { hasRelayedItems, relayToAi } from "./ai/relay";
 import { extractEquivalenceVotes, interpretAiResponse, InvalidAiResponseError } from "./ai/response";
 import {
@@ -119,10 +120,8 @@ async function recordHeartbeat(
   }
 }
 
-/** Avisa por correo a la administración (activa) de una pausa que requiere intervenir. */
-async function alertAdmins(admin: AdminClient, reason: string): Promise<void> {
-  const alert = PAUSES_NEEDING_ACTION[reason];
-  if (!alert) return;
+/** Correo a la administración activa (párrafos de texto plano). */
+async function emailAdmins(admin: AdminClient, message: { subject: string; paragraphs: string[]; tag: string }): Promise<void> {
   const { data, error } = await admin
     .from("profiles")
     .select("email")
@@ -130,20 +129,74 @@ async function alertAdmins(admin: AdminClient, reason: string): Promise<void> {
     .eq("is_active", true)
     .is("deleted_at", null);
   if (error) throw error;
-  const text = `${alert.action}\n\nMientras tanto, el motor de reglas sigue evaluando y las evaluaciones con IA quedan en cola sin perderse.`;
+  const text = message.paragraphs.join("\n\n");
+  const html = message.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
   await Promise.all(
     (data ?? [])
       .filter((row): row is { email: string } => Boolean(row.email))
-      .map((row) =>
-        sendEmail({
-          to: row.email,
-          subject: alert.subject,
-          text,
-          html: `<p>${escapeHtml(alert.action)}</p><p>Mientras tanto, el motor de reglas sigue evaluando y las evaluaciones con IA quedan en cola sin perderse.</p>`,
-          tags: [{ name: "tipo", value: "ia_worker_pausa" }],
-        }),
-      ),
+      .map((row) => sendEmail({ to: row.email, subject: message.subject, text, html, tags: [{ name: "tipo", value: message.tag }] })),
   );
+}
+
+/** Avisa por correo a la administración (activa) de una pausa que requiere intervenir. */
+async function alertAdmins(admin: AdminClient, reason: string): Promise<void> {
+  const alert = PAUSES_NEEDING_ACTION[reason];
+  if (!alert) return;
+  await emailAdmins(admin, {
+    subject: alert.subject,
+    paragraphs: [alert.action, "Mientras tanto, el motor de reglas sigue evaluando y las evaluaciones con IA quedan en cola sin perderse."],
+    tag: "ia_worker_pausa",
+  });
+}
+
+/**
+ * POST /api/ia/vigilancia: resumen de la medición semanal del modelo contra la
+ * vara (`npm run vigilar:ia` en la máquina del worker). Se guarda y, si el
+ * acierto bajó (ver ai/quality.ts), se avisa por correo a administración.
+ */
+export async function reportAiQualityCheck(request: Request): Promise<Response> {
+  const denied = rejectUnlessAiWorker(request);
+  if (denied) return denied;
+  const body = qualityReportSchema.safeParse(await readJson(request));
+  if (!body.success) return json(422, { error: "payload_invalido" });
+
+  try {
+    const admin = createSupabaseAdminClient();
+    const report = body.data;
+    const { status, reasons } = assessQuality(report);
+    const { error } = await admin.from("ai_quality_checks").insert({
+      model: report.modelo,
+      prompt_version: report.prompt,
+      cv_count: report.cv,
+      failures: report.fallos,
+      order_inversions: report.inversionesIa,
+      cells: report.vara?.casillas ?? 0,
+      accuracy_engine: report.vara?.motor ?? null,
+      accuracy_ai: report.vara?.ia ?? null,
+      accuracy_relay: report.vara?.motorIa ?? null,
+      accuracy_relay_lenient: report.vara?.motorIaLaxo ?? null,
+      ai_over_accredited: report.vara?.iaAcreditoDeMas ?? 0,
+      seconds_per_cv: report.segundosPorCv ?? null,
+      status,
+      reasons,
+    });
+    if (error) throw error;
+    if (status === "alerta") {
+      await emailAdmins(admin, {
+        subject: "Vigilancia de la IA: bajó la calidad de la segunda opinión",
+        paragraphs: [
+          `La revisión semanal del modelo ${report.modelo} (prompt ${report.prompt}) contra los CV de prueba encontró:`,
+          ...reasons.map((reason) => `• ${reason}`),
+          "Puede deberse a un cambio del modelo por parte de Anthropic o a un problema del worker. El motor de reglas sigue siendo la evaluación principal; revise «Configuración → Aprendizaje del motor» y, si hace falta, mida a mano con «npm run medir:ia».",
+        ],
+        tag: "ia_vigilancia",
+      }).catch((mailError: unknown) => logServerError("ai_worker.quality_alert", mailError));
+    }
+    return json(200, { status });
+  } catch (error) {
+    logServerError("ai_worker.quality", error);
+    return json(500, { error: "error_interno" });
+  }
 }
 
 /**

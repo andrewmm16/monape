@@ -12,7 +12,8 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { REQUIREMENT_CATEGORY_LABELS } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { setLearnedRuleActive } from "@/modules/evaluation/learning-actions";
-import { getLearningOverview, type LearnedRuleRow } from "@/modules/evaluation/learning";
+import { getLearningOverview, listAiQualityChecks, type LearnedRuleRow } from "@/modules/evaluation/learning";
+import { QUALITY_THRESHOLDS } from "@/modules/evaluation/ai/quality";
 
 export const metadata: Metadata = { title: "Aprendizaje del motor" };
 
@@ -44,7 +45,11 @@ export default async function EngineLearningPage() {
     return <AccessDenied message="Solo la administración ve lo que aprendió el motor." />;
   }
   const supabase = await createSupabaseServerClient();
-  const { rules, weeks, learnedLastWeek: learnedThisWeek } = await getLearningOverview(supabase);
+  const [{ rules, weeks, learnedLastWeek: learnedThisWeek }, checks] = await Promise.all([
+    getLearningOverview(supabase),
+    listAiQualityChecks(supabase),
+  ]);
+  const pct = (value: number | null) => (value === null ? "—" : `${(100 * value).toFixed(1).replace(".", ",")} %`);
   const active = rules.filter((r) => r.status === "activa");
   const learning = rules.filter((r) => r.status === "aprendiendo" || r.status === "pendiente_juez");
   const stopped = rules.filter((r) => r.status === "suspendida" || r.status === "rechazada");
@@ -57,6 +62,60 @@ export default async function EngineLearningPage() {
         description="Lo que el motor de reglas aprendió para depender cada vez menos de la IA. Cuando la IA o RRHH resuelven una duda de vocabulario (un cargo o una habilidad parecida), un modelo más capaz, el segundo juez, decide si ese término cuenta como lo que pide el requisito, y desde entonces el motor lo aplica solo. Se suspende sola si RRHH verifica «no cumple» en un caso que resolvió. No necesita aprobación: aquí puede revisarlas y deshacerlas."
       />
       <div className="space-y-6">
+        <Card data-testid="ai-quality-checks">
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              Vigilancia semanal de la IA
+              {checks[0] ? (
+                <Badge variant={checks[0].status === "ok" ? "outline" : "destructive"}>{checks[0].status === "ok" ? "Todo bien" : "Alerta"}</Badge>
+              ) : null}
+            </CardTitle>
+            <CardDescription>
+              Cada semana el worker mide a la IA de los CV contra los CV de prueba con respuesta conocida. Si motor + IA baja de{" "}
+              {pct(QUALITY_THRESHOLDS.relayLenientMin)} o la IA acredita de más más de {QUALITY_THRESHOLDS.overAccreditedMax} requisitos, se avisa
+              por correo a administración (por ejemplo, si Anthropic cambia el modelo).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {checks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aún no hay revisiones. Se programan en la máquina del worker con «scripts\vigilancia-ia.cmd instalar» (o se corre a mano con «npm
+                run vigilar:ia»).
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Modelo</TableHead>
+                    <TableHead className="text-right">Motor + IA</TableHead>
+                    <TableHead className="text-right">IA sola</TableHead>
+                    <TableHead className="text-right">Acreditó de más</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {checks.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell>{formatDateTime(c.checked_at)}</TableCell>
+                      <TableCell className="text-xs">
+                        {c.model} · {c.prompt_version}
+                        {c.failures > 0 ? ` · ${c.failures} de ${c.cv_count} CV fallaron` : ""}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{pct(c.accuracy_relay_lenient === null ? null : Number(c.accuracy_relay_lenient))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{pct(c.accuracy_ai === null ? null : Number(c.accuracy_ai))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{c.ai_over_accredited}</TableCell>
+                      <TableCell>
+                        {c.status === "ok" ? "Todo bien" : <span className="text-destructive">Alerta: {c.reasons.join(" ")}</span>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Cuánto depende todavía de la IA</CardTitle>

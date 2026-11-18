@@ -144,6 +144,17 @@ export type LearningOverview = {
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Lo que el motor aprendió y cuánto depende todavía de la IA (para administración). */
+/** Últimas revisiones semanales de la IA contra la vara (`npm run vigilar:ia`). Solo administración las ve (RLS). */
+export async function listAiQualityChecks(supabase: AppSupabaseClient, limit = 6) {
+  const { data, error } = await supabase
+    .from("ai_quality_checks")
+    .select("id, checked_at, model, prompt_version, cv_count, failures, cells, accuracy_relay_lenient, accuracy_ai, ai_over_accredited, status, reasons")
+    .order("checked_at", { ascending: false })
+    .limit(limit);
+  if (error) throw toAppError(error);
+  return data;
+}
+
 export async function getLearningOverview(supabase: AppSupabaseClient, now = Date.now()): Promise<LearningOverview> {
   const { data: rules, error } = await supabase
     .from("learned_equivalences")

@@ -20,6 +20,7 @@ import { KillerQuestionsPanel } from "@/components/vacancies/killer-questions-pa
 import { RequirementsPanel } from "@/components/vacancies/requirements-panel";
 import { VacancyStatusActions } from "@/components/vacancies/vacancy-status-actions";
 import { VacancySteps } from "@/components/vacancies/vacancy-steps";
+import { VacancyInbox } from "@/components/vacancies/vacancy-inbox";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
@@ -40,6 +41,7 @@ import {
 } from "@/modules/applications/queries";
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
 import { getEmailReplyTo } from "@/modules/email-templates/queries";
+import { loadVacancyInbox } from "@/modules/evaluation/inbox-data";
 import { suggestCandidatesForVacancy } from "@/modules/talent-pool/matching";
 import { portalLogo } from "@/modules/portals/logos";
 import { listPortalPublications } from "@/modules/portals/queries";
@@ -54,6 +56,7 @@ export const metadata: Metadata = { title: "Vacante" };
 
 const TABS = [
   { id: "candidatos", label: "Candidatos" },
+  { id: "bandeja", label: "Por resolver" },
   { id: "criterios", label: "Requisitos y criterios" },
   { id: "detalle", label: "Detalle" },
   { id: "portales", label: "Portales" },
@@ -272,6 +275,13 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
         </div>
       );
     }
+  } else if (tab === "bandeja") {
+    // Bandeja «lo que necesita una persona»: en proceso, agrupados por lo que hace falta hacer.
+    content = can(user.role, "applications:manage") ? (
+      <VacancyInbox inbox={await loadVacancyInbox(supabase, vacancy.id)} canVerify={can(user.role, "evaluations:review")} />
+    ) : (
+      <p className="text-sm text-muted-foreground">No tiene permiso para ver esta bandeja.</p>
+    );
   } else if (tab === "criterios") {
     const [requirements, killerQuestions] = await Promise.all([
       listRequirements(supabase, vacancy.id),
