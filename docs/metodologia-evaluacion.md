@@ -54,9 +54,24 @@ Determinista: con el mismo texto, los mismos criterios y la misma fecha de evalu
 
 La búsqueda ignora mayúsculas, tildes y espacios, y respeta límites de palabra («SQL» no coincide en «MySQL»). Solo reconoce los términos configurados y las equivalencias curadas de `src/modules/evaluation/synonyms.ts` (ver «Equivalencias de evidencia (reglas-v5)»); no interpreta otros sinónimos, nivel de dominio ni contexto.
 
-### Asistente de IA (`ia-prompt-v1`, opcional y bloqueado)
+### Asistente de IA (`ia-prompt-v3`, opcional): segunda opinión del motor
 
-El modelo propone una valoración y citas por requisito; el sistema descarta citas que no estén literalmente en el CV, rebaja a *pendiente* las afirmaciones sin cita verificable y nunca acredita requisitos esenciales. Detalle en [configuracion-ia.md](configuracion-ia.md).
+El motor es la evaluación principal (la vigente: ranking, listados, verificaciones); la IA es una segunda opinión que se pide sola en los casos dudosos (incluidas las dudas concretas del motor y una muestra de control) y se muestra dentro de la tarjeta del motor, requisito por requisito. Nunca cambia el puntaje: RRHH decide verificando.
+
+El modelo propone una valoración y citas por requisito; el sistema descarta citas que no estén literalmente en el CV, rebaja a *pendiente* las afirmaciones sin cita verificable y nunca acredita requisitos esenciales. Desde v2 recibe, en cada requisito donde el motor dudó, la pregunta concreta a resolver; desde v3 usa las mismas valoraciones que el motor («no cumplido» solo si el CV lo dice expresamente; lo que está por debajo de lo pedido, *pendiente*; lo de otra área, *sin evidencia*). Detalle en [configuracion-ia.md](configuracion-ia.md).
+
+**Medición del 18/11/2026** (`npm run medir:ia`, claude-opus-5-5, 32 CV ficticios, 248 casillas de la vara, ~16 s por CV):
+
+| Prompt | IA sola | Motor + IA (la IA releva en lo dudoso) | Motor solo |
+|---|---:|---:|---:|
+| v2 (dudas del motor, valoraciones de v1) | 83 % | 86 % | 98 % |
+| **v3** (valoraciones alineadas con la metodología) | **94 %** | **96 %** | 98 % |
+| v3, contando *pendiente* = *sin evidencia* (mismo efecto en el puntaje) | 98 % | **99 %** | 98 % |
+
+- En v2, 25 de los 42 desacuerdos eran de definición, no de lectura: la IA ponía «no cumple» en lo que estaba por debajo de lo pedido (p. ej., inglés A2 cuando se pedía B1) o en una formación de otra área, como mandaba el prompt v1. v3 los alinea: «nivel inferior» pasó de 8 % a 100 %.
+- La IA acierta donde el motor no puede: los 5 «no cumplido» explícitos («sin experiencia en planillas») y las menciones dudosas (2/2).
+- Lo que queda (14 casillas): la IA ve **indicios** donde la vara dice *sin evidencia* (8: «90 % en encuestas de satisfacción» para NPS/CSAT; mismo efecto en el puntaje, se muestra como «La IA ve un indicio»); es **más estricta** en 4 acreditaciones (registrar ≠ emitir comprobantes, «nociones» de tributación…), y acredita «estudios en curso» cuando el requisito pide «estudios» sin exigir título (2: Espinoza, Ramos). Estos últimos son discutibles: conviene decidir si la vara debe aceptarlos.
+- Conclusión: con v3, la IA sirve como segunda opinión en lo dudoso y como control; no se le deja decidir sola (sigue por debajo del motor en acierto exacto).
 
 ## 3. Puntuación (`scoring v1`)
 

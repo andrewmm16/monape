@@ -10,22 +10,31 @@
 //   npm run medir:ia                                   (todos los puestos, claude-opus-5-5)
 //   npm run medir:ia -- --puesto 2 --modelo claude-sonnet-5-5 --concurrencia 3
 //   npm run medir:ia -- --max 4 --salida informe.md
+//   npm run medir:ia -- --guardar crudo.json           (guarda las respuestas de la IA)
+//   npm run medir:ia -- --desde crudo.json             (re-analiza SIN llamar a la IA: no gasta plan)
+//   npm run medir:ia -- --sin-notas                    (sin las dudas del motor en el prompt, para comparar)
 //
-// La verdad de contraste es el ORDEN de los candidatos de cada puesto (`ajuste` en
-// datos.ts): un candidato más fuerte no debería puntuar menos que uno más débil.
+// Dos verdades de contraste:
+//  1. El ORDEN de los candidatos de cada puesto (`ajuste` en datos.ts): un candidato
+//     más fuerte no debería puntuar menos que uno más débil.
+//  2. La VARA (gold-standard.ts), requisito por requisito: dónde acierta la IA y dónde
+//     el motor, separado por el tipo de duda del motor. Incluye la política real
+//     «el motor decide; en lo que duda, releva la IA».
 
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { argv, exit, stdout } from "node:process";
 import { assembleEvaluation } from "../../src/modules/evaluation/assemble";
+import { engineNotesForText, hasEngineDoubt } from "../../src/modules/evaluation/ai/engine-notes";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "../../src/modules/evaluation/ai/input";
 import { PROMPT_VERSION } from "../../src/modules/evaluation/ai/prompt";
 import { interpretAiResponse, InvalidAiResponseError } from "../../src/modules/evaluation/ai/response";
-import type { CompatibilityLevel, ItemAssessment } from "../../src/modules/evaluation/types";
+import type { Assessment, CompatibilityLevel, ItemAssessment } from "../../src/modules/evaluation/types";
 import { extractRawText } from "../../src/modules/resumes/extraction-core";
 import { runClaude } from "../../ia-worker/src/cli";
 import { CODIGO, evaluarTexto, apellidos, pad, padIzq } from "./evaluar";
-import { ETIQUETA_AJUSTE, ORDEN_AJUSTE, PUESTOS, type CandidatoFixture, type PuestoFixture } from "./datos";
+import { ETIQUETA_AJUSTE, FECHA_REFERENCIA, ORDEN_AJUSTE, PUESTOS, type CandidatoFixture, type PuestoFixture } from "./datos";
+import { GOLD } from "./gold-standard";
 
 const RAIZ_CV = resolve(import.meta.dirname, "..", "..", "cv-prueba");
 
@@ -39,6 +48,9 @@ const CONCURRENCIA = Math.min(4, Math.max(1, Number(opcion("concurrencia") ?? 2)
 const PUESTO = opcion("puesto") ? Number(opcion("puesto")) : undefined;
 const MAX = opcion("max") ? Number(opcion("max")) : undefined;
 const SALIDA = opcion("salida");
+const GUARDAR = opcion("guardar");
+const DESDE = opcion("desde");
+const SIN_NOTAS = argv.includes("--sin-notas");
 const CLI = process.env.IA_WORKER_CLI_PATH || "claude";
 const TIMEOUT_MS = 480_000;
 
@@ -53,13 +65,33 @@ type Fila = Caso & {
   ia: ResultadoIa;
 };
 
+/** Respuestas de la IA guardadas con --guardar (el motor se recalcula al cargar: es determinista). */
+type Crudo = {
+  modelo: string;
+  prompt: string;
+  conNotas: boolean;
+  totalSeg: number;
+  filas: {
+    puesto: number;
+    archivo: string;
+    ia: (Omit<Extract<ResultadoIa, { ok: true }>, "porRequisito"> & { items: ItemAssessment[] }) | Extract<ResultadoIa, { ok: false }>;
+  }[];
+};
+
 async function textoDe(caso: Caso): Promise<string> {
   const bytes = await readFile(join(RAIZ_CV, caso.puesto.carpeta, caso.candidato.archivo));
   return extractRawText(new Uint8Array(bytes), "pdf");
 }
 
 async function evaluarConIa(puesto: PuestoFixture, texto: string): Promise<ResultadoIa> {
-  const input = buildAiInput({ vacancyTitle: puesto.titulo, requirements: puesto.requisitos, fullText: texto, maxChars: 30_000 });
+  // Igual que producción (ai-worker-api.ts): el prompt lleva las dudas del motor sobre el mismo texto.
+  const input = buildAiInput({
+    vacancyTitle: puesto.titulo,
+    requirements: puesto.requisitos,
+    fullText: texto,
+    maxChars: 30_000,
+    engineNotes: SIN_NOTAS ? undefined : engineNotesForText(texto, puesto.requisitos, FECHA_REFERENCIA),
+  });
   const inicio = Date.now();
   const outcome = await runClaude(
     {
@@ -139,6 +171,128 @@ function inversiones(filas: Fila[], score: (f: Fila) => number | null): string[]
   return lista;
 }
 
+type CasillaVara = {
+  quien: string;
+  req: string;
+  vara: Assessment;
+  nota: string;
+  motor: ItemAssessment;
+  ia: Assessment;
+  iaMotivo: string;
+};
+
+/** Grupo según lo que hizo el motor: es lo que decide si la IA interviene. */
+function grupoDe(m: ItemAssessment): string {
+  if (m.signal) return `duda: ${m.signal}`;
+  if (m.assessment === "pendiente_verificacion") return "pendiente sin marca";
+  if (m.assessment === "sin_evidencia") return "sin evidencia";
+  return "acreditado sin duda";
+}
+
+/** Requisito por requisito contra la vara, separado por tipo de duda del motor. */
+function informeVara(filas: Fila[], log: (s?: string) => void): void {
+  const casillas: CasillaVara[] = [];
+  let revisar = 0;
+  for (const f of filas) {
+    const gold = GOLD[f.candidato.archivo];
+    if (!f.ia.ok || !gold) continue;
+    for (const r of f.puesto.requisitos) {
+      const g = gold[r.id];
+      const m = f.motor.porRequisito.get(r.id);
+      const i = f.ia.porRequisito.get(r.id);
+      if (!g || !m || !i) continue;
+      if (g.revisar) {
+        revisar++;
+        continue;
+      }
+      casillas.push({
+        quien: `${apellidos(f.candidato.nombre)} · ${r.corto}`,
+        req: r.corto,
+        vara: g.assessment,
+        nota: g.nota,
+        motor: m,
+        ia: i.assessment,
+        iaMotivo: i.rationale.replace(/\s+/g, " ").slice(0, 200),
+      });
+    }
+  }
+  if (casillas.length === 0) return;
+
+  const pct = (a: number, n: number) => (n === 0 ? "  -  " : `${padIzq(((100 * a) / n).toFixed(0), 3)} %`);
+  // Política real: el motor decide; donde duda (las mismas dudas que llevan nota en el prompt), releva la IA.
+  const politica = (c: CasillaVara) => (hasEngineDoubt(c.motor) ? c.ia : c.motor.assessment);
+
+  log("## Contra la vara (requisito por requisito)");
+  log();
+  log(`Casillas firmes: ${casillas.length} (${revisar} «por revisar» fuera de la métrica). Acierto = mismo veredicto que la vara.`);
+  log();
+  log("```");
+  log(`${pad("Lo que hizo el motor", 30)} ${padIzq("Casillas", 8)} ${padIzq("Motor", 8)} ${padIzq("IA", 8)} ${padIzq("Motor+IA", 9)}`);
+  const grupos = [...new Set(casillas.map((c) => grupoDe(c.motor)))].sort();
+  const fila = (nombre: string, cs: CasillaVara[]) => {
+    const m = cs.filter((c) => c.motor.assessment === c.vara).length;
+    const i = cs.filter((c) => c.ia === c.vara).length;
+    const p = cs.filter((c) => politica(c) === c.vara).length;
+    log(`${pad(nombre, 30)} ${padIzq(String(cs.length), 8)} ${padIzq(pct(m, cs.length), 8)} ${padIzq(pct(i, cs.length), 8)} ${padIzq(pct(p, cs.length), 9)}`);
+  };
+  for (const g of grupos) fila(g, casillas.filter((c) => grupoDe(c.motor) === g));
+  fila("TOTAL", casillas);
+  log("```");
+  log("«Motor+IA» = la política real: el motor decide y, donde duda, releva la IA.");
+  // «Pendiente» y «sin evidencia» cuentan igual en el puntaje (ambos «por confirmar»).
+  const porConfirmar = (a: Assessment) => a === "pendiente_verificacion" || a === "sin_evidencia";
+  const equivale = (a: Assessment, b: Assessment) => a === b || (porConfirmar(a) && porConfirmar(b));
+  const tasa = (f: (c: CasillaVara) => Assessment) => pct(casillas.filter((c) => equivale(f(c), c.vara)).length, casillas.length).trim();
+  log(
+    `Tratando «pendiente» y «sin evidencia» como iguales (mismo efecto en el puntaje): ` +
+      `motor ${tasa((c) => c.motor.assessment)} · IA ${tasa((c) => c.ia)} · Motor+IA ${tasa(politica)}.`,
+  );
+  log();
+
+  const lista = (titulo: string, cs: CasillaVara[], detalle: (c: CasillaVara) => string) => {
+    log(`### ${titulo} (${cs.length})`);
+    log();
+    if (cs.length === 0) log("- (ninguna)");
+    for (const c of cs) log(`- ${c.quien}: ${detalle(c)}`);
+    log();
+  };
+  const v = (a: Assessment) => CODIGO[a];
+  lista(
+    "IA acreditó de más (la vara no acredita) — el error más caro",
+    casillas.filter((c) => c.ia === "acreditado" && c.vara !== "acreditado"),
+    (c) => `vara ${v(c.vara)} (${c.nota}) · motor ${v(c.motor.assessment)} · IA: ${c.iaMotivo}`,
+  );
+  lista(
+    "IA recuperó mérito que el motor no acreditó",
+    casillas.filter((c) => c.vara === "acreditado" && c.motor.assessment !== "acreditado" && c.ia === "acreditado"),
+    (c) => `motor ${v(c.motor.assessment)}${c.motor.signal ? ` (${c.motor.signal})` : ""} → IA A`,
+  );
+  lista(
+    "IA no acreditó lo que el motor acreditó bien",
+    casillas.filter((c) => c.vara === "acreditado" && c.motor.assessment === "acreditado" && c.ia !== "acreditado"),
+    (c) => `IA ${v(c.ia)}: ${c.iaMotivo}`,
+  );
+  lista(
+    "Errores del motor que la IA detectó (motor acreditó de más)",
+    casillas.filter((c) => c.motor.assessment === "acreditado" && c.vara !== "acreditado" && c.ia === c.vara),
+    (c) => `vara ${v(c.vara)} (${c.nota})`,
+  );
+
+  // Todos los desacuerdos IA–vara, por tipo (vara→IA): para calibrar el prompt.
+  const desacuerdos = casillas.filter((c) => c.ia !== c.vara);
+  const tipos = [...new Set(desacuerdos.map((c) => `${v(c.vara)}→${v(c.ia)}`))].sort(
+    (a, b) => desacuerdos.filter((c) => `${v(c.vara)}→${v(c.ia)}` === b).length - desacuerdos.filter((c) => `${v(c.vara)}→${v(c.ia)}` === a).length,
+  );
+  log(`### Desacuerdos IA–vara por tipo (vara→IA): ${desacuerdos.length}`);
+  log();
+  for (const t of tipos) {
+    const cs = desacuerdos.filter((c) => `${v(c.vara)}→${v(c.ia)}` === t);
+    log(`- **${t}** ×${cs.length}`);
+    for (const c of cs) log(`  - ${c.quien} [${grupoDe(c.motor)}] · vara: ${c.nota} · IA: ${c.iaMotivo}`);
+  }
+  log();
+}
+
 async function main(): Promise<void> {
   let casos: Caso[] = PUESTOS.filter((p) => PUESTO === undefined || p.id === PUESTO).flatMap((puesto) =>
     puesto.candidatos.map((candidato) => ({ puesto, candidato })),
@@ -149,22 +303,59 @@ async function main(): Promise<void> {
     exit(1);
   }
 
-  console.log(`Se evaluarán ${casos.length} CV ficticios con ${MODELO} (${CONCURRENCIA} en paralelo), con la suscripción de Claude.`);
-  console.log("Ctrl+C en los próximos 5 s para cancelar…");
-  await new Promise((r) => setTimeout(r, 5_000));
+  let filas: Fila[];
+  let totalSeg: number;
+  let conNotas = !SIN_NOTAS;
+  if (DESDE) {
+    const crudo = JSON.parse(await readFile(DESDE, "utf8")) as Crudo;
+    conNotas = crudo.conNotas;
+    totalSeg = crudo.totalSeg;
+    filas = [];
+    for (const caso of casos) {
+      const guardado = crudo.filas.find((f) => f.puesto === caso.puesto.id && f.archivo === caso.candidato.archivo);
+      if (!guardado) continue;
+      const motor = evaluarTexto(caso.puesto, await textoDe(caso));
+      const ia: ResultadoIa = guardado.ia.ok
+        ? { ...guardado.ia, porRequisito: new Map(guardado.ia.items.map((i) => [i.requirementId, i])) }
+        : guardado.ia;
+      filas.push({ ...caso, motor, ia });
+    }
+    console.log(`Re-análisis de ${DESDE} (${filas.length} CV, prompt ${crudo.prompt}, ${crudo.modelo}): no se llama a la IA.\n`);
+  } else {
+    console.log(
+      `Se evaluarán ${casos.length} CV ficticios con ${MODELO} (${CONCURRENCIA} en paralelo, ${conNotas ? "con" : "SIN"} las dudas del motor), con la suscripción de Claude.`,
+    );
+    console.log("Ctrl+C en los próximos 5 s para cancelar…");
+    await new Promise((r) => setTimeout(r, 5_000));
 
-  const inicio = Date.now();
-  let hechos = 0;
-  const filas = await enParalelo(casos, CONCURRENCIA, async (caso): Promise<Fila> => {
-    const texto = await textoDe(caso);
-    const motor = evaluarTexto(caso.puesto, texto);
-    const ia = await evaluarConIa(caso.puesto, texto);
-    hechos++;
-    stdout.write(`\r  ${hechos}/${casos.length} evaluados…`);
-    return { ...caso, motor, ia };
-  });
-  const totalSeg = (Date.now() - inicio) / 1000;
-  stdout.write("\n\n");
+    const inicio = Date.now();
+    let hechos = 0;
+    filas = await enParalelo(casos, CONCURRENCIA, async (caso): Promise<Fila> => {
+      const texto = await textoDe(caso);
+      const motor = evaluarTexto(caso.puesto, texto);
+      const ia = await evaluarConIa(caso.puesto, texto);
+      hechos++;
+      stdout.write(`\r  ${hechos}/${casos.length} evaluados…`);
+      return { ...caso, motor, ia };
+    });
+    totalSeg = (Date.now() - inicio) / 1000;
+    stdout.write("\n\n");
+    if (GUARDAR) {
+      const crudo: Crudo = {
+        modelo: MODELO,
+        prompt: PROMPT_VERSION,
+        conNotas,
+        totalSeg,
+        filas: filas.map((f) => ({
+          puesto: f.puesto.id,
+          archivo: f.candidato.archivo,
+          ia: f.ia.ok ? { ...f.ia, porRequisito: undefined, items: [...f.ia.porRequisito.values()] } : f.ia,
+        })),
+      };
+      await writeFile(GUARDAR, `${JSON.stringify(crudo, null, 2)}\n`, "utf8");
+      console.log(`Respuestas guardadas en ${GUARDAR} (re-analice con --desde, sin gastar plan).\n`);
+    }
+  }
 
   const lineas: string[] = [];
   const log = (s = "") => {
@@ -172,7 +363,7 @@ async function main(): Promise<void> {
     console.log(s);
   };
 
-  log(`# Motor de reglas vs. IA (${MODELO}) · prompt ${PROMPT_VERSION}`);
+  log(`# Motor de reglas vs. IA (${MODELO}) · prompt ${PROMPT_VERSION} ${conNotas ? "con" : "SIN"} las dudas del motor`);
   log();
   let invMotor = 0;
   let invIa = 0;
@@ -240,6 +431,8 @@ async function main(): Promise<void> {
   log(`- Tokens por CV: ${prom(ok.map((r) => r.entrada)).toFixed(0)} de entrada y ${prom(ok.map((r) => r.salida)).toFixed(0)} de salida (media)`);
   log(`- Total: ${totalSeg.toFixed(0)} s con ${CONCURRENCIA} en paralelo → ~${Math.round((filas.length / totalSeg) * 3600)} CV/hora a este ritmo`);
   log();
+  informeVara(filas, log);
+
   log("## Requisitos donde difieren");
   log();
   for (const d of detalle) log(d);
