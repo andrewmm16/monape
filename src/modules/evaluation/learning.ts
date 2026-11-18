@@ -53,7 +53,7 @@ export async function recordEquivalenceVotes(
     minConfirmations: number;
   },
 ): Promise<number> {
-  if (!(input.minConfirmations >= 2)) return 0;
+  if (!(input.minConfirmations >= 1)) return 0;
   const requirements = new Map(input.requirements.map((r) => [r.id, r]));
   const engine = new Map(input.engineItems.map((i) => [i.requirementId, i]));
   let recorded = 0;
@@ -93,7 +93,7 @@ export async function learnFromVerifications(
 ): Promise<number> {
   try {
     const minConfirmations = getServerEnv().AI_LEARN_MIN_CONFIRMATIONS;
-    if (!(minConfirmations >= 2) || !verified.some((v) => v.result === "acreditado")) return 0;
+    if (!(minConfirmations >= 1) || !verified.some((v) => v.result === "acreditado")) return 0;
     const admin = createSupabaseAdminClient();
     const context = await loadEvaluationContext(admin, applicationId);
     // El motor sin reglas aprendidas: la duda y el término tal como los ve el motor base.

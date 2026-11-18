@@ -1,5 +1,6 @@
 import { conjunctTerms } from "./conjunctions";
 import { applyLearnedRules, groupLearnedRules, requirementKey, type LearnedRule } from "./learned";
+import { findExplicitNegations, markExplicitNegation } from "./negation";
 import { coreTerms, relatedListTerms } from "./related";
 import { equivalentsFor } from "./synonyms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
@@ -139,8 +140,15 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *  - Se reconocen: idiomas y niveles en inglés («English (fluent)»), abreviaturas
  *    de títulos («Ing. Civil»), «contador» como prueba de contabilidad (en un solo
  *    sentido) y posibles faltas de ortografía («Exel» → pendiente, nunca acreditado).
+ *
+ * Novedades de reglas-v12 (calibración con la IA en la app real, 18/11/2026):
+ *  - Negación explícita con otras palabras (negation.ts): «sin experiencia en
+ *    reclamos» frente a «gestión de reclamos», «ni en PLAME». El requisito queda
+ *    como estaba, con la marca «negacion_explicita» y la cita, para que la IA lo
+ *    confirme. El motor sigue sin descartar a nadie por su cuenta.
+ *  - Reglas aprendidas de la IA y de RRHH (learned.ts), si se le pasan.
  */
-export const RULE_ENGINE_VERSION = "reglas-v11";
+export const RULE_ENGINE_VERSION = "reglas-v12";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -1351,9 +1359,11 @@ export function evaluateWithRules(
   const experienceIndex = () => (index ??= buildExperienceIndex(text, referenceDate));
   const evaluate = (requirement: RequirementInput) => evaluateRequirement(text, haystack, requirement, referenceDate, experienceIndex);
   const learned = groupLearnedRules(options.learned ?? []);
+  const negations = findExplicitNegations(text);
   return requirements.map((requirement) => {
     const base = evaluate(requirement);
     const rules = learned.get(requirementKey(requirement));
-    return rules ? applyLearnedRules(base, requirement, rules, evaluate) : base;
+    const item = rules ? applyLearnedRules(base, requirement, rules, evaluate) : base;
+    return markExplicitNegation(item, requirement, negations);
   });
 }

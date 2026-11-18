@@ -54,7 +54,7 @@ export default async function EngineLearningPage() {
       <PageHeader
         eyebrow="Configuración"
         title="Aprendizaje del motor"
-        description="Lo que el motor de reglas aprendió de la IA para depender cada vez menos de ella. Las reglas se activan solas (la IA lo confirmó en varios CV distintos, ninguno en contra, y un segundo modelo estuvo de acuerdo) y se suspenden solas si la IA o RRHH las contradicen. No necesita aprobación: aquí puede revisarlas y deshacerlas."
+        description="Lo que el motor de reglas aprendió para depender cada vez menos de la IA. Cuando la IA o RRHH resuelven una duda de vocabulario (un cargo o una habilidad parecida), un modelo más capaz, el segundo juez, decide si ese término cuenta como lo que pide el requisito, y desde entonces el motor lo aplica solo. Se suspende sola si RRHH verifica «no cumple» en un caso que resolvió. No necesita aprobación: aquí puede revisarlas y deshacerlas."
       />
       <div className="space-y-6">
         <Card>
@@ -126,9 +126,16 @@ export default async function EngineLearningPage() {
                         <Verdict rule={rule} />
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        Confirmado en {Math.max(rule.votes_yes, rule.votes_no)} CV (IA o RRHH) · juez {rule.judge_model ?? "—"}
-                        {rule.judge_reason ? `: ${rule.judge_reason}` : ""}
-                        {rule.activated_at ? ` · activa desde ${formatDate(rule.activated_at)}` : ""}
+                        Decidió el juez ({rule.judge_model ?? "—"}){rule.judge_reason ? `: ${rule.judge_reason}` : "."}
+                        {rule.activated_at ? ` Activa desde ${formatDate(rule.activated_at)}.` : ""}
+                        {(() => {
+                          const against = rule.verdict === "equivale" ? rule.votes_no : rule.votes_yes;
+                          return against > 0 ? (
+                            <span className="block pt-1 text-warning-foreground">
+                              La IA del CV opinó distinto en {against} CV: revísela si RRHH también lo duda.
+                            </span>
+                          ) : null;
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <ActionButton
@@ -157,7 +164,7 @@ export default async function EngineLearningPage() {
             <CardHeader>
               <CardTitle>Aprendiendo ({learning.length})</CardTitle>
               <CardDescription>
-                Dudas que la IA resolvió o RRHH verificó en algún CV. Se activan solas al llegar al mínimo, sin votos en contra.
+                Dudas que la IA resolvió o RRHH verificó en algún CV. Al llegar al mínimo, el segundo juez decide y la regla se activa sola.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -182,9 +189,6 @@ export default async function EngineLearningPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{STATUS_LABELS[rule.status] ?? rule.status}</Badge>
-                        {rule.votes_yes > 0 && rule.votes_no > 0 ? (
-                          <p className="pt-1 text-xs text-muted-foreground">La IA no opinó lo mismo en todos los CV: no se aplicará.</p>
-                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}

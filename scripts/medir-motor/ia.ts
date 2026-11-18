@@ -232,8 +232,9 @@ function informeVara(filas: Fila[], log: (s?: string) => void): void {
   if (casillas.length === 0) return;
 
   const pct = (a: number, n: number) => (n === 0 ? "  -  " : `${padIzq(((100 * a) / n).toFixed(0), 3)} %`);
-  // Política real: el motor decide; donde duda (las mismas dudas que llevan nota en el prompt), releva la IA.
-  const politica = (c: CasillaVara) => (hasEngineDoubt(c.motor) ? c.ia : c.motor.assessment);
+  // Política real (ai/relay.ts): el motor decide; donde duda, cuenta la IA si dice «cumple» o «no cumple».
+  const politica = (c: CasillaVara) =>
+    hasEngineDoubt(c.motor) && (c.ia === "acreditado" || c.ia === "no_cumplido") ? c.ia : c.motor.assessment;
 
   log("## Contra la vara (requisito por requisito)");
   log();
@@ -328,19 +329,13 @@ function informeAprendizaje(filas: Fila[], log: (s?: string) => void): void {
   }
   log("## Aprendizaje simulado (votos de la IA en dudas de vocabulario)");
   log();
-  log(`Votos válidos: ${votos} · reglas candidatas: ${reglas.size}. El banco tiene ~4 CV por puesto: en producción el mínimo es 5 CV distintos.`);
+  log(`Votos válidos: ${votos} · reglas candidatas: ${reglas.size}. Con el mínimo por defecto (1 CV), todas pasan al segundo juez, que decide.`);
   log();
   if (reglas.size === 0) return;
-  log("| En el CV dice | Requisito | Cuenta | No cuenta | ¿Se activaría con mín. 2? |");
-  log("|---|---|---:|---:|---|");
+  log("| En el CV dice | Requisito | La IA del CV: cuenta | No cuenta |");
+  log("|---|---|---:|---:|");
   for (const r of [...reglas.values()].sort((x, y) => y.a.size + y.contra.size - (x.a.size + x.contra.size))) {
-    const unanime = r.a.size === 0 || r.contra.size === 0;
-    const n = Math.max(r.a.size, r.contra.size);
-    log(
-      `| «${r.termino}» | ${r.requisito} | ${r.a.size} | ${r.contra.size} | ${
-        unanime && n >= 2 ? `sí (${r.a.size > 0 ? "cuenta" : "no cuenta"}), pendiente del juez` : unanime ? "no: falta evidencia" : "no: la IA no opinó igual"
-      } |`,
-    );
+    log(`| «${r.termino}» | ${r.requisito} | ${r.a.size} | ${r.contra.size} |`);
   }
   log();
 }

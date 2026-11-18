@@ -130,6 +130,12 @@ describe("la IA releva al motor en lo dudoso", () => {
     expect(hasRelayedItems(relayToAi(engine, []))).toBe(false);
   });
 
+  it("un «por confirmar» de la IA donde el motor no vio nada es un indicio: no reemplaza al motor", () => {
+    const engine = [item("a", "sin_evidencia"), item("b", "pendiente_verificacion", { signal: "cargo_relacionado" })];
+    const ai = [item("a", "pendiente_verificacion"), item("b", "sin_evidencia")];
+    expect(relayToAi(engine, ai)).toEqual(engine);
+  });
+
   it("usa la valoración original de la IA, no la verificada (RRHH se vuelve a aplicar después)", () => {
     const out = relayToAi(
       [item("a", "pendiente_verificacion")],

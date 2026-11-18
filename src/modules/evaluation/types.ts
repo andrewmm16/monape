@@ -49,7 +49,9 @@ export type EngineSignal =
   | "nivel_no_declarado"
   | "fechas_no_cuadran"
   | "solo_capacitacion"
-  | "posible_errata";
+  | "posible_errata"
+  /** El CV niega expresamente lo pedido con otras palabras («sin experiencia en reclamos»). reglas-v12. */
+  | "negacion_explicita";
 
 export type ItemAssessment = {
   requirementId: string;

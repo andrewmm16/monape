@@ -97,7 +97,7 @@ export const GOLD: Record<string, GoldCandidato> = {
   },
   "CV_Chavez_Diego.pdf": {
     "p2-r1": { assessment: "acreditado", nota: "~4-6 años en ventas." },
-    "p2-r2": { assessment: "pendiente_verificacion", motivo: "parcial", nota: "Vende a bodegas/supermercados, no es B2B de cuentas clave." },
+    "p2-r2": { assessment: "acreditado", nota: "Vende a bodegas y supermercados: cuenta como ventas B2B a empresas (decisión de Omar, 18/11/2026; antes pendiente)." },
     "p2-r3": { assessment: "acreditado", nota: "Cumplí 104% de meta trimestral." },
     "p2-r4": { assessment: "acreditado", nota: "CRM Zoho." },
     "p2-r5": { assessment: "acreditado", nota: "Marketing (técnico profesional)." },
@@ -165,13 +165,13 @@ export const GOLD: Record<string, GoldCandidato> = {
   },
   "CV_Fuentes_Milagros.pdf": {
     "p3-r1": { assessment: "no_cumplido", nota: "Dice explícitamente 'sin experiencia en programación'." },
-    "p3-r2": { assessment: "sin_evidencia", nota: "No React." },
-    "p3-r3": { assessment: "sin_evidencia", nota: "No JS/TS." },
-    "p3-r4": { assessment: "sin_evidencia", nota: "No Node.js." },
+    "p3-r2": { assessment: "no_cumplido", nota: "'Sin experiencia en programación' lo niega expresamente (decisión de Omar, 18/11/2026; antes sin evidencia)." },
+    "p3-r3": { assessment: "no_cumplido", nota: "'Sin experiencia en programación' lo niega expresamente (decisión de Omar, 18/11/2026; antes sin evidencia)." },
+    "p3-r4": { assessment: "no_cumplido", nota: "'Sin experiencia en programación' lo niega expresamente (decisión de Omar, 18/11/2026; antes sin evidencia)." },
     "p3-r5": { assessment: "sin_evidencia", nota: "No SQL." },
     "p3-r6": { assessment: "sin_evidencia", nota: "No Git." },
     "p3-r7": { assessment: "sin_evidencia", nota: "No Next.js/PostgreSQL." },
-    "p3-r8": { assessment: "sin_evidencia", nota: "No pruebas/CI-CD." },
+    "p3-r8": { assessment: "no_cumplido", nota: "'Sin experiencia en programación' lo niega expresamente (decisión de Omar, 18/11/2026; antes sin evidencia)." },
     "p3-r9": { assessment: "pendiente_verificacion", motivo: "parcial", nota: "Inglés básico (A2), por debajo de intermedio." },
   },
 

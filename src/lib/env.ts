@@ -48,10 +48,10 @@ const serverEnvSchema = z
       .enum(["true", "false", ""])
       .default("true")
       .transform((value) => value !== "false"),
-    // El motor aprende de la IA: votos de CV distintos (sin ninguno en contra) para pasar
-    // al segundo juez (0 = no aprende). 2: los votos de un mismo modelo se equivocan juntos;
-    // el control independiente es el juez (medido el 18/11, ver docs/metodologia-evaluacion.md).
-    AI_LEARN_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).max(50).default(2),
+    // El motor aprende de la IA: CV distintos con el término para consultar al segundo juez,
+    // que decide (0 = no aprende). 1: se le pregunta desde el primer CV; los votos de Haiku
+    // se equivocan juntos y el juez (Opus) acertó donde Haiku falló (medido el 18/11).
+    AI_LEARN_MIN_CONFIRMATIONS: z.coerce.number().int().min(0).max(50).default(1),
     // Segundo juez de las reglas aprendidas (un modelo más capaz que el de las evaluaciones).
     AI_JUDGE_MODEL: z.string().min(1).default("claude-opus-5-5"),
     // Parte pública (2.9): apagada por defecto. Encendida, exige URL y empresa.

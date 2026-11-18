@@ -57,6 +57,7 @@ import { getAiAvailability } from "@/modules/evaluation/ai/availability";
 import { isDoubtful } from "@/modules/evaluation/ai/doubtful";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "@/modules/evaluation/ai/input";
 import { PROMPT_VERSION } from "@/modules/evaluation/ai/prompt";
+import { RULE_ENGINE_VERSION } from "@/modules/evaluation/rule-engine";
 import { ResumeTextUnavailableError } from "@/modules/evaluation/context";
 
 const requirements: RequirementInput[] = [
@@ -127,15 +128,19 @@ describe("caso dudoso", () => {
     rationale: "",
   });
 
-  it("los niveles pendiente y parcial siempre son dudosos", () => {
-    expect(isDoubtful({ level: "pendiente", scores: scores(0, 100), items: [] }, requirements)).toBe(true);
-    expect(isDoubtful({ level: "parcial", scores: scores(55), items: [] }, requirements)).toBe(true);
+  // Desde el 18/11/2026 el nivel, la cercanía a un corte o lo que falta confirmar ya no
+  // bastan: mandaban el 75 % de los CV a la IA y casi nunca cambiaba algo. Solo lo que la
+  // IA puede resolver (dudas concretas del motor, relleno) y la muestra de control.
+  it("el nivel, la cercanía a un corte o lo que falta confirmar ya no bastan solos", () => {
+    expect(isDoubtful({ level: "pendiente", scores: scores(0, 100), items: [] }, requirements)).toBe(false);
+    expect(isDoubtful({ level: "parcial", scores: scores(55), items: [] }, requirements)).toBe(false);
+    expect(isDoubtful({ level: "alta", scores: scores(75), items: [] }, requirements)).toBe(false);
+    expect(isDoubtful({ level: "alta", scores: scores(85), items: [item(R1, "acreditado")] }, requirements)).toBe(false);
   });
 
-  it("un alto cerca del corte o con mucho por confirmar es dudoso; uno claro no", () => {
-    expect(isDoubtful({ level: "alta", scores: scores(75), items: [] }, requirements)).toBe(true);
-    expect(isDoubtful({ level: "alta", scores: scores(85, 100), items: [] }, requirements)).toBe(false);
-    expect(isDoubtful({ level: "alta", scores: scores(85), items: [item(R1, "acreditado")] }, requirements)).toBe(false);
+  it("una duda concreta del motor o el relleno de palabras clave sí", () => {
+    expect(isDoubtful({ level: "parcial", scores: scores(55), items: [] }, requirements, { engineItems: [{ signal: "mencion_dudosa" }] })).toBe(true);
+    expect(isDoubtful({ level: "alta", scores: scores(90), items: [] }, requirements, { suspiciousText: true })).toBe(true);
   });
 
   it("un bajo con un obligatorio no cumplido es dudoso (descarte a confirmar)", () => {
@@ -440,8 +445,10 @@ describe("API del worker: resultado", () => {
     const [, relay] = mocks.recordAssembled.mock.calls[0] as [unknown, { result: { method: string; methodVersion: string; items: { resolvedBy?: string }[] }; system: boolean }];
     expect(relay.system).toBe(true);
     expect(relay.result.method).toBe("reglas");
-    expect(relay.result.methodVersion).toBe(`reglas-v11+${PROMPT_VERSION}`);
-    expect(relay.result.items.map((i) => i.resolvedBy)).toEqual(["ia", "ia"]);
+    expect(relay.result.methodVersion).toBe(`${RULE_ENGINE_VERSION}+${PROMPT_VERSION}`);
+    // R1: el motor no pudo (sin términos) y la IA acredita → cuenta. R2: la IA también dice
+    // «sin evidencia» → no cambia el puntaje → queda la del motor.
+    expect(relay.result.items.map((i) => i.resolvedBy)).toEqual(["ia", undefined]);
 
     // Voto: el inglés no aparece en el CV (duda de vocabulario) y la IA señaló un término literal.
     expect(rpcCalls("learn_record_vote")).toEqual([

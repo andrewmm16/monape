@@ -833,8 +833,8 @@ describe("equivalencias de evidencia (reglas-v5)", () => {
     expect(r.rationale.toLowerCase()).toContain("equivalencia");
   });
 
-  it("RULE_ENGINE_VERSION es reglas-v11", () => {
-    expect(RULE_ENGINE_VERSION).toBe("reglas-v11");
+  it("RULE_ENGINE_VERSION es reglas-v12", () => {
+    expect(RULE_ENGINE_VERSION).toBe("reglas-v12");
   });
 
   it("un término corto equivalente no acredita dentro de una palabra que lo contiene", () => {
@@ -1031,7 +1031,9 @@ describe("reglas-v10: evidencia relacionada y marcas de duda", () => {
     const excel = { category: "herramienta" as const, description: "Excel avanzado", keywords: ["Excel"] };
     expect(evalua("Excel básico.", excel).signal).toBe("nivel_inferior");
     expect(evalua("Manejo de Excel.", excel).signal).toBe("nivel_no_declarado");
-    expect(evalua("Sin experiencia en Excel.", excel).signal).toBe("mencion_dudosa");
+    // reglas-v12: una negación explícita lleva su propia marca, más precisa que «mención dudosa».
+    expect(evalua("Sin experiencia en Excel.", excel).signal).toBe("negacion_explicita");
+    expect(evalua("Me interesa aprender Excel.", excel).signal).toBe("mencion_dudosa");
     expect(evalua("Excel avanzado.", excel).signal).toBeUndefined();
   });
 });

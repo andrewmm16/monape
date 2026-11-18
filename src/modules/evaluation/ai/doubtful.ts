@@ -1,20 +1,8 @@
 import { createHash } from "node:crypto";
-import { LEVEL_RULES } from "../scoring";
 import type { EvaluationResult, ItemAssessment, RequirementInput } from "../types";
 
-/** Distancia (en puntos) a un corte de nivel dentro de la cual el resultado se considera frontera. */
-export const DOUBTFUL_MARGIN = 10;
-/** Diferencia entre el máximo alcanzable y el puntaje a partir de la cual queda mucho por confirmar. */
-export const DOUBTFUL_OPEN_GAP = 30;
-
 /** Por qué una evaluación del motor pide segunda opinión (para medir y explicar, no se persiste). */
-export type DoubtReason =
-  | "nivel_intermedio"
-  | "cerca_de_corte"
-  | "mucho_por_confirmar"
-  | "obligatorio_no_cumplido"
-  | "duda_del_motor"
-  | "posible_relleno";
+export type DoubtReason = "duda_del_motor" | "posible_relleno" | "obligatorio_no_cumplido";
 
 export type DoubtExtras = {
   /** Valoraciones del motor CON sus marcas de duda (`signal`), que el resultado ensamblado no conserva. */
@@ -24,15 +12,17 @@ export type DoubtExtras = {
 };
 
 /**
- * Motivos para pedir una segunda opinión con IA sobre esta evaluación del motor.
- * Es donde se concentran sus falsos positivos y negativos:
- *  - nivel «pendiente» o «parcial» (falta evidencia o el resultado es intermedio);
- *  - puntaje a {@link DOUBTFUL_MARGIN} puntos o menos de un corte (40 / 70);
- *  - {@link DOUBTFUL_OPEN_GAP} puntos o más entre el puntaje y el máximo alcanzable;
- *  - un requisito obligatorio «no cumplido» (un descarte que conviene confirmar);
+ * Motivos para pedir una segunda opinión con IA sobre esta evaluación del motor:
+ * solo lo que la IA puede resolver y que puede mover el puntaje.
  *  - una duda concreta del motor en algún requisito no verificado por RRHH (cargo
- *    relacionado, mención dudosa, nivel, fechas, errata…: ver EngineSignal);
- *  - el CV tiene señales de relleno de palabras clave.
+ *    relacionado, mención dudosa, negación explícita, nivel, fechas, errata…: ver
+ *    EngineSignal);
+ *  - el CV tiene señales de relleno de palabras clave;
+ *  - un requisito obligatorio «no cumplido» (un descarte que conviene confirmar).
+ * Hasta el 18/11/2026 también contaban el nivel «pendiente»/«parcial», estar cerca
+ * de un corte y tener mucho por confirmar: mandaban el 75 % de los CV del banco a
+ * la IA y la IA cambió el puntaje de 1 candidato de 25 (medido con la app real).
+ * Lo demás lo cubre la muestra de control (AI_CONTROL_SAMPLE_PERCENT).
  */
 export function doubtReasons(
   result: Pick<EvaluationResult, "level" | "scores" | "items">,
@@ -40,12 +30,6 @@ export function doubtReasons(
   extras: DoubtExtras = {},
 ): DoubtReason[] {
   const reasons: DoubtReason[] = [];
-  if (result.level === "pendiente" || result.level === "parcial") reasons.push("nivel_intermedio");
-  const { score, potential } = result.scores;
-  if (Math.abs(score - LEVEL_RULES.high) <= DOUBTFUL_MARGIN || Math.abs(score - LEVEL_RULES.partial) <= DOUBTFUL_MARGIN) {
-    reasons.push("cerca_de_corte");
-  }
-  if (potential - score >= DOUBTFUL_OPEN_GAP) reasons.push("mucho_por_confirmar");
   const mandatory = new Set(requirements.filter((r) => r.priority === "obligatorio").map((r) => r.id));
   if (result.items.some((item) => item.assessment === "no_cumplido" && mandatory.has(item.requirementId))) {
     reasons.push("obligatorio_no_cumplido");

@@ -4,8 +4,9 @@ import { hasEngineDoubt } from "./engine-notes";
 /**
  * «El motor decide; en lo que duda, releva la IA»: la misma política que mide
  * `npm run medir:ia` (columna «Motor+IA»). Donde el motor tuvo una duda (por
- * confirmar, sin evidencia o una marca de duda), cuenta la valoración de la IA;
- * en lo demás, la del motor. Lo resuelto por una regla aprendida no se toca.
+ * confirmar, sin evidencia o una marca de duda) y la IA dice «cumple» o «no
+ * cumple», cuenta la IA; en lo demás, el motor. Lo resuelto por una regla
+ * aprendida no se toca.
  * Pura: las verificaciones de RRHH se aplican después y siempre prevalecen.
  */
 
@@ -23,6 +24,10 @@ export function relayToAi(engineItems: ItemAssessment[], aiItems: ItemAssessment
     if (!second || item.resolvedBy || !hasEngineDoubt(item)) return item;
     // La valoración original de la IA (si RRHH ya verificó algo, se vuelve a aplicar después).
     const assessment = second.cvAssessment ?? second.assessment;
+    // Solo cuenta si cambia el puntaje: «cumple» o «no cumple». Un «por confirmar» de la IA
+    // donde el motor no vio nada es un indicio (se muestra como nota de la segunda opinión),
+    // no reemplaza la etiqueta del motor (medido el 18/11: 11 de 16 cambios eran solo eso).
+    if (assessment !== "acreditado" && assessment !== "no_cumplido") return item;
     const rationale = second.cvRationale ?? second.rationale;
     return {
       requirementId: item.requirementId,

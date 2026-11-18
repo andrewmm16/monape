@@ -377,7 +377,7 @@ export async function claimAiJob(request: Request): Promise<Response> {
       const job = data?.[0];
       if (!job?.job_id || !job.application_id || !job.claim_token) {
         // Sin CV en cola: si hay una regla aprendida esperando al segundo juez, se entrega esa.
-        const judgment = env.AI_LEARN_MIN_CONFIRMATIONS >= 2 ? await claimJudgment(admin, env.AI_JUDGE_MODEL) : null;
+        const judgment = env.AI_LEARN_MIN_CONFIRMATIONS >= 1 ? await claimJudgment(admin, env.AI_JUDGE_MODEL) : null;
         return json(200, { job: judgment });
       }
 

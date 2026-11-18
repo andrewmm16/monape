@@ -31,6 +31,8 @@ export const SIGNAL_QUESTIONS: Record<EngineSignal, string> = {
   solo_capacitacion:
     "Solo aparece como curso o capacitación, no como experiencia o dominio. Decide si eso basta para el requisito.",
   posible_errata: "El término aparece con una posible errata. Decide si se refiere a lo mismo que pide el requisito.",
+  negacion_explicita:
+    "El CV parece decir expresamente que la persona no tiene lo pedido (cita abajo). Si esa negación se refiere a este requisito, es no_cumplido con esa cita; si niega otra cosa, decide con el resto del CV.",
 };
 
 const NO_KEYWORDS_QUESTION =

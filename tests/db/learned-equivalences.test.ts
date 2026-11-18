@@ -101,12 +101,32 @@ describe("votos de la IA", () => {
     await reportJudgment(claimed!.equivalence_id, claimed!.judge_token, true);
   });
 
-  it("un solo voto en contra lo bloquea: nunca llega al umbral", async () => {
+  it("con votos mezclados igual se consulta al juez (decide él); la mayoría queda como veredicto provisional", async () => {
     const key = newKey();
-    const cs = await candidates(8);
-    await vote(key, "maestro de obra", cs[0]!, false);
-    for (const c of cs.slice(1)) expect(await vote(key, "maestro de obra", c, true)).toBe("aprendiendo");
-    expect(await rule(key, "maestro de obra")).toMatchObject({ status: "aprendiendo", verdict: null, votes_yes: 7, votes_no: 1 });
+    const cs = await candidates(5);
+    expect(await vote(key, "maestro de obra", cs[0]!, false)).toBe("aprendiendo");
+    for (const c of cs.slice(1, 4)) expect(await vote(key, "maestro de obra", c, true)).toBe("aprendiendo");
+    expect(await vote(key, "maestro de obra", cs[4]!, true)).toBe("pendiente_juez");
+    expect(await rule(key, "maestro de obra")).toMatchObject({ status: "pendiente_juez", verdict: "equivale", votes_yes: 4, votes_no: 1 });
+    const [claimed] = await claimJudgment();
+    expect(await reportJudgment(claimed!.equivalence_id, claimed!.judge_token, false)).toBe("activa");
+    // Manda el juez: aprende «no equivale» aunque la mayoría de los votos dijera lo contrario.
+    expect(await rule(key, "maestro de obra")).toMatchObject({ status: "activa", verdict: "no_equivale" });
+    expect((await rule(key, "maestro de obra")).status_reason).toMatch(/manda el juez/);
+  });
+
+  it("con el mínimo por defecto (1) se consulta al juez desde el primer CV", async () => {
+    const key = newKey();
+    const [c] = await candidates(1);
+    const status = await asService(() =>
+      db.query<{ status: string }>(
+        `select public.learn_record_vote($1, 'experiencia', 'Supervisión de obras', 'asistente de obra', 'Asistente de Obra', $2, null, true, 'Motivo.', 1) as status`,
+        [key, c],
+      ),
+    ).then((r) => r.rows[0]!.status);
+    expect(status).toBe("pendiente_juez");
+    const [claimed] = await claimJudgment();
+    await reportJudgment(claimed!.equivalence_id, claimed!.judge_token, true);
   });
 
   it("también aprende lo que NO equivale", async () => {
@@ -128,13 +148,13 @@ describe("votos de la IA", () => {
 });
 
 describe("segundo juez", () => {
-  it("si el juez no está de acuerdo, la regla se rechaza; un token ajeno se ignora", async () => {
+  it("si el juez no coincide con la IA, manda el juez; un token ajeno se ignora", async () => {
     const key = newKey();
     for (const c of await candidates(MIN)) await vote(key, "ayudante de obra", c, true);
     const [claimed] = await claimJudgment();
     expect(await reportJudgment(claimed!.equivalence_id, "00000000-0000-4000-8000-000000000000", true)).toBe("ignorado");
-    expect(await reportJudgment(claimed!.equivalence_id, claimed!.judge_token, false)).toBe("rechazada");
-    expect(await rule(key, "ayudante de obra")).toMatchObject({ status: "rechazada" });
+    expect(await reportJudgment(claimed!.equivalence_id, claimed!.judge_token, false)).toBe("activa");
+    expect(await rule(key, "ayudante de obra")).toMatchObject({ status: "activa", verdict: "no_equivale" });
     expect(await claimJudgment()).toEqual([]);
   });
 
@@ -152,12 +172,11 @@ describe("segundo juez", () => {
 });
 
 describe("suspensión y deshacer", () => {
-  it("una regla activa se suspende sola si la IA opina lo contrario en otro CV", async () => {
+  it("los votos en contra de la IA no tumban una regla del juez: se cuentan y se muestran", async () => {
     const key = newKey();
     await activeRule(key, "capataz");
-    const [otro] = await candidates(1);
-    expect(await vote(key, "capataz", otro!, false)).toBe("suspendida");
-    expect((await rule(key, "capataz")).status_reason).toMatch(/opinó lo contrario/);
+    for (const c of await candidates(3)) expect(await vote(key, "capataz", c, false)).toBe("activa");
+    expect(await rule(key, "capataz")).toMatchObject({ status: "activa", verdict: "equivale", votes_no: 3 });
   });
 
   it("administración la desactiva y la reactiva; RRHH no puede", async () => {
