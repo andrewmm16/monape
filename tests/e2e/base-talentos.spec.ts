@@ -93,7 +93,8 @@ test("una entrevista realizada se evalúa en equipo; el candidato cerrado se eti
     "Formación en ingeniería industrial y manejo de herramientas de análisis de información.",
   ]);
   await page.locator('input[type="file"]').setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdf) });
-  await expect(page.getByTestId("batch-item")).toHaveCount(1);
+  // La lectura de los CV puede tardar con el equipo cargado.
+  await expect(page.getByTestId("batch-item")).toHaveCount(1, { timeout: 30_000 });
   await page.getByRole("button", { name: "Registrar seleccionados (1)" }).click();
   await expect(page.getByText(/Registrados: 1/)).toBeVisible();
 
@@ -149,6 +150,8 @@ test("una entrevista realizada se evalúa en equipo; el candidato cerrado se eti
 
   // --- 5. Ficha: etiqueta de finalista y sin contactos todavía.
   await page.getByRole("link", { name: "Ver ficha y CV" }).click();
+  // La postulación también muestra el nombre: se espera la URL de la ficha antes de guardarla.
+  await page.waitForURL(/\/candidatos\/[0-9a-f-]{36}/);
   await expect(page.getByRole("heading", { name: candidateName })).toBeVisible();
   const candidateUrl = page.url().split("?")[0]!;
   await expect(page.getByText("Aún no se ha contactado a este candidato desde la base de talentos.")).toBeVisible();

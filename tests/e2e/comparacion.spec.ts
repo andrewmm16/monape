@@ -82,7 +82,8 @@ test("RRHH compara candidatos: los mejores, la selección manual y un «no cumpl
       buffer: Buffer.from(files[key]),
     })),
   );
-  await expect(page.getByTestId("batch-item")).toHaveCount(3);
+  // La lectura de los CV puede tardar con el equipo cargado.
+  await expect(page.getByTestId("batch-item")).toHaveCount(3, { timeout: 30_000 });
   await expect(page.getByLabel("Nombre de high.pdf")).toHaveValue(names.high);
   await page.getByRole("button", { name: "Registrar seleccionados (3)" }).click();
   await expect(page.getByText(/Registrados: 3 · Evaluados por reglas: 3/)).toBeVisible();

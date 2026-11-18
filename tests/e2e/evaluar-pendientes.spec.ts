@@ -70,7 +70,8 @@ test("evalúa de una vez las postulaciones pendientes y ordena la lista por comp
       buffer: Buffer.from(files[key]),
     })),
   );
-  await expect(page.getByTestId("batch-item")).toHaveCount(3);
+  // La lectura de los CV puede tardar con el equipo cargado.
+  await expect(page.getByTestId("batch-item")).toHaveCount(3, { timeout: 30_000 });
   await expect(page.getByLabel("Nombre de high.pdf")).toHaveValue(names.high);
   await page.getByRole("button", { name: "Registrar seleccionados (3)" }).click();
   await expect(page.getByText(/Registrados: 3 · Evaluados por reglas: 0/)).toBeVisible();
