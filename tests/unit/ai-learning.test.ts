@@ -71,13 +71,25 @@ describe("reglas aprendidas en el motor", () => {
   it("nunca en requisitos legales o esenciales, ni con reglas de otro requisito", () => {
     const esencial = { ...OBRA, isEssential: true };
     expect(evalua(ASISTENTE, [rule("Asistente de Residencia", "equivale", esencial)], esencial).resolvedBy).toBeUndefined();
-    const otro = { ...OBRA, description: "Experiencia en ventas" };
+    const otro = { ...OBRA, description: "Experiencia en ventas", keywords: ["ventas", "ejecutivo comercial"] };
     expect(evalua(ASISTENTE, [rule("Asistente de Residencia", "equivale", otro)]).resolvedBy).toBeUndefined();
+    // Misma categoría y mismas palabras clave con otra redacción: la regla sí aplica.
+    const reescrito = { ...OBRA, description: "Experiencia supervisando obras (5 años)" };
+    expect(evalua(ASISTENTE, [rule("Asistente de Residencia", "equivale", OBRA)], reescrito).resolvedBy).toBe("regla_aprendida");
   });
 
-  it("la clave del requisito ignora mayúsculas, tildes y espacios; el término se valida", () => {
-    expect(requirementKey({ category: "experiencia", description: "Mínimo  5 AÑOS de Supervisión" })).toBe(
-      requirementKey({ category: "experiencia", description: "minimo 5 anos de supervision" }),
+  it("una regla sirve en vacantes con el mismo requisito aunque cambie la redacción; el término se valida", () => {
+    // Mismas palabras clave (otro orden, tildes, mayúsculas) y otra redacción: misma regla.
+    expect(requirementKey({ category: "experiencia", description: "Mínimo 5 años en supervisión de obras", keywords: ["Supervisor de Obra", "residente de obra"] })).toBe(
+      requirementKey({ category: "experiencia", description: "Experiencia supervisando obras", keywords: ["Residente de Obra", "supervisor de obra", "SUPERVISOR DE OBRA"] }),
+    );
+    // Otra categoría u otras palabras clave: otra regla.
+    expect(requirementKey({ category: "formacion", description: "x", keywords: ["residente de obra"] })).not.toBe(
+      requirementKey({ category: "experiencia", description: "x", keywords: ["residente de obra"] }),
+    );
+    // Sin palabras clave: la descripción normalizada.
+    expect(requirementKey({ category: "experiencia", description: "Mínimo  5 AÑOS de Supervisión", keywords: [] })).toBe(
+      requirementKey({ category: "experiencia", description: "minimo 5 anos de supervision", keywords: [] }),
     );
     expect(normalizeLearnedTerm(" «Asistente de Residencia». ")).toEqual({ term: "asistente de residencia", display: "Asistente de Residencia" });
     expect(normalizeLearnedTerm("uno dos tres cuatro cinco seis siete")).toBeNull();

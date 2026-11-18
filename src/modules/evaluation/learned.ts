@@ -27,9 +27,21 @@ export type LearnedRule = {
   verdict: LearnedVerdict;
 };
 
-/** Requisito al que aplica una regla: misma categoría y misma descripción (normalizada). */
-export function requirementKey(requirement: Pick<RequirementInput, "category" | "description">): string {
-  return `${requirement.category}:${normalizeTerm(requirement.description).replace(/\s+/g, " ").trim()}`;
+const clean = (text: string) => normalizeTerm(text).replace(/\s+/g, " ").trim();
+
+/**
+ * A qué requisitos aplica una regla: misma categoría y mismas palabras clave
+ * (sin importar orden, mayúsculas ni tildes), para que lo aprendido en una
+ * vacante sirva en todas las que piden lo mismo aunque la redacción cambie
+ * («Mínimo 5 años en supervisión de obras» / «Experiencia supervisando obras»).
+ * Sin palabras clave, la descripción normalizada. Los años y el nivel no entran:
+ * una regla dice si un término cuenta, y el motor sigue revisando años y nivel.
+ */
+export function requirementKey(requirement: Pick<RequirementInput, "category" | "description" | "keywords">): string {
+  const keywords = [...new Set((requirement.keywords ?? []).map(clean).filter(Boolean))].sort();
+  return keywords.length > 0
+    ? `${requirement.category}:t:${keywords.join("|")}`.slice(0, 700)
+    : `${requirement.category}:d:${clean(requirement.description)}`.slice(0, 700);
 }
 
 /** Normaliza el término del CV que propone la IA: 1 a 6 palabras, 2 a 80 caracteres. Null si no sirve. */
