@@ -118,13 +118,13 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
         <EmptyState title="No se encontraron candidatos" />
       ) : (
         <div className="overflow-x-auto rounded-md border bg-card shadow-xs">
-          <Table>
+          <Table stacked>
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead className="hidden md:table-cell">Ubicación</TableHead>
+                <TableHead className="sm:max-md:hidden">Ubicación</TableHead>
                 <TableHead className="hidden lg:table-cell">Fuente</TableHead>
-                <TableHead className="hidden md:table-cell">Etiquetas</TableHead>
+                <TableHead className="sm:max-md:hidden">Etiquetas</TableHead>
                 <TableHead className="hidden lg:table-cell">Consentimiento</TableHead>
                 <TableHead className="text-right">Postulaciones</TableHead>
                 <TableHead className="hidden md:table-cell">Registro</TableHead>
@@ -142,9 +142,9 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
                     </Link>
                     <span className="block text-xs text-muted-foreground md:hidden">{c.location ?? ""}</span>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{c.location ?? "—"}</TableCell>
+                  <TableCell data-label="Ubicación" className="sm:max-md:hidden">{c.location ?? "—"}</TableCell>
                   <TableCell className="hidden lg:table-cell">{CANDIDATE_SOURCE_LABELS[c.source]}</TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell data-label="Etiquetas" className="sm:max-md:hidden">
                     {c.tags.length === 0 ? (
                       "—"
                     ) : (
@@ -161,7 +161,7 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
                   <TableCell className="hidden lg:table-cell">
                     <TalentConsentBadge state={c.consent} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{c.applications[0]?.count ?? 0}</TableCell>
+                  <TableCell data-label="Postulaciones" className="text-right tabular-nums">{c.applications[0]?.count ?? 0}</TableCell>
                   <TableCell className="hidden md:table-cell">{formatDate(c.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <ReactivateCandidateDialog candidateId={c.id} vacancies={vacancies} variant="outline" size="sm" />

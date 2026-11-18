@@ -3,7 +3,23 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * En el celular (< 640 px), cada fila pasa a ser una tarjeta: se ocultan los
+ * encabezados y cada celda muestra el suyo desde su `data-label` (las celdas
+ * sin `data-label`, como el nombre o las acciones, van sin título). Las celdas
+ * con `hidden` siguen ocultas; la casilla de selección va arriba a la derecha.
+ * En pantallas mayores es una tabla normal.
+ */
+const STACKED_ON_MOBILE = [
+  "max-sm:block max-sm:[&_thead]:hidden max-sm:[&_tbody]:block",
+  "max-sm:[&_tr]:relative max-sm:[&_tr]:flex max-sm:[&_tr]:flex-col max-sm:[&_tr]:gap-2 max-sm:[&_tr]:py-3",
+  "max-sm:[&_td:not(.hidden)]:block max-sm:[&_td]:px-3 max-sm:[&_td]:py-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal",
+  "max-sm:[&_td:empty]:hidden",
+  "max-sm:[&_tr:has([type=checkbox],[role=checkbox])]:pr-10 max-sm:[&_td:has([type=checkbox],[role=checkbox])]:absolute max-sm:[&_td:has([type=checkbox],[role=checkbox])]:top-3 max-sm:[&_td:has([type=checkbox],[role=checkbox])]:right-0",
+  "max-sm:[&_td[data-label]]:before:mb-0.5 max-sm:[&_td[data-label]]:before:block max-sm:[&_td[data-label]]:before:text-xs max-sm:[&_td[data-label]]:before:font-normal max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
+].join(" ")
+
+function Table({ className, stacked = false, ...props }: React.ComponentProps<"table"> & { stacked?: boolean }) {
   return (
     <div
       data-slot="table-container"
@@ -11,7 +27,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm", stacked && STACKED_ON_MOBILE, className)}
         {...props}
       />
     </div>

@@ -80,13 +80,13 @@ export default async function InboxPage({ searchParams }: PageProps<"/postulacio
         />
       ) : (
         <div className="overflow-hidden rounded-md border bg-card shadow-xs">
-          <Table>
+          <Table stacked>
             <TableHeader>
               <TableRow>
                 <TableHead>Candidato</TableHead>
                 <TableHead>Vacante</TableHead>
                 <TableHead>Portal</TableHead>
-                <TableHead className="hidden md:table-cell">Ingreso</TableHead>
+                <TableHead className="sm:max-md:hidden">Ingreso</TableHead>
                 <TableHead>Cumplimiento</TableHead>
                 <TableHead>Fecha</TableHead>
               </TableRow>
@@ -101,20 +101,20 @@ export default async function InboxPage({ searchParams }: PageProps<"/postulacio
                     <div className="text-xs text-muted-foreground">{row.candidate_email}</div>
                     <PossibleDuplicate reasons={row.possible_duplicate_reasons} />
                   </TableCell>
-                  <TableCell className="whitespace-normal">
+                  <TableCell data-label="Vacante" className="whitespace-normal">
                     <Link href={`/vacantes/${row.vacancy_id}`} className="hover:underline">
                       {row.vacancy_title}
                     </Link>
                   </TableCell>
-                  <TableCell>{row.portal_name ?? "—"}</TableCell>
-                  <TableCell className="hidden md:table-cell">{row.intake_method ? INTAKE_METHOD_LABELS[row.intake_method] : "—"}</TableCell>
-                  <TableCell className="whitespace-normal">
+                  <TableCell data-label="Portal">{row.portal_name ?? "—"}</TableCell>
+                  <TableCell data-label="Ingreso" className="sm:max-md:hidden">{row.intake_method ? INTAKE_METHOD_LABELS[row.intake_method] : "—"}</TableCell>
+                  <TableCell data-label="Cumplimiento" className="whitespace-normal">
                     <CompatibilityBadge level={row.level} />
                     {row.evaluation_id ? (
                       <div className="mt-1 text-xs text-muted-foreground">{formatPercent(row.score)} acreditado</div>
                     ) : null}
                   </TableCell>
-                  <TableCell>{formatDateTime(row.applied_at)}</TableCell>
+                  <TableCell data-label="Fecha">{formatDateTime(row.applied_at)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

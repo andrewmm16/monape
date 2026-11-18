@@ -140,7 +140,7 @@ export function VacancySuggestions({
         </span>
       </div>
 
-      <Table>
+      <Table stacked>
         <TableHeader>
           <TableRow>
             <TableHead className="w-8">
@@ -176,8 +176,8 @@ export function VacancySuggestions({
                   </div>
                 ) : null}
               </TableCell>
-              <TableCell>{candidate.location || "—"}</TableCell>
-              <TableCell>
+              <TableCell data-label="Ubicación">{candidate.location || "—"}</TableCell>
+              <TableCell data-label="Coincidencias">
                 <div className="flex flex-wrap items-center gap-1" title={candidate.matchedTerms.join(", ")}>
                   <span className="font-medium">{candidate.matchCount}</span>
                   {candidate.matchedTerms.slice(0, 4).map((term) => (
@@ -190,7 +190,7 @@ export function VacancySuggestions({
                   ) : null}
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Consentimiento">
                 <TalentConsentBadge state={candidate.consent} />
               </TableCell>
             </TableRow>

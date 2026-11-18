@@ -85,7 +85,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
         />
       ) : (
         <div className="overflow-hidden rounded-md border bg-card shadow-xs">
-          <Table>
+          <Table stacked>
             <TableHeader>
               <TableRow>
                 <TableHead>Fecha</TableHead>
@@ -99,12 +99,12 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
                 const { text, href, details } = describeAuditEntry(row, context);
                 return (
                   <TableRow key={row.id} className="align-top">
-                    <TableCell className="whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
-                    <TableCell className="whitespace-normal">
+                    <TableCell data-label="Fecha" className="whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
+                    <TableCell data-label="Quién" className="whitespace-normal">
                       {row.actor_name}
                       {row.actor_detail ? <div className="text-xs text-muted-foreground">{row.actor_detail}</div> : null}
                     </TableCell>
-                    <TableCell className="whitespace-normal">
+                    <TableCell data-label="Qué hizo" className="whitespace-normal">
                       <div>{text}</div>
                       {details.length > 0 ? (
                         <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">

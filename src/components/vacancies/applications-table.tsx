@@ -115,7 +115,7 @@ export function ApplicationsTable({
         <input type="hidden" name="tab" value="candidatos" />
         <input type="hidden" name="vista" value={params.vista} />
         <Input name="q" defaultValue={params.q} placeholder="Buscar por nombre o correo" className="md:w-64" aria-label="Buscar" />
-        <NativeSelect name="status" defaultValue={params.status} aria-label="Estado del proceso" className="md:w-52">
+        <NativeSelect name="status" defaultValue={params.status} aria-label="Estado del proceso" className="w-full md:w-fit">
           <NativeSelectOption value="">{params.vista === "descartados" ? "No seleccionados y retirados" : "Todos los estados en proceso"}</NativeSelectOption>
           {statusesOfView(params.vista).map((status) => (
             <NativeSelectOption key={status} value={status}>
@@ -123,7 +123,7 @@ export function ApplicationsTable({
             </NativeSelectOption>
           ))}
         </NativeSelect>
-        <NativeSelect name="level" defaultValue={params.level} aria-label="Nivel de cumplimiento" className="md:w-52">
+        <NativeSelect name="level" defaultValue={params.level} aria-label="Nivel de cumplimiento" className="w-full md:w-fit">
           <NativeSelectOption value="">Todo nivel de cumplimiento</NativeSelectOption>
           {Constants.public.Enums.compatibility_level.map((level) => (
             <NativeSelectOption key={level} value={level}>
@@ -132,7 +132,7 @@ export function ApplicationsTable({
           ))}
           <NativeSelectOption value="sin_evaluar">Sin evaluar</NativeSelectOption>
         </NativeSelect>
-        <NativeSelect name="sort" defaultValue={params.sort} aria-label="Ordenar por" className="md:w-48">
+        <NativeSelect name="sort" defaultValue={params.sort} aria-label="Ordenar por" className="w-full md:w-fit">
           <NativeSelectOption value="puntuacion">Mayor puntuación primero</NativeSelectOption>
           <NativeSelectOption value="fecha">Más recientes</NativeSelectOption>
           <NativeSelectOption value="nombre">Nombre (A-Z)</NativeSelectOption>
@@ -161,7 +161,7 @@ export function ApplicationsTable({
           />
         ) : null}
         <div className="overflow-hidden rounded-md border bg-card shadow-xs">
-          <Table>
+          <Table stacked>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">
@@ -202,7 +202,7 @@ export function ApplicationsTable({
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell className="whitespace-normal">
+                  <TableCell data-label="Cumplimiento y posición" className="whitespace-normal">
                     {row.evaluation_id ? (
                       <>
                         <div className="text-lg font-semibold tabular-nums">{formatPercent(row.score)}</div>
@@ -226,7 +226,7 @@ export function ApplicationsTable({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>{row.status ? <ApplicationStatusBadge status={row.status} /> : null}</TableCell>
+                  <TableCell data-label="Estado">{row.status ? <ApplicationStatusBadge status={row.status} /> : null}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -47,13 +47,13 @@ export default async function UsersPage() {
         </CardContent>
       </Card>
       <div className="overflow-hidden rounded-md border bg-card shadow-xs">
-        <Table>
+        <Table stacked>
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead className="hidden md:table-cell">Correo</TableHead>
+              <TableHead className="sm:max-md:hidden">Correo</TableHead>
               <TableHead>Rol</TableHead>
-              <TableHead className="hidden lg:table-cell">Alta</TableHead>
+              <TableHead className="sm:max-lg:hidden">Alta</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -61,9 +61,9 @@ export default async function UsersPage() {
             {profiles.map((profile) => (
               <TableRow key={profile.id}>
                 <TableCell className="font-medium">{profile.full_name}</TableCell>
-                <TableCell className="hidden md:table-cell">{profile.email}</TableCell>
-                <TableCell>{ROLE_LABELS[profile.role]}</TableCell>
-                <TableCell className="hidden lg:table-cell">{formatDate(profile.created_at)}</TableCell>
+                <TableCell data-label="Correo" className="sm:max-md:hidden">{profile.email}</TableCell>
+                <TableCell data-label="Rol">{ROLE_LABELS[profile.role]}</TableCell>
+                <TableCell data-label="Alta" className="sm:max-lg:hidden">{formatDate(profile.created_at)}</TableCell>
                 <TableCell className="text-right">
                   {profile.id === user.id ? (
                     <span className="text-xs text-muted-foreground">Su cuenta</span>

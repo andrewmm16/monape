@@ -59,7 +59,7 @@ export function KillerQuestionsPanel({
             description="Úselas para requisitos objetivos que no se leen en el CV: residencia, licencias, disponibilidad o pretensión salarial."
           />
         ) : (
-          <Table>
+          <Table stacked>
             <TableHeader>
               <TableRow>
                 <TableHead>Pregunta</TableHead>
@@ -75,8 +75,8 @@ export function KillerQuestionsPanel({
                     <div className="font-medium">{question.question}</div>
                     {question.is_required ? <Badge variant="outline" className="mt-1">Obligatoria</Badge> : null}
                   </TableCell>
-                  <TableCell>{KILLER_QUESTION_TYPE_LABELS[question.question_type]}</TableCell>
-                  <TableCell className="max-w-xs whitespace-normal text-sm text-muted-foreground">
+                  <TableCell data-label="Tipo">{KILLER_QUESTION_TYPE_LABELS[question.question_type]}</TableCell>
+                  <TableCell data-label="Condición" className="max-w-xs whitespace-normal text-sm text-muted-foreground">
                     {conditionLabel(question)}
                   </TableCell>
                   <TableCell className="text-right">

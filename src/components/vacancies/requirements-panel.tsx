@@ -142,7 +142,7 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
         ) : (
           <>
           {canManage ? <AuditoriaCriterios requirements={requirements} /> : null}
-          <Table>
+          <Table stacked>
             <TableHeader>
               <TableRow>
                 <TableHead>Requisito</TableHead>
@@ -169,9 +169,9 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
                         : "Sin términos de búsqueda: requiere revisión manual"}
                     </div>
                   </TableCell>
-                  <TableCell>{REQUIREMENT_CATEGORY_LABELS[requirement.category]}</TableCell>
-                  <TableCell>{REQUIREMENT_PRIORITY_LABELS[requirement.priority]}</TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell data-label="Tipo">{REQUIREMENT_CATEGORY_LABELS[requirement.category]}</TableCell>
+                  <TableCell data-label="Prioridad">{REQUIREMENT_PRIORITY_LABELS[requirement.priority]}</TableCell>
+                  <TableCell data-label="Peso" className="text-right tabular-nums">
                     {requirement.weight}
                     <div className="text-xs text-muted-foreground">
                       {totalWeight > 0 ? `${Math.round((requirement.weight / totalWeight) * 100)} %` : "—"}
