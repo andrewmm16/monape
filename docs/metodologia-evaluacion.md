@@ -67,6 +67,10 @@ El modelo propone una valoración y citas por requisito; el sistema descarta cit
 | v2 (dudas del motor, valoraciones de v1) | 83 % | 86 % | 98 % |
 | **v3** (valoraciones alineadas con la metodología) | **94 %** | **96 %** | 98 % |
 | v3, contando *pendiente* = *sin evidencia* (mismo efecto en el puntaje) | 98 % | **99 %** | 98 % |
+| v3 con **claude-haiku-5-5** (~13 s por CV) | 92 % | 96 % | 98 % |
+| v3 con Haiku, contando *pendiente* = *sin evidencia* | 96 % | **100 %** | 98 % |
+
+Con Haiku, la política «motor + IA en lo dudoso» rinde igual que con Opus. Haiku es más estricto al acreditar (10 casillas que la vara acredita las deja *pendientes*, frente a 4 con Opus) y comete un error caro que Opus no comete: da por cumplidos «5 años en ejecución de obra» con 15 años como maestro de obra (la vara: *pendiente*, no es residente ni supervisor).
 
 - En v2, 25 de los 42 desacuerdos eran de definición, no de lectura: la IA ponía «no cumple» en lo que estaba por debajo de lo pedido (p. ej., inglés A2 cuando se pedía B1) o en una formación de otra área, como mandaba el prompt v1. v3 los alinea: «nivel inferior» pasó de 8 % a 100 %.
 - La IA acierta donde el motor no puede: los 5 «no cumplido» explícitos («sin experiencia en planillas») y las menciones dudosas (2/2).
