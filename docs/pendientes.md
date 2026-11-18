@@ -70,4 +70,4 @@ Falta un dominio verificado en Resend para enviar de verdad, que se configura en
 - [ ] Pruebas de seguridad contra Supabase real; pentest externo recomendado.
 - [x] Plazo de conservación: la administración revisa a los candidatos sin actividad y los anonimiza a mano («Candidatos → Plazo de conservación»).
 - [x] Recordatorios automáticos de entrevista (tarea programada diaria).
-- [ ] Portal del candidato: **implementado y apagado**. Se enciende en «Configuración → Portal del candidato» cuando RRHH apruebe qué se muestra.
+- [ ] Portal del candidato: **implementado y apagado**. Se enciende en «Configuración → Portal del candidato» cuando RRHH apruebe qué se muestra. Encendido, el enlace (estable) va solo en los correos a la persona candidata.

@@ -15,6 +15,8 @@ La aplicación envía sus propios correos con Resend, desde el servidor (`src/mo
 | Invitación de la base de talentos | Candidatos del histórico | Desde la vacante, «Invitar por correo». Exige el buzón de respuestas configurado |
 | Mensaje a la persona candidata | Persona candidata | Desde la postulación |
 
+Con el **portal del candidato** encendido («Configuración → Portal del candidato»), los correos a la persona candidata (acuse, cambios de estado y entrevistas) llevan al final su enlace de seguimiento. El enlace es el mismo en todos sus correos; desde la ficha se puede renovar si se envió a quien no correspondía. Los enlaces se arman con `APP_URL`.
+
 Variables (ver `.env.example`):
 - `EMAIL_DELIVERY_MODE=test` (por defecto): no se envía nada. Así corren el desarrollo y las pruebas.
 - `EMAIL_DELIVERY_MODE=live`: envío real. Exige `RESEND_API_KEY` y `EMAIL_FROM`.

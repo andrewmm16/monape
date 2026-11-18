@@ -445,6 +445,7 @@ function describeText(entry: AuditEntry, metadata: Record<string, unknown>): str
   if (action === "delete_requested") return "Pidió eliminar definitivamente a un usuario";
   if (action === "candidato_anonimizado") return "Anonimizó a un candidato por el plazo de conservación";
   if (action === "enlace_seguimiento_creado") return "Generó el enlace de seguimiento de una postulación";
+  if (action === "enlace_seguimiento_renovado") return "Renovó el enlace de seguimiento de una postulación (el anterior dejó de funcionar)";
   if (action === "carga_masiva") return "Cargó una postulación en lote";
   if (action === "integracion_postulacion") return "Recibió una postulación por una integración";
   if (action === "formulario_postulacion") return "Recibió una postulación por el formulario en línea";

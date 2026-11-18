@@ -1,4 +1,5 @@
 import "server-only";
+import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Enums } from "@/types/database";
@@ -11,6 +12,28 @@ export async function isCandidatePortalEnabled(supabase: AppSupabaseClient): Pro
     return false;
   }
   return Boolean(data?.enabled);
+}
+
+/** URL pública del enlace de seguimiento. */
+export function trackingUrl(token: string): string {
+  return new URL(`/seguimiento/${token}`, getServerEnv().APP_URL).toString();
+}
+
+/**
+ * Enlace de seguimiento de una postulación para incluirlo en los correos a la
+ * persona candidata: null si el portal está apagado o algo falla (el correo
+ * sale igual, sin el enlace). Es estable: el mismo en cada correo. Nunca lanza.
+ */
+export async function getTrackingUrlForEmail(client: AppSupabaseClient, applicationId: string): Promise<string | null> {
+  try {
+    if (!(await isCandidatePortalEnabled(client))) return null;
+    const { data, error } = await client.rpc("get_application_tracking_link", { p_application_id: applicationId });
+    if (error) throw error;
+    return data ? trackingUrl(data) : null;
+  } catch (error) {
+    logServerError("candidate_portal.email_link", error);
+    return null;
+  }
 }
 
 export const PORTAL_STAGES = ["recibida", "en_revision", "entrevista", "evaluacion_final", "seleccionado", "finalizado"] as const;

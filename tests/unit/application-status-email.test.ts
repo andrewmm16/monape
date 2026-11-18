@@ -8,13 +8,15 @@ const mocks = vi.hoisted(() => ({
   row: { id: "x", candidates: { full_name: "Ana Pérez", email: "ana@example.com" }, vacancies: { title: "Contador" } } as unknown,
   lookupError: null as unknown,
   afterThrows: false,
+  /** Envíos diferidos con `after`: las pruebas esperan a que terminen. */
+  pending: [] as Promise<void>[],
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("next/server", () => ({
   after: (fn: () => Promise<void>) => {
     if (mocks.afterThrows) throw new Error("fuera de request");
-    return fn();
+    mocks.pending.push(fn());
   },
 }));
 vi.mock("@/lib/auth/session", () => ({
@@ -33,7 +35,14 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { changeApplicationStatus } from "@/modules/applications/actions";
+import { changeApplicationStatus as changeStatusAction } from "@/modules/applications/actions";
+
+/** La acción y, después, los envíos diferidos que haya programado. */
+async function changeApplicationStatus(input: Parameters<typeof changeStatusAction>[0]) {
+  const result = await changeStatusAction(input);
+  await Promise.all(mocks.pending.splice(0));
+  return result;
+}
 
 const base = { applicationId: APP, reason: "Perfil no encaja con el puesto", note: "interna" };
 

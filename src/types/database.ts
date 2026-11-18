@@ -222,19 +222,19 @@ export type Database = {
           application_id: string
           created_at: string
           created_by: string | null
-          token_hash: string
+          token: string
         }
         Insert: {
           application_id: string
           created_at?: string
           created_by?: string | null
-          token_hash: string
+          token: string
         }
         Update: {
           application_id?: string
           created_at?: string
           created_by?: string | null
-          token_hash?: string
+          token?: string
         }
         Relationships: [
           {
@@ -2675,12 +2675,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      create_application_tracking_link: {
-        Args: {
-          p_application_id: string | null
-        }
-        Returns: string
-      }
       current_privacy_notice: {
         Args: never
         Returns: {
@@ -2726,6 +2720,13 @@ export type Database = {
           p_outcome: string | null
         }
         Returns: undefined
+      }
+      get_application_tracking_link: {
+        Args: {
+          p_application_id: string | null
+          p_renew?: boolean | null
+        }
+        Returns: string
       }
       get_dashboard_summary: {
         Args: never

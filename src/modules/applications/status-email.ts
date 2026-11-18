@@ -6,12 +6,14 @@ import type { AppSupabaseClient } from "@/lib/supabase/server";
 import { isEmailTemplateKey } from "@/modules/email-templates/defaults";
 import { getEditedTemplate } from "@/modules/email-templates/queries";
 import { renderEditableTemplate } from "@/modules/email-templates/render";
+import { getTrackingUrlForEmail } from "@/modules/candidate-portal/queries";
 import { sendEmail } from "@/modules/notifications/email/client";
 import type { EmailContent } from "@/modules/notifications/email/templates/application-received";
 import { buildApplicationInterviewEmail } from "@/modules/notifications/email/templates/application-status-interview";
 import { buildApplicationRejectedEmail } from "@/modules/notifications/email/templates/application-status-rejected";
 import { buildApplicationSelectedEmail } from "@/modules/notifications/email/templates/application-status-selected";
 import type { ApplicationStatusEmailInput } from "@/modules/notifications/email/templates/application-status-shared";
+import { withTrackingLink } from "@/modules/notifications/email/templates/tracking-footer";
 import type { Enums } from "@/types/database";
 import { isCommunicableStatus } from "./communicable";
 
@@ -56,7 +58,9 @@ export async function sendApplicationStatusEmail(
       };
       // Versión editada por RRHH si existe; si no, el texto por defecto del código.
       const edited = isEmailTemplateKey(status) ? await getEditedTemplate(supabase, status) : null;
-      const content = edited ? renderEditableTemplate(edited, templateInput) : build(templateInput);
+      const base = edited ? renderEditableTemplate(edited, templateInput) : build(templateInput);
+      // Con el portal del candidato encendido, el correo lleva su enlace de seguimiento.
+      const content = withTrackingLink(base, await getTrackingUrlForEmail(supabase, applicationId));
       const sent = await sendEmail({
         to: email,
         subject: content.subject,

@@ -11,7 +11,7 @@ import {
   user,
 } from "./harness";
 
-/** Portal del candidato: enlace de seguimiento y estado público (apagado por defecto). */
+/** Portal del candidato: enlace de seguimiento estable y estado público (apagado por defecto). */
 let db: PGlite;
 let admin: string;
 let rrhh: string;
@@ -28,18 +28,21 @@ afterAll(async () => {
   await db.close();
 });
 
+/** Como la clave de servicio de Supabase (rol y JWT `service_role`). */
 async function asService<T>(fn: () => Promise<T>): Promise<T> {
+  await db.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ role: "service_role" })]);
   await db.exec("set role service_role");
   try {
     return await fn();
   } finally {
     await db.exec("reset role");
+    await db.query("select set_config('request.jwt.claims', '', false)");
   }
 }
 
-const createLink = (actor: string) =>
+const link = (actor: string, renew = false) =>
   asActor(db, user(actor), () =>
-    db.query<{ token: string }>("select public.create_application_tracking_link($1) as token", [applicationId]),
+    db.query<{ token: string }>("select public.get_application_tracking_link($1, $2) as token", [applicationId, renew]),
   ).then((r) => r.rows[0]!.token);
 
 const status = (token: string) =>
@@ -52,14 +55,15 @@ const setEnabled = (actor: string, enabled: boolean) =>
 
 describe("portal del candidato", () => {
   it("apagado por defecto: el enlace no muestra nada", async () => {
-    const token = await createLink(rrhh);
+    const token = await link(rrhh);
     expect(token).toMatch(/^[0-9a-f]{64}$/);
     expect(await status(token)).toBeNull();
   });
 
-  it("encendido: muestra la etapa sin datos internos; un enlace nuevo invalida el anterior", async () => {
+  it("el enlace es estable (el mismo en cada correo) y renovarlo anula el anterior", async () => {
     await setEnabled(admin, true);
-    const first = await createLink(rrhh);
+    const first = await link(rrhh);
+    expect(await link(rrhh)).toBe(first);
     const shown = await status(first);
     expect(shown).toMatchObject({ vacancy_title: "Analista de Datos", stage: "recibida", next_interview: null });
     expect(Object.keys(shown!).sort()).toEqual(["applied_at", "next_interview", "stage", "updated_at", "vacancy_title"]);
@@ -71,27 +75,33 @@ describe("portal del candidato", () => {
     expect(withInterview).toMatchObject({ stage: "entrevista" });
     expect(withInterview!.next_interview).toMatchObject({ modality: "virtual", location: "https://meet.example/z" });
 
-    const second = await createLink(rrhh);
+    const renewed = await link(rrhh, true);
+    expect(renewed).not.toBe(first);
     expect(await status(first)).toBeNull();
-    expect(await status(second)).not.toBeNull();
+    expect(await status(renewed)).not.toBeNull();
     expect(await status("no-es-un-token")).toBeNull();
-  });
 
-  it("se guarda solo la huella del token", async () => {
-    const token = await createLink(rrhh);
-    const { rows } = await db.query<{ token_hash: string }>(
-      "select token_hash from public.application_tracking_tokens where application_id = $1",
+    const { rows } = await db.query<{ action: string }>(
+      "select action from public.audit_logs where entity_id = $1 and action like 'enlace_seguimiento_%' order by id",
       [applicationId],
     );
-    expect(rows[0]!.token_hash).not.toBe(token);
-    expect(rows[0]!.token_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(rows.map((row) => row.action)).toEqual(["enlace_seguimiento_creado", "enlace_seguimiento_renovado"]);
   });
 
-  it("permisos: RRHH no enciende el portal; solo el servidor lee el estado público", async () => {
+  it("la clave de servicio obtiene el enlace (acuse del formulario público)", async () => {
+    const { rows } = await asService(() =>
+      db.query<{ token: string }>("select public.get_application_tracking_link($1) as token", [applicationId]),
+    );
+    expect(rows[0]!.token).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("permisos: RRHH no enciende el portal; solo el servidor lee el estado público; anon no obtiene enlaces", async () => {
     await setEnabled(rrhh, false);
     const { rows } = await db.query<{ enabled: boolean }>("select enabled from public.candidate_portal_settings");
     expect(rows[0]!.enabled).toBe(true); // la RLS no dejó cambiarlo
     await expectError(asActor(db, user(rrhh), () => db.query("select public.public_application_status('x')")));
     await expectError(asActor(db, user(rrhh), () => db.query("select * from public.application_tracking_tokens")));
+    const caleta = await createUser(db, "reclutador_caleta", "Caleta");
+    await expectError(link(caleta));
   });
 });

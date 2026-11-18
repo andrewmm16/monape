@@ -12,6 +12,8 @@ import { buildInterviewerEmail } from "@/modules/notifications/email/templates/i
 import { buildInterviewReminderEmail } from "@/modules/notifications/email/templates/interview-reminder";
 import { buildInterviewRescheduledEmail } from "@/modules/notifications/email/templates/interview-rescheduled";
 import type { InterviewEmailDetails } from "@/modules/notifications/email/templates/interview-shared";
+import { withTrackingLink } from "@/modules/notifications/email/templates/tracking-footer";
+import { getTrackingUrlForEmail } from "@/modules/candidate-portal/queries";
 
 export type InterviewEmailKind = "invitation" | "rescheduled" | "cancelled" | "reminder";
 
@@ -42,7 +44,12 @@ type InterviewEmailData = NonNullable<Awaited<ReturnType<typeof loadInterview>>>
  * Envía un correo de la entrevista a un destinatario. No registra la dirección
  * ni el contenido: solo identificadores, el tipo de destinatario y el estado.
  */
-async function deliver(data: InterviewEmailData, kind: InterviewEmailKind, recipient: InterviewEmailRecipient): Promise<SendOutcome> {
+async function deliver(
+  supabase: AppSupabaseClient,
+  data: InterviewEmailData,
+  kind: InterviewEmailKind,
+  recipient: InterviewEmailRecipient,
+): Promise<SendOutcome> {
   const env = getServerEnv();
   const candidate = data.applications?.candidates;
   const details = {
@@ -59,7 +66,11 @@ async function deliver(data: InterviewEmailData, kind: InterviewEmailKind, recip
   let content: EmailContent;
   if (recipient.kind === "candidato") {
     to = candidate?.email?.trim();
-    content = CANDIDATE_BUILDERS[kind]({ ...details, fullName: candidate?.full_name ?? "" });
+    // Con el portal del candidato encendido, el correo lleva su enlace de seguimiento.
+    content = withTrackingLink(
+      CANDIDATE_BUILDERS[kind]({ ...details, fullName: candidate?.full_name ?? "" }),
+      to ? await getTrackingUrlForEmail(supabase, data.application_id) : null,
+    );
   } else {
     to = recipient.email.trim();
     content = buildInterviewerEmail(kind, {
@@ -100,7 +111,7 @@ export async function sendInterviewEmail(
       console.info(`[interview.email] interview_id=${interviewId} tipo=${kind} estado=no_encontrada`);
       return { sent: false, withoutEmail: true };
     }
-    return await deliver(data, kind, recipient);
+    return await deliver(supabase, data, kind, recipient);
   } catch (error) {
     logServerError("interview.email", error);
     return { sent: false };
@@ -121,11 +132,11 @@ async function notifyInterview(
   try {
     const data = await loadInterview(supabase, interviewId);
     if (!data) return;
-    await deliver(data, kind, { kind: "candidato" });
+    await deliver(supabase, data, kind, { kind: "candidato" });
     const added = new Set(addedInterviewers.map((email) => email.toLowerCase()));
     for (const email of data.interviewer_emails ?? []) {
       const interviewerKind = kind === "rescheduled" && added.has(email) ? "invitation" : kind;
-      await deliver(data, interviewerKind, { kind: "entrevistador", email });
+      await deliver(supabase, data, interviewerKind, { kind: "entrevistador", email });
     }
   } catch (error) {
     logServerError("interview.email", error);
@@ -192,7 +203,7 @@ export async function sendDueInterviewReminders(admin: AppSupabaseClient): Promi
       const interview = interviews.get(reminder.interview_id);
       const recipient: InterviewEmailRecipient =
         reminder.recipient === "candidato" ? { kind: "candidato" } : { kind: "entrevistador", email: reminder.recipient };
-      outcome = interview ? await deliver(interview, "reminder", recipient) : { sent: false, withoutEmail: true };
+      outcome = interview ? await deliver(admin, interview, "reminder", recipient) : { sent: false, withoutEmail: true };
     } catch (sendError) {
       logServerError("interview.reminder", sendError);
       outcome = { sent: false };

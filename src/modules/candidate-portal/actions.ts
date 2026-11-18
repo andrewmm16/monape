@@ -4,10 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseInput, runAction, type ActionResult } from "@/lib/action-result";
 import { requirePermission } from "@/lib/auth/session";
-import { getServerEnv } from "@/lib/env";
 import { AppError, toAppError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isCandidatePortalEnabled } from "./queries";
+import { isCandidatePortalEnabled, trackingUrl } from "./queries";
 
 /** Enciende o apaga el portal del candidato (solo administración). */
 export async function setCandidatePortalEnabled(enabled: boolean): Promise<ActionResult> {
@@ -32,10 +31,11 @@ export async function setCandidatePortalEnabled(enabled: boolean): Promise<Actio
 }
 
 /**
- * Genera (o renueva) el enlace de seguimiento de una postulación. El enlace
- * anterior deja de funcionar. Devuelve la URL para copiarla y enviarla.
+ * Enlace de seguimiento de una postulación, para copiarlo y enviarlo. Es el
+ * mismo que va en los correos; con `renew` se genera uno nuevo y el anterior
+ * deja de funcionar (p. ej., si se envió a quien no correspondía).
  */
-export async function createTrackingLink(applicationId: string): Promise<ActionResult<{ url: string }>> {
+export async function getTrackingLink(applicationId: string, renew = false): Promise<ActionResult<{ url: string }>> {
   return runAction(
     "candidate_portal.link",
     async () => {
@@ -45,10 +45,13 @@ export async function createTrackingLink(applicationId: string): Promise<ActionR
       if (!(await isCandidatePortalEnabled(supabase))) {
         throw new AppError("El portal del candidato está apagado.", "conflict");
       }
-      const { data, error } = await supabase.rpc("create_application_tracking_link", { p_application_id: id });
+      const { data, error } = await supabase.rpc("get_application_tracking_link", {
+        p_application_id: id,
+        p_renew: parseInput(z.boolean(), renew),
+      });
       if (error) throw toAppError(error);
-      return { url: new URL(`/seguimiento/${data}`, getServerEnv().APP_URL).toString() };
+      return { url: trackingUrl(data) };
     },
-    "Enlace generado. El anterior, si existía, dejó de funcionar.",
+    renew ? "Enlace renovado. El anterior dejó de funcionar." : undefined,
   );
 }

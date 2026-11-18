@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { reminderSentFor } from "@/modules/interviews/queries";
 import { interviewFormSchema, parseInterviewerEmails } from "@/modules/interviews/schemas";
 import { buildInterviewerEmail } from "@/modules/notifications/email/templates/interview-interviewer";
+import { withTrackingLink } from "@/modules/notifications/email/templates/tracking-footer";
 import { countCopyRows } from "../../scripts/respaldo/comun";
 
 describe("correos de los entrevistadores", () => {
@@ -68,5 +69,29 @@ describe("respaldo: filas por tabla del volcado", () => {
       "\\.",
     ].join("\n");
     expect(countCopyRows(sql)).toEqual({ "public.candidates": 2, "auth.users": 0 });
+  });
+});
+
+describe("enlace de seguimiento en los correos", () => {
+  const base = { subject: "Asunto", html: "<!doctype html><html><body><p>Hola</p></body></html>", text: "Hola" };
+
+  it("sin enlace (portal apagado) el correo queda igual", () => {
+    expect(withTrackingLink(base, null)).toEqual(base);
+  });
+
+  it("agrega el enlace antes del cierre del cuerpo y al final del texto", () => {
+    const url = "https://app.example/seguimiento/" + "a".repeat(64);
+    const email = withTrackingLink(base, url);
+    expect(email.html).toMatch(new RegExp(`<a href="${url}">Ver mi postulación</a></p>\n</body>`));
+    expect(email.text.endsWith(url)).toBe(true);
+    expect(email.subject).toBe("Asunto");
+  });
+
+  it("descarta lo que no es http(s) y escapa el enlace", () => {
+    expect(withTrackingLink(base, "javascript:alert(1)")).toEqual(base);
+    // Las comillas se codifican en la URL y el «&» se escapa en el HTML; el «$» no rompe nada.
+    const html = withTrackingLink(base, 'https://app.example/x?a="b"&$&').html;
+    expect(html).toContain('href="https://app.example/x?a=%22b%22&amp;$&amp;"');
+    expect(html).not.toContain('"b"');
   });
 });

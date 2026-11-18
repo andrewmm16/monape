@@ -11,6 +11,8 @@ import { resumeStoragePath } from "@/modules/intake/paths";
 import { sniffResumeKind } from "@/modules/integrations/talent-apply/resume";
 import { sendEmail } from "@/modules/notifications/email/client";
 import { buildApplicationReceivedEmail } from "@/modules/notifications/email/templates/application-received";
+import { withTrackingLink } from "@/modules/notifications/email/templates/tracking-footer";
+import { getTrackingUrlForEmail } from "@/modules/candidate-portal/queries";
 import { getCurrentPrivacyNotice } from "@/modules/privacy/queries";
 import { getPublicVacancy, listPublicKillerQuestions } from "@/modules/public-jobs/queries";
 import { extractResume, needsOcr } from "@/modules/resumes/extraction";
@@ -93,11 +95,11 @@ function scheduleReceiptEmail(
   const fullName = recipient.fullName;
   after(async () => {
     try {
-      const content = buildApplicationReceivedEmail({
-        fullName,
-        reference,
-        companyName: getServerEnv().PUBLIC_COMPANY_NAME,
-      });
+      // Con el portal del candidato encendido, el acuse lleva el enlace de seguimiento.
+      const content = withTrackingLink(
+        buildApplicationReceivedEmail({ fullName, reference, companyName: getServerEnv().PUBLIC_COMPANY_NAME }),
+        await getTrackingUrlForEmail(createSupabaseAdminClient(), applicationId),
+      );
       const result = await sendEmail({
         to,
         subject: content.subject,
