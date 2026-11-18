@@ -13,13 +13,14 @@
  *
  * Uso: node scripts/caleta/recolector-caleta.mjs [--vacante civil|sanitario|electromec]
  */
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = 'C:\\Users\\Admin\\AppData\\Local\\Temp\\claude\\9165dc7c92781480\\94b4a04a-ee76-438a-835b-67c74992da39\\scratchpad\\salida-caleta';
+// Carpeta ignorada por git (.gitignore: /scripts/caleta/salida/).
+const OUT_DIR = path.join(__dirname, 'salida');
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';

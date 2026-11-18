@@ -3,9 +3,9 @@
  * la tabla `caleta_prospects`, resolviendo la vacante por título y puntuando
  * con el mismo motor determinista que `seed-caleta-prospects.ts`.
  *
- *   npm run db:importar:prospectos [-- --file=<ruta/al/caleta_prospects_import.json>]
+ *   npm run caleta:importar [-- --file=<ruta/al/caleta_prospects_import.json>]
  *
- * Por defecto lee el JSON del scratchpad de la sesión actual. Idempotente:
+ * Por defecto lee scripts/caleta/salida/caleta_prospects_import.json. Idempotente:
  * omite un prospecto si ya existe esa URL de LinkedIn para la misma vacante.
  */
 import fs from "node:fs";
@@ -55,9 +55,8 @@ interface EnrichedProspect {
   };
 }
 
-const defaultFile = path.resolve(
-  "C:\\Users\\Admin\\AppData\\Local\\Temp\\claude\\9165dc7c92781480\\94b4a04a-ee76-438a-835b-67c74992da39\\scratchpad\\salida-caleta\\caleta_prospects_import.json",
-);
+// Salida del recolector (scripts/caleta/recolector-caleta.mjs), ignorada por git.
+const defaultFile = path.resolve(import.meta.dirname, "caleta", "salida", "caleta_prospects_import.json");
 const fileArg = process.argv.find((a) => a.startsWith("--file="))?.split("=")[1];
 const filePath = fileArg ? path.resolve(fileArg) : defaultFile;
 if (!fs.existsSync(filePath)) fail(`No existe el archivo ${filePath}`);

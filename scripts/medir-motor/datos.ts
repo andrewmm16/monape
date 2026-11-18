@@ -1,4 +1,4 @@
-// Datos del banco de pruebas: los 5 puestos de cv-prueba/LEEME.md con sus
+// Datos del banco de pruebas: los 5 puestos de cv-prueba/ (su LEEME.md original ya no está en el repo) con sus
 // requisitos, sus 20 candidatos y el resultado que ese documento daba por
 // esperado.
 //

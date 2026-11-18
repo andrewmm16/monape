@@ -147,24 +147,32 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
   });
   const canManage = can(user.role, "vacancies:manage");
   const canDeleteVacancy = can(user.role, "vacancies:delete");
-  // El conteo solo se usa en la confirmación de borrado en cascada (archivadas).
-  const archivedApplicationCount =
-    vacancy.status === "archivada" && canDeleteVacancy ? await countVacancyApplications(supabase, vacancy.id) : 0;
-
-  // Pasos para publicar: lo que falta y los portales que el robot atiende (se eligen al publicar).
-  const { count: requirementCount, error: requirementCountError } = await supabase
-    .from("vacancy_requirements")
-    .select("id", { count: "exact", head: true })
-    .eq("vacancy_id", vacancy.id);
-  if (requirementCountError) throw requirementCountError;
+  // En paralelo y solo lo que usa la pestaña abierta:
+  // - el conteo de postulaciones, solo para confirmar el borrado en cascada (archivadas);
+  // - los requisitos, para los pasos de un borrador y lo que falta para publicar («Portales»);
+  // - los portales del robot, solo en «Portales».
+  const [archivedApplicationCount, requirementCount, botPortals] = await Promise.all([
+    vacancy.status === "archivada" && canDeleteVacancy ? countVacancyApplications(supabase, vacancy.id) : 0,
+    tab === "portales" || vacancy.status === "borrador"
+      ? supabase
+          .from("vacancy_requirements")
+          .select("id", { count: "exact", head: true })
+          .eq("vacancy_id", vacancy.id)
+          .then(({ count, error }) => {
+            if (error) throw error;
+            return count ?? 0;
+          })
+      : 0,
+    tab === "portales" && canManage && (vacancy.status === "borrador" || vacancy.status === "cerrada")
+      ? listPortalPublications(supabase, vacancy.id).then((rows) =>
+          rows
+            .filter((row) => row.portal.bot_enabled)
+            .map((row) => ({ id: row.portal.id, name: row.portal.name, logo: portalLogo(row.portal.name) })),
+        )
+      : [],
+  ]);
   const criteriaApproved = Boolean(vacancy.criteria_approved_at);
-  const blockers = publishBlockers({ requirementCount: requirementCount ?? 0, criteriaApproved });
-  const botPortals =
-    canManage && (vacancy.status === "borrador" || vacancy.status === "cerrada")
-      ? (await listPortalPublications(supabase, vacancy.id))
-          .filter((row) => row.portal.bot_enabled)
-          .map((row) => ({ id: row.portal.id, name: row.portal.name, logo: portalLogo(row.portal.name) }))
-      : [];
+  const blockers = publishBlockers({ requirementCount, criteriaApproved });
 
   let content: React.ReactNode;
   if (tab === "candidatos") {

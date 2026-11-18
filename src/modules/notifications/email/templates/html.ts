@@ -1,9 +1,2 @@
-/** Escapa texto para insertarlo en HTML de correo. */
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+/** Escapa texto para insertarlo en HTML de correo (misma función que las páginas públicas). */
+export { escapeHtml } from "@/lib/escape-html";

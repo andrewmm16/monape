@@ -49,11 +49,6 @@ export function limaDayKey(value: string | Date): string {
   return isoToLima(value).date;
 }
 
-/** ¿El instante ya pasó? */
-export function isPast(value: string, now: Date = new Date()): boolean {
-  return new Date(value).getTime() < now.getTime();
-}
-
 const weekdayFormatter = new Intl.DateTimeFormat("es-PE", { weekday: "long", timeZone: TIME_ZONE });
 
 /** «Hoy», «Mañana» o «miércoles 30/10» según el día de Lima. */
@@ -78,19 +73,6 @@ export function groupByDay<T extends { scheduled_at: string }>(items: readonly T
     else groups.push({ key, label: dayLabel(item.scheduled_at, now), items: [item] });
   }
   return groups;
-}
-
-const timeFormatter = new Intl.DateTimeFormat("es-PE", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: TIME_ZONE,
-});
-
-/** Hora de Lima (hh:mm). */
-export function formatTime(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : timeFormatter.format(date);
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("es-PE", {

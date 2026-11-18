@@ -158,8 +158,6 @@ export function resetSelectorState(): void {
   loggedAt.clear();
 }
 
-export const selectorFiles = () => ({ overridesFile: state.overridesFile, tolerancesFile: state.tolerancesFile });
-
 /** Escritura atómica: quien lea el archivo ve el contenido anterior o el nuevo, nunca uno a medias. */
 function writeJsonAtomic(file: string, data: unknown): void {
   mkdirSync(path.dirname(file), { recursive: true });

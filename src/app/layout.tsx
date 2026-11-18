@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { connection } from "next/server";
 import { ThemeProvider } from "@/components/app-shell/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const poppins = Poppins({ variable: "--font-sans", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
@@ -24,7 +23,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="es-PE" className={`${poppins.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="flex min-h-full flex-col">
         <ThemeProvider nonce={nonce}>
-          <TooltipProvider>{children}</TooltipProvider>
+          {children}
           {/* Debajo del encabezado (h-14): los avisos no tapan la campana ni el menú. */}
           <Toaster position="top-right" richColors closeButton offset={{ top: 72 }} mobileOffset={{ top: 64 }} />
         </ThemeProvider>

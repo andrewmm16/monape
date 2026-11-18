@@ -27,8 +27,7 @@ export default async function EditVacancyPage({ params }: PageProps<"/vacantes/[
     if (error instanceof AppError && error.code === "not_found") notFound();
     throw error;
   });
-  const owners = await listActiveProfiles(supabase);
-  const portalRows = await listPortalPublications(supabase, vacancy.id);
+  const [owners, portalRows] = await Promise.all([listActiveProfiles(supabase), listPortalPublications(supabase, vacancy.id)]);
 
   return (
     <>

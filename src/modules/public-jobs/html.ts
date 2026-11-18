@@ -3,17 +3,9 @@
  * solo se generan las etiquetas de párrafo y lista que decide este módulo.
  */
 
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
+import { escapeHtml } from "@/lib/escape-html";
 
-export function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]!);
-}
+export { escapeHtml };
 
 const BULLET = /^[-*•–]\s+(.*)$/;
 const NUMBERED = /^\d{1,3}[.)]\s+(.*)$/;

@@ -19,7 +19,6 @@
     "ia:worker": "tsx --env-file-if-exists=.env.ia-worker ia-worker/src/index.ts",
     "correo": "tsx --env-file-if-exists=.env.correo correo/src/index.ts",
     "mercado": "tsx mercado/src/index.ts",
-    "mercado:importar": "tsx mercado/src/importarCaleta.ts",
     "bot:login": "tsx --env-file-if-exists=.env.bot bot/src/login.ts",
     "bot:whatsapp-login": "tsx --env-file-if-exists=.env.bot bot/src/whatsapp-login.ts",
     "bot:fake-portal": "tsx bot/src/fake-portal/main.ts",
