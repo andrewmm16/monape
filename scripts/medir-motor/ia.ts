@@ -28,7 +28,8 @@ import { assembleEvaluation } from "../../src/modules/evaluation/assemble";
 import { engineNotesForText, hasEngineDoubt } from "../../src/modules/evaluation/ai/engine-notes";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "../../src/modules/evaluation/ai/input";
 import { PROMPT_VERSION } from "../../src/modules/evaluation/ai/prompt";
-import { interpretAiResponse, InvalidAiResponseError } from "../../src/modules/evaluation/ai/response";
+import { extractEquivalenceVotes, interpretAiResponse, InvalidAiResponseError, type EquivalenceVote } from "../../src/modules/evaluation/ai/response";
+import { isLearnableVote, requirementKey } from "../../src/modules/evaluation/learned";
 import type { Assessment, CompatibilityLevel, ItemAssessment } from "../../src/modules/evaluation/types";
 import { extractRawText } from "../../src/modules/resumes/extraction-core";
 import { runClaude } from "../../ia-worker/src/cli";
@@ -57,7 +58,18 @@ const TIMEOUT_MS = 480_000;
 type Caso = { puesto: PuestoFixture; candidato: CandidatoFixture };
 
 type ResultadoIa =
-  | { ok: true; score: number; nivel: CompatibilityLevel; porRequisito: Map<string, ItemAssessment>; segundos: number; entrada: number; salida: number; modelo: string }
+  | {
+      ok: true;
+      score: number;
+      nivel: CompatibilityLevel;
+      porRequisito: Map<string, ItemAssessment>;
+      /** Votos para que el motor aprenda (desde ia-prompt-v4). */
+      votos?: EquivalenceVote[];
+      segundos: number;
+      entrada: number;
+      salida: number;
+      modelo: string;
+    }
   | { ok: false; motivo: string; segundos: number };
 
 type Fila = Caso & {
@@ -124,6 +136,7 @@ async function evaluarConIa(puesto: PuestoFixture, texto: string): Promise<Resul
       score: result.scores.score,
       nivel: result.level,
       porRequisito: new Map(result.items.map((item) => [item.requirementId, item])),
+      votos: extractEquivalenceVotes(outcome.output, puesto.requisitos, input.evaluatedText),
       segundos,
       entrada: outcome.usage.inputTokens,
       salida: outcome.usage.outputTokens,
@@ -293,6 +306,45 @@ function informeVara(filas: Fila[], log: (s?: string) => void): void {
   log();
 }
 
+/**
+ * Simulación del aprendizaje: con los votos de la IA en estos CV, ¿qué reglas
+ * aprendería el motor? (Mismo filtro que producción: solo dudas de vocabulario.
+ * En producción, además, pasa por el segundo juez.)
+ */
+function informeAprendizaje(filas: Fila[], log: (s?: string) => void): void {
+  const reglas = new Map<string, { termino: string; requisito: string; a: Set<string>; contra: Set<string> }>();
+  let votos = 0;
+  for (const f of filas) {
+    if (!f.ia.ok) continue;
+    for (const v of f.ia.votos ?? []) {
+      const req = f.puesto.requisitos.find((r) => r.id === v.requirementId);
+      if (!req || !isLearnableVote(f.motor.porRequisito.get(v.requirementId), v.equivalent)) continue;
+      votos++;
+      const clave = `${requirementKey(req)}|${v.term}`;
+      const r = reglas.get(clave) ?? { termino: v.display, requisito: `${f.puesto.titulo} · ${req.corto}`, a: new Set(), contra: new Set() };
+      (v.equivalent ? r.a : r.contra).add(f.candidato.archivo);
+      reglas.set(clave, r);
+    }
+  }
+  log("## Aprendizaje simulado (votos de la IA en dudas de vocabulario)");
+  log();
+  log(`Votos válidos: ${votos} · reglas candidatas: ${reglas.size}. El banco tiene ~4 CV por puesto: en producción el mínimo es 5 CV distintos.`);
+  log();
+  if (reglas.size === 0) return;
+  log("| En el CV dice | Requisito | Cuenta | No cuenta | ¿Se activaría con mín. 2? |");
+  log("|---|---|---:|---:|---|");
+  for (const r of [...reglas.values()].sort((x, y) => y.a.size + y.contra.size - (x.a.size + x.contra.size))) {
+    const unanime = r.a.size === 0 || r.contra.size === 0;
+    const n = Math.max(r.a.size, r.contra.size);
+    log(
+      `| «${r.termino}» | ${r.requisito} | ${r.a.size} | ${r.contra.size} | ${
+        unanime && n >= 2 ? `sí (${r.a.size > 0 ? "cuenta" : "no cuenta"}), pendiente del juez` : unanime ? "no: falta evidencia" : "no: la IA no opinó igual"
+      } |`,
+    );
+  }
+  log();
+}
+
 async function main(): Promise<void> {
   let casos: Caso[] = PUESTOS.filter((p) => PUESTO === undefined || p.id === PUESTO).flatMap((puesto) =>
     puesto.candidatos.map((candidato) => ({ puesto, candidato })),
@@ -432,6 +484,7 @@ async function main(): Promise<void> {
   log(`- Total: ${totalSeg.toFixed(0)} s con ${CONCURRENCIA} en paralelo → ~${Math.round((filas.length / totalSeg) * 3600)} CV/hora a este ritmo`);
   log();
   informeVara(filas, log);
+  informeAprendizaje(filas, log);
 
   log("## Requisitos donde difieren");
   log();

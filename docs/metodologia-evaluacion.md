@@ -77,6 +77,12 @@ Con Haiku, la política «motor + IA en lo dudoso» rinde igual que con Opus. Ha
 - Lo que queda (14 casillas): la IA ve **indicios** donde la vara dice *sin evidencia* (8: «90 % en encuestas de satisfacción» para NPS/CSAT; mismo efecto en el puntaje, se muestra como «La IA ve un indicio»); es **más estricta** en 4 acreditaciones (registrar ≠ emitir comprobantes, «nociones» de tributación…), y acredita «estudios en curso» cuando el requisito pide «estudios» sin exigir título (2: Espinoza, Ramos). Estos últimos son discutibles: conviene decidir si la vara debe aceptarlos.
 - Conclusión: con v3, la IA sirve como segunda opinión en lo dudoso y como control; no se le deja decidir sola (sigue por debajo del motor en acierto exacto).
 
+**Desde el 18/11/2026: la IA cuenta en lo dudoso y el motor aprende de ella** (Omar: que RRHH no tenga que revisar CV uno por uno y que, con el tiempo, el sistema dependa casi solo del motor). Detalle en [configuracion-ia.md](configuracion-ia.md):
+
+- *Relevo:* la evaluación vigente es la del motor con la IA en los requisitos que dudó (la columna «Motor+IA» de la tabla). Cada requisito indica si lo resolvió la IA y qué había dicho el motor.
+- *Aprendizaje:* el motor aprende **vocabulario** (cargos o habilidades que equivalen o no, erratas, paráfrasis), no el juicio caso a caso (nivel por las tareas, menciones dudosas, alcance real). Una regla se activa con 5 CV distintos en el mismo sentido, ninguno en contra y el acuerdo de un segundo juez más capaz; se suspende sola si la IA o RRHH la contradicen. «Equivale» se aplica como una palabra clave más del requisito (el motor sigue calculando años y niveles); «no equivale» quita la duda y deja el requisito por confirmar sin consultar a la IA.
+- *Medición v4 (Haiku, 32 CV):* IA sola 91 %; Motor+IA 94 % (99 % contando *pendiente* = *sin evidencia*), igual que v3. El banco tiene ~4 CV por puesto, así que ninguna regla llega al mínimo de 5: la simulación de `medir:ia` muestra las candidatas. Haiku votó al revés que el juez en los dos cargos de obra («Asistente de Residencia» no cuenta, «Maestro de Obra» sí); Opus, como juez, decidió lo correcto en ambos: con Haiku, el segundo juez es imprescindible.
+
 ## 3. Puntuación (`scoring v1`)
 
 Sea `w` el peso de cada requisito y `W` la suma de pesos:
