@@ -93,7 +93,8 @@ async function PublicListingStatus({ vacancy }: { vacancy: Awaited<ReturnType<ty
   const gaps = publicationGaps(vacancy);
   if (gaps.length > 0) {
     return (
-      <Alert variant="destructive">
+      // Aviso (amarillo), no error: la vacante funciona; solo falta un dato para Google.
+      <Alert className="border-warning-foreground/40 bg-warning text-warning-foreground *:data-[slot=alert-description]:text-warning-foreground">
         <AlertTitle>No sale en Google ni en el feed de empleo</AlertTitle>
         <AlertDescription>Falta {gaps.join(", ")}. Edite la vacante para completar los datos.</AlertDescription>
       </Alert>
@@ -396,7 +397,8 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
           ) : null
         }
       />
-      <nav className="flex gap-1 overflow-x-auto border-b" aria-label="Secciones de la vacante">
+      {/* En el celular las pestañas pasan a otra línea en vez de quedar ocultas fuera de la pantalla. */}
+      <nav className="flex flex-wrap gap-x-1 border-b sm:flex-nowrap sm:overflow-x-auto" aria-label="Secciones de la vacante">
         {TABS.map((item) => (
           <Link
             key={item.id}
