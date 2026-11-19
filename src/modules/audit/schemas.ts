@@ -9,8 +9,8 @@ const dateParam = z
   .catch("");
 
 export const auditParamsSchema = z.object({
-  /** `sistema` = acciones sin persona (robot, formularios públicos). */
-  actor: z.uuid().or(z.literal("sistema")).or(z.literal("")).catch(""),
+  /** Vacío = solo acciones de personas; `todos` = también robot y sistema; `sistema` = solo acciones sin persona. */
+  actor: z.uuid().or(z.literal("sistema")).or(z.literal("todos")).or(z.literal("")).catch(""),
   group: z.enum(AUDIT_GROUP_KEYS).or(z.literal("")).catch(""),
   from: dateParam,
   to: dateParam,

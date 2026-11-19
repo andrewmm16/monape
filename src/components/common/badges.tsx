@@ -53,20 +53,27 @@ export function PortalPublicationBadge({ status }: { status: Enums<"portal_publi
   return <ToneBadge label={PORTAL_PUBLICATION_STATUS_LABELS[status]} toneName={PORTAL_PUBLICATION_TONES[status]} />;
 }
 
-const APPLICATION_TONES: Record<Enums<"application_status">, Tone> = {
-  nuevo: "info",
-  en_revision: "neutral",
-  preseleccionado: "success",
-  entrevista_programada: "info",
-  en_evaluacion: "neutral",
-  seleccionado: "success",
-  no_seleccionado: "muted",
-  en_reserva: "warning",
-  retirado: "muted",
+// Las etapas van en una etiqueta neutra con un punto de color propio; el relleno
+// de color queda reservado al cumplimiento (CompatibilityBadge).
+const APPLICATION_DOTS: Record<Enums<"application_status">, string> = {
+  nuevo: "bg-info-foreground",
+  en_revision: "bg-chart-1",
+  preseleccionado: "bg-chart-2",
+  entrevista_programada: "bg-chart-3",
+  en_evaluacion: "bg-chart-4",
+  seleccionado: "bg-success-foreground",
+  no_seleccionado: "bg-muted-foreground",
+  en_reserva: "bg-warning-foreground",
+  retirado: "bg-muted-foreground/40",
 };
 
 export function ApplicationStatusBadge({ status }: { status: Enums<"application_status"> }) {
-  return <ToneBadge label={APPLICATION_STATUS_LABELS[status]} toneName={APPLICATION_TONES[status]} />;
+  return (
+    <Badge variant="outline" className="gap-1.5 border-border bg-muted text-foreground">
+      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", APPLICATION_DOTS[status])} />
+      {APPLICATION_STATUS_LABELS[status]}
+    </Badge>
+  );
 }
 
 // Tonos neutrales: un nivel bajo no se presenta como "error" ni con rojo.
@@ -77,9 +84,9 @@ const LEVEL_TONES: Record<Enums<"compatibility_level">, Tone> = {
   pendiente: "warning",
 };
 
-export function CompatibilityBadge({ level }: { level: Enums<"compatibility_level"> | null }) {
-  if (!level) return <ToneBadge label="Sin evaluar" toneName="muted" />;
-  return <ToneBadge label={COMPATIBILITY_LEVEL_LABELS[level]} toneName={LEVEL_TONES[level]} />;
+export function CompatibilityBadge({ level, className }: { level: Enums<"compatibility_level"> | null; className?: string }) {
+  if (!level) return <ToneBadge label="Sin evaluar" toneName="muted" className={className} />;
+  return <ToneBadge label={COMPATIBILITY_LEVEL_LABELS[level]} toneName={LEVEL_TONES[level]} className={className} />;
 }
 
 const ASSESSMENT_TONES: Record<Enums<"requirement_assessment">, Tone> = {

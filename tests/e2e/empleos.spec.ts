@@ -68,8 +68,8 @@ test("publicar, ocultar una confidencial y cerrar: página, JSON-LD, listado y f
   await createAndPublish(page, secretTitle, { confidential: true });
   await expect(page.getByText("Vacante confidencial")).toBeVisible();
 
-  // La ficha de la pública ofrece el enlace a su página.
-  await page.goto(vacancyUrl);
+  // La ficha de la pública ofrece el enlace a su página (pestaña Portales).
+  await page.goto(`${vacancyUrl}?tab=portales`);
   const publicLink = page.getByRole("link", { name: /\/empleos\/analista-publico-/ });
   await expect(publicLink).toBeVisible();
   const publicUrl = await publicLink.getAttribute("href");

@@ -193,7 +193,7 @@ export function InterviewItem({
           {/* En la lista de Entrevistas: acceso directo a las preguntas recomendadas de la persona. */}
           {showApplication ? (
             <Button asChild size="sm" variant="outline" className="h-9 sm:h-8">
-              <Link href={`/postulaciones/${application.id}#${INTERVIEW_GUIDE_ANCHOR}`}>
+              <Link href={`/postulaciones/${application.id}?vista=preguntas#${INTERVIEW_GUIDE_ANCHOR}`}>
                 <MessageCircleQuestionIcon aria-hidden /> Preguntas para la entrevista
               </Link>
             </Button>

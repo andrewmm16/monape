@@ -90,7 +90,8 @@ async function createPublishedVacancy(page: Page, title: string): Promise<{ vaca
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
   await expect(page.getByText("Publicada", { exact: true }).first()).toBeVisible();
 
-  await page.goto(vacancyUrl);
+  // El enlace a la página pública está en la pestaña Portales.
+  await page.goto(`${vacancyUrl}?tab=portales`);
   const publicLink = page.getByRole("link", { name: /\/empleos\/analista-postulacion-/ });
   await expect(publicLink).toBeVisible();
   const publicPath = new URL((await publicLink.getAttribute("href"))!, "http://localhost").pathname;

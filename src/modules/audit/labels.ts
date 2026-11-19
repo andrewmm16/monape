@@ -57,6 +57,35 @@ const ENTITY_NOUNS: Record<string, string> = {
   talent_tags: "una etiqueta de la base de talentos",
   candidate_tags: "una etiqueta de un candidato",
   talent_invitations: "una invitación de la base de talentos",
+  ai_evaluation_jobs: "una evaluación con IA",
+  application_killer_answers: "las respuestas a las preguntas filtro de una postulación",
+  application_scorecards: "la ficha de evaluación de una postulación",
+  interview_scorecards: "la ficha de evaluación de una entrevista",
+  caleta_prospects: "un prospecto de la base de talentos",
+  candidate_portal_settings: "la configuración del portal del candidato",
+  email_settings: "la configuración del correo",
+  email_templates: "una plantilla de correo",
+  learned_equivalences: "un sinónimo aprendido por el motor de evaluación",
+  vacancy_killer_questions: "una pregunta filtro de vacante",
+};
+
+/** Tablas que mueve el sistema por su cuenta: se redacta en pasiva («Se actualizó…»). */
+const SYSTEM_ENTITIES = new Set([
+  "ai_evaluation_jobs", "learned_equivalences", "resume_extractions", "candidate_evaluations", "caleta_prospects",
+]);
+const PASSIVE_VERBS: Record<string, string> = { insert: "Se creó", update: "Se actualizó", delete: "Se eliminó" };
+
+/** Nombre corto de cada tabla, para el renglón «Registro» del detalle técnico. */
+const ENTITY_LABELS: Record<string, string> = {
+  vacancies: "Vacante", vacancy_requirements: "Requisito de vacante", vacancy_members: "Integrante de vacante",
+  candidates: "Candidato", candidate_profile_items: "Dato del perfil", resumes: "CV", resume_extractions: "Lectura de CV",
+  applications: "Postulación", candidate_evaluations: "Evaluación", requirement_verifications: "Verificación de requisito",
+  interviews: "Entrevista", profiles: "Usuario", privacy_notices: "Aviso de privacidad", consent_records: "Consentimiento",
+  portal_publications: "Publicación en portal", talent_tags: "Etiqueta de talento", candidate_tags: "Etiqueta de candidato",
+  talent_invitations: "Invitación de la base", ai_evaluation_jobs: "Evaluación con IA", application_killer_answers: "Respuestas filtro",
+  application_scorecards: "Ficha de postulación", interview_scorecards: "Ficha de entrevista", caleta_prospects: "Prospecto",
+  candidate_portal_settings: "Portal del candidato", email_settings: "Configuración de correo", email_templates: "Plantilla de correo",
+  learned_equivalences: "Sinónimo aprendido", vacancy_killer_questions: "Pregunta filtro", talent_pool: "Base de talentos",
 };
 
 const ROW_VERBS: Record<string, string> = { insert: "Creó", update: "Modificó", delete: "Eliminó" };
@@ -116,6 +145,10 @@ const FIELD_LABELS: Record<string, string> = {
   effective_from: "vigente desde", approval_reference: "referencia de aprobación", granted: "consentimiento otorgado",
   revoked_at: "fecha de revocación", note: "nota", error_code: "código de error", external_id: "código en el portal",
   external_url: "enlace en el portal", intake_method: "origen", name: "nombre", color: "color",
+  claim_token: "reserva del trabajo", claimed_at: "fecha de reserva", attempts: "intentos", source: "origen",
+  application_id: "postulación", vacancy_id: "vacante", candidate_id: "candidato", created_at: "fecha de creación",
+  updated_at: "última modificación", finished_at: "fecha de término", started_at: "fecha de inicio", score: "puntaje",
+  summary: "resumen", subject: "asunto", enabled: "activado", alias: "equivalencia", term: "término",
 };
 
 const TAG_COLOR_LABELS: Record<string, string> = {
@@ -287,6 +320,10 @@ function describeNamed(entry: AuditEntry, metadata: Record<string, unknown>, r: 
     if (action === "formulario_postulacion") return `Recibió por el formulario en línea la postulación de ${r.candidate}${to}`;
   }
 
+  if (r.candidate && SYSTEM_ENTITIES.has(entity) && PASSIVE_VERBS[action] && entity !== "learned_equivalences") {
+    return `${PASSIVE_VERBS[action]} ${ENTITY_NOUNS[entity] ?? "un registro"} de ${r.candidate}${to}`;
+  }
+
   if (entity === "profiles" && r.user) {
     const name = r.user.name || r.user.email;
     if (action === "insert") return `Se creó la cuenta de ${name} (invitación enviada a ${r.user.email})`;
@@ -320,6 +357,7 @@ function describeNamed(entry: AuditEntry, metadata: Record<string, unknown>, r: 
     if (action === "update" && status) {
       return `Cambió el estado de la postulación de ${r.candidate}: ${labelOf(APPLICATION_STATUS_LABELS, status.from)} → ${labelOf(APPLICATION_STATUS_LABELS, status.to)}`;
     }
+    if (action === "update") return `Modificó la postulación de ${r.candidate}${to}`;
   }
   return null;
 }
@@ -433,7 +471,7 @@ function describeDetails(entry: AuditEntry, metadata: Record<string, unknown>, r
     lines.push(`Motivo del error: ${PORTAL_ERROR_LABELS[metadata.error_code] ?? metadata.error_code}`);
   }
   lines.push(...talentDetails(entry, metadata, ctx));
-  if (entry.entity_id) lines.push(`Registro: ${entry.entity_type} · ${entry.entity_id.slice(0, 8)}`);
+  if (entry.entity_id) lines.push(`Registro: ${ENTITY_LABELS[entry.entity_type] ?? entry.entity_type} · ${entry.entity_id.slice(0, 8)}`);
   return lines;
 }
 
@@ -495,8 +533,10 @@ function describeText(entry: AuditEntry, metadata: Record<string, unknown>): str
     const active = change(metadata, "is_active");
     if (entity === "profiles" && active) return active.to === true ? "Reactivó a un usuario" : "Desactivó a un usuario";
     const fields = Array.isArray(metadata.changed_fields) ? metadata.changed_fields.filter((f) => typeof f === "string") : [];
-    if (fields.length > 0) return `${verb} ${noun} (campos: ${fields.join(", ")})`;
+    if (SYSTEM_ENTITIES.has(entity)) return `${PASSIVE_VERBS[action]} ${noun}`;
+    if (fields.length > 0) return `${verb} ${noun} (${fields.map((f) => FIELD_LABELS[f] ?? f).join(", ")})`;
   }
+  if (SYSTEM_ENTITIES.has(entity)) return `${PASSIVE_VERBS[action]} ${noun}`;
   return `${verb} ${noun}`;
 }
 

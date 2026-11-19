@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { AccessDenied } from "@/components/common/access-denied";
 import { EmptyState } from "@/components/common/empty-state";
@@ -122,11 +123,11 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead className="sm:max-md:hidden">Ubicación</TableHead>
+                <TableHead className="hidden md:table-cell">Ubicación</TableHead>
                 <TableHead className="hidden lg:table-cell">Fuente</TableHead>
                 <TableHead className="sm:max-md:hidden">Etiquetas</TableHead>
                 <TableHead className="hidden lg:table-cell">Consentimiento</TableHead>
-                <TableHead className="text-right">Postulaciones</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Postulaciones</TableHead>
                 <TableHead className="hidden md:table-cell">Registro</TableHead>
                 <TableHead className="text-right">
                   <span className="sr-only">Acciones</span>
@@ -136,18 +137,22 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
             <TableBody>
               {rows.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell>
-                    <Link href={`/candidatos/${c.id}`} className="font-medium hover:underline">
+                  <TableCell className="max-sm:pr-28!">
+                    <Link
+                      href={`/candidatos/${c.id}`}
+                      className="font-medium hover:underline max-sm:after:absolute max-sm:after:inset-0 max-sm:after:content-['']"
+                    >
                       {c.full_name}
                     </Link>
-                    <span className="block text-xs text-muted-foreground md:hidden">{c.location ?? ""}</span>
+                    {c.location ? <span className="block text-xs text-muted-foreground md:hidden">{c.location}</span> : null}
+                    <ChevronRight className="absolute right-3 bottom-3 size-4 text-muted-foreground sm:hidden" aria-hidden />
                   </TableCell>
-                  <TableCell data-label="Ubicación" className="sm:max-md:hidden">{c.location ?? "—"}</TableCell>
+                  <TableCell className="hidden md:table-cell">{c.location ?? "—"}</TableCell>
                   <TableCell className="hidden lg:table-cell">{CANDIDATE_SOURCE_LABELS[c.source]}</TableCell>
-                  <TableCell data-label="Etiquetas" className="sm:max-md:hidden">
-                    {c.tags.length === 0 ? (
-                      "—"
-                    ) : (
+                  {c.tags.length === 0 ? (
+                    <TableCell className="hidden md:table-cell">—</TableCell>
+                  ) : (
+                    <TableCell className="sm:max-md:hidden">
                       <div className="flex flex-wrap items-center gap-1">
                         {c.tags.slice(0, MAX_TAGS_SHOWN).map((t) => (
                           <TalentTagBadge key={t.id} tag={t} />
@@ -156,14 +161,17 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
                           <span className="text-xs text-muted-foreground">+{c.tags.length - MAX_TAGS_SHOWN}</span>
                         ) : null}
                       </div>
-                    )}
-                  </TableCell>
+                    </TableCell>
+                  )}
                   <TableCell className="hidden lg:table-cell">
                     <TalentConsentBadge state={c.consent} />
                   </TableCell>
-                  <TableCell data-label="Postulaciones" className="text-right tabular-nums">{c.applications[0]?.count ?? 0}</TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">{c.applications[0]?.count ?? 0}</TableCell>
                   <TableCell className="hidden md:table-cell">{formatDate(c.created_at)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-xs text-muted-foreground sm:hidden">
+                    {CANDIDATE_SOURCE_LABELS[c.source]} · {formatDate(c.created_at)} · {c.applications[0]?.count ?? 0} postulaciones
+                  </TableCell>
+                  <TableCell className="relative z-10 text-right max-sm:absolute max-sm:top-2 max-sm:right-2 max-sm:p-0!">
                     <ReactivateCandidateDialog candidateId={c.id} vacancies={vacancies} variant="outline" size="sm" />
                   </TableCell>
                 </TableRow>

@@ -7,7 +7,6 @@ import { Pagination } from "@/components/common/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
@@ -40,12 +39,13 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
     <>
       <PageHeader
         title="Auditoría"
-        description="Registro de lo que se hace en la plataforma, de lo más reciente a lo más antiguo. No se puede modificar. Cada línea indica quién lo hizo, sobre qué vacante, portal, usuario o candidato, y qué cambió; no muestra el contenido de los CV."
+        description="Registro de lo que hacen las personas en la plataforma, de lo más reciente a lo más antiguo. No se puede modificar. Por defecto no incluye lo que hacen el robot y el sistema: elija «Todo» en el primer filtro para verlo. No muestra el contenido de los CV."
       />
       <form method="get" className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-end" aria-label="Filtros de auditoría">
-        <NativeSelect name="actor" defaultValue={params.actor} aria-label="Persona" className="md:w-56">
-          <NativeSelectOption value="">Todas las personas</NativeSelectOption>
-          <NativeSelectOption value="sistema">Robot / sistema</NativeSelectOption>
+        <NativeSelect name="actor" defaultValue={params.actor} aria-label="Quién" className="md:w-64">
+          <NativeSelectOption value="">Solo personas</NativeSelectOption>
+          <NativeSelectOption value="todos">Todo, incluido robot y sistema</NativeSelectOption>
+          <NativeSelectOption value="sistema">Solo robot / sistema</NativeSelectOption>
           {profiles.map((profile) => (
             <NativeSelectOption key={profile.id} value={profile.id}>
               {profile.full_name}
@@ -81,57 +81,41 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
       {rows.length === 0 ? (
         <EmptyState
           title="No hay registros"
-          description={hasFilters ? "Ningún registro coincide con los filtros." : "Todavía no se ha registrado ninguna acción."}
+          description={hasFilters ? "Ningún registro coincide con los filtros." : "Todavía no se ha registrado ninguna acción de personas."}
         />
       ) : (
-        <div className="overflow-hidden rounded-md border bg-card shadow-xs">
-          <Table stacked>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Quién</TableHead>
-                <TableHead>Qué hizo</TableHead>
-                <TableHead className="text-right">Ver</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => {
-                const { text, href, details } = describeAuditEntry(row, context);
-                return (
-                  <TableRow key={row.id} className="align-top">
-                    <TableCell data-label="Fecha" className="whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
-                    <TableCell data-label="Quién" className="whitespace-normal">
-                      {row.actor_name}
-                      {row.actor_detail ? <div className="text-xs text-muted-foreground">{row.actor_detail}</div> : null}
-                    </TableCell>
-                    <TableCell data-label="Qué hizo" className="whitespace-normal">
-                      <div>{text}</div>
-                      {details.length > 0 ? (
-                        <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                          {details.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {row.ordered_by_name ? (
-                        <div className="text-xs text-muted-foreground">Por orden de {row.ordered_by_name}</div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {href ? (
-                        <Link href={href} className="text-sm hover:underline">
-                          Abrir
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <ul className="divide-y overflow-hidden rounded-md border bg-card shadow-xs">
+          {rows.map((row) => {
+            const { text, href, details } = describeAuditEntry(row, context);
+            return (
+              <li key={row.id} className="space-y-1 px-3 py-2.5 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 break-words">{text}</p>
+                  {href ? (
+                    <Link href={href} className="shrink-0 text-sm text-primary hover:underline">
+                      Abrir ›
+                    </Link>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDateTime(row.created_at)} · {row.actor_name}
+                  {row.ordered_by_name ? ` · por orden de ${row.ordered_by_name}` : ""}
+                </p>
+                {details.length > 0 ? (
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer select-none py-1 hover:text-foreground">Ver detalle técnico</summary>
+                    <ul className="mt-1 space-y-0.5 break-words">
+                      {row.actor_detail ? <li>{row.actor_detail}</li> : null}
+                      {details.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       )}
       <Pagination page={page} pageSize={AUDIT_PAGE_SIZE} total={total} hrefForPage={hrefForPage} />
     </>

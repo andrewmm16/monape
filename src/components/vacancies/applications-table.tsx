@@ -36,14 +36,20 @@ function ReasonLine({ label, items, empty }: { label: string; items: string[] | 
  * Posición dentro de la vacante. Es la lectura comparativa, separada a
  * propósito del nivel de cumplimiento que está al lado: una dice si la persona
  * cumple el puesto y la otra cuánto destaca frente a los demás. No se muestra
- * en la vista de descartados, donde la posición no significa nada.
+ * en la vista de descartados, donde la posición no significa nada. El texto
+ * largo va como `title` y para lectores de pantalla; a la vista, solo el número.
  */
-function RankLine({ position, evaluated }: { position: number | undefined; evaluated: number }) {
+function RankCell({ position, evaluated }: { position: number | undefined; evaluated: number }) {
   if (position === undefined || evaluated < 2) return null;
+  const text = `${position}.º por puntuación de ${evaluated} en proceso`;
   return (
-    <div className="text-xs text-muted-foreground tabular-nums">
-      {position}.º por puntuación de {evaluated} en proceso
-    </div>
+    <span title={text} className="text-sm font-medium text-muted-foreground tabular-nums">
+      <span aria-hidden>
+        <span className="sm:hidden">#</span>
+        {position}
+      </span>
+      <span className="sr-only">{text}</span>
+    </span>
   );
 }
 
@@ -59,6 +65,7 @@ export function ApplicationsTable({
   viewCounts,
   ranking,
   killerFlags,
+  comparableTotal,
 }: {
   vacancyId: string;
   rows: Views<"application_overview">[];
@@ -68,6 +75,8 @@ export function ApplicationsTable({
   ranking: ApplicationRanking;
   /** Postulaciones con respuestas eliminatorias que no cumplen (solo informativo). */
   killerFlags?: Map<string, number>;
+  /** Con evaluación en toda la vacante: define si se ofrece «Comparar los mejores». */
+  comparableTotal: number;
 }) {
   const anyComparable = rows.some(isComparable);
   const hrefForPage = (page: number) => {
@@ -111,12 +120,12 @@ export function ApplicationsTable({
           No seleccionados y retirados. No se borra nada: para reactivar a alguien, abra su postulación y cambie su estado.
         </p>
       ) : null}
-      <form method="get" className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-end" aria-label="Filtros de candidatos">
+      <form method="get" className="flex flex-col gap-2 md:flex-row md:flex-nowrap md:items-end" aria-label="Filtros de candidatos">
         <input type="hidden" name="tab" value="candidatos" />
         <input type="hidden" name="vista" value={params.vista} />
-        <Input name="q" defaultValue={params.q} placeholder="Buscar por nombre o correo" className="md:w-64" aria-label="Buscar" />
+        <Input name="q" defaultValue={params.q} placeholder="Buscar por nombre o correo" className="md:w-auto md:min-w-44 md:flex-1" aria-label="Buscar" />
         <NativeSelect name="status" defaultValue={params.status} aria-label="Estado del proceso" className="w-full md:w-fit">
-          <NativeSelectOption value="">{params.vista === "descartados" ? "No seleccionados y retirados" : "Todos los estados en proceso"}</NativeSelectOption>
+          <NativeSelectOption value="">{params.vista === "descartados" ? "No seleccionados y retirados" : "Todos los estados"}</NativeSelectOption>
           {statusesOfView(params.vista).map((status) => (
             <NativeSelectOption key={status} value={status}>
               {APPLICATION_STATUS_LABELS[status]}
@@ -124,7 +133,7 @@ export function ApplicationsTable({
           ))}
         </NativeSelect>
         <NativeSelect name="level" defaultValue={params.level} aria-label="Nivel de cumplimiento" className="w-full md:w-fit">
-          <NativeSelectOption value="">Todo nivel de cumplimiento</NativeSelectOption>
+          <NativeSelectOption value="">Todo nivel</NativeSelectOption>
           {Constants.public.Enums.compatibility_level.map((level) => (
             <NativeSelectOption key={level} value={level}>
               {COMPATIBILITY_LEVEL_LABELS[level]}
@@ -137,7 +146,7 @@ export function ApplicationsTable({
           <NativeSelectOption value="fecha">Más recientes</NativeSelectOption>
           <NativeSelectOption value="nombre">Nombre (A-Z)</NativeSelectOption>
         </NativeSelect>
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="outline" className="md:shrink-0">
           Aplicar
         </Button>
       </form>
@@ -158,6 +167,7 @@ export function ApplicationsTable({
           <CompareBar
             key={`${params.vista}|${params.page}|${params.q}|${params.status}|${params.level}|${params.sort}|${rows.map((row) => row.id).join(",")}`}
             vacancyId={vacancyId}
+            bestAvailable={comparableTotal >= 2}
           />
         ) : null}
         <div className="overflow-hidden rounded-md border bg-card shadow-xs">
@@ -167,8 +177,11 @@ export function ApplicationsTable({
                 <TableHead className="w-8">
                   <span className="sr-only">Comparar</span>
                 </TableHead>
+                <TableHead className="w-8 px-1 text-center">
+                  <span title="Posición por puntuación">#</span>
+                </TableHead>
                 <TableHead>Candidato</TableHead>
-                <TableHead>Cumplimiento y posición</TableHead>
+                <TableHead>Cumplimiento</TableHead>
                 <TableHead className="hidden md:table-cell">Por qué</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -190,6 +203,11 @@ export function ApplicationsTable({
                       </label>
                     ) : null}
                   </TableCell>
+                  <TableCell className="px-1 text-center whitespace-normal max-sm:text-left">
+                    {params.vista === "proceso" && row.id ? (
+                      <RankCell position={ranking.positions.get(row.id)} evaluated={ranking.evaluated} />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="whitespace-normal">
                     <Link href={`/postulaciones/${row.id}`} className="font-medium hover:underline">
                       {row.candidate_name}
@@ -205,14 +223,11 @@ export function ApplicationsTable({
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell data-label="Cumplimiento y posición" className="whitespace-normal">
+                  <TableCell data-label="Cumplimiento" className="whitespace-normal">
                     {row.evaluation_id ? (
                       <>
                         <div className="text-lg font-semibold tabular-nums">{formatPercent(row.score)}</div>
                         <CompatibilityBadge level={row.level} />
-                        {params.vista === "proceso" && row.id ? (
-                          <RankLine position={ranking.positions.get(row.id)} evaluated={ranking.evaluated} />
-                        ) : null}
                         {row.evaluation_outdated ? <div className="mt-1 text-xs text-warning-foreground">Criterios cambiados: vuelva a evaluar</div> : null}
                       </>
                     ) : (

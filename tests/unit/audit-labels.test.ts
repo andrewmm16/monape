@@ -43,7 +43,7 @@ describe("describeAuditEntry", () => {
         entity_id: ID,
         metadata: { changed_fields: ["title", "description"] },
       }).text,
-    ).toBe("Modificó una vacante (campos: title, description)");
+    ).toBe("Modificó una vacante (título, descripción)");
   });
 
   it("traduce acciones propias y enlaza con la vacante o el candidato", () => {
@@ -72,6 +72,18 @@ describe("describeAuditEntry", () => {
     expect(describeAuditEntry({ action: "update", entity_type: "applications", entity_id: null, metadata: [1, 2] }).text).toBe(
       "Modificó una postulación",
     );
+  });
+});
+
+describe("tablas del sistema", () => {
+  it("redacta en pasiva y sin nombres de tablas ni de columnas", () => {
+    const ai = { action: "update", entity_type: "ai_evaluation_jobs", entity_id: null, metadata: { changed_fields: ["claim_token", "claimed_at"] } };
+    expect(describeAuditEntry(ai).text).toBe("Se actualizó una evaluación con IA");
+    expect(describeAuditEntry({ ...ai, entity_type: "learned_equivalences" }).text).toBe("Se actualizó un sinónimo aprendido por el motor de evaluación");
+  });
+
+  it("el filtro «todos» es válido", () => {
+    expect(auditParamsSchema.parse({ actor: "todos" }).actor).toBe("todos");
   });
 });
 

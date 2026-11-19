@@ -21,6 +21,8 @@ import { RequirementsPanel } from "@/components/vacancies/requirements-panel";
 import { VacancyStatusActions } from "@/components/vacancies/vacancy-status-actions";
 import { VacancySteps } from "@/components/vacancies/vacancy-steps";
 import { VacancyInbox } from "@/components/vacancies/vacancy-inbox";
+import { VacancyTabs } from "@/components/vacancies/vacancy-tabs";
+import { HeaderActionsMenu } from "@/components/vacancies/header-actions-menu";
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
@@ -80,8 +82,10 @@ async function requestPublicBase(fallback: string): Promise<string> {
 }
 
 /** Estado de la vacante publicada en la página pública, Google y el feed. */
-async function PublicListingStatus({ vacancy }: { vacancy: Awaited<ReturnType<typeof getVacancy>> }) {
+async function PublicListingStatus({ vacancy, showLink }: { vacancy: Awaited<ReturnType<typeof getVacancy>>; showLink: boolean }) {
   if (vacancy.status !== "publicada") return null;
+  // Fuera de «Portales» solo queda el aviso de lo que falta para Google: el resto (enlace, estado) vive en esa pestaña.
+  if (!showLink && (vacancy.is_confidential || publicationGaps(vacancy).length === 0)) return null;
   if (vacancy.is_confidential) {
     return (
       <Alert>
@@ -195,7 +199,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
         ])
       : [null, null];
     const suggestions =
-      suggestedCandidates === null ? null : (
+      !suggestedCandidates || suggestedCandidates.length === 0 ? null : (
         <Card>
           <CardHeader>
             <CardTitle>Candidatos de la base de talentos que encajan</CardTitle>
@@ -226,7 +230,8 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
           {canRun ? (
             <EvaluatePendingButton vacancyId={vacancy.id} pending={pending} criteriaApproved={Boolean(vacancy.criteria_approved_at)} />
           ) : null}
-          {comparable >= 2 ? (
+          {/* En la tabla, «Comparar los mejores» vive junto a «Comparar seleccionados» (una sola barra). */}
+          {modo === "tablero" && comparable >= 2 ? (
             <Link href={`/vacantes/${vacancy.id}/comparar?mejores=1`} className={buttonVariants({ variant: "outline" })}>
               Comparar los mejores
             </Link>
@@ -272,6 +277,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
             viewCounts={viewCounts}
             ranking={ranking}
             killerFlags={killerFlags}
+            comparableTotal={comparable}
           />
         </div>
       );
@@ -357,6 +363,30 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     );
   }
 
+  const bulkLink =
+    can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada") ? (
+      <Button asChild variant="outline">
+        <Link href={`/vacantes/${vacancy.id}/carga-masiva`}>
+          <UploadIcon /> Carga masiva de CV
+        </Link>
+      </Button>
+    ) : null;
+  const editLink = (
+    <Button asChild variant="outline">
+      <Link href={`/vacantes/${vacancy.id}/editar`}>
+        <PencilIcon /> Editar
+      </Link>
+    </Button>
+  );
+  const statusActions = (
+    <VacancyStatusActions
+      vacancyId={vacancy.id}
+      status={vacancy.status}
+      canDelete={canDeleteVacancy}
+      applicationCount={archivedApplicationCount}
+    />
+  );
+
   return (
     <>
       <PageHeader
@@ -375,46 +405,21 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
         actions={
           canManage ? (
             <>
-              {can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada") ? (
-                <Button asChild variant="outline">
-                  <Link href={`/vacantes/${vacancy.id}/carga-masiva`}>
-                    <UploadIcon /> Carga masiva de CV
-                  </Link>
-                </Button>
-              ) : null}
-              <Button asChild variant="outline">
-                <Link href={`/vacantes/${vacancy.id}/editar`}>
-                  <PencilIcon /> Editar
-                </Link>
-              </Button>
-              <VacancyStatusActions
-                vacancyId={vacancy.id}
-                status={vacancy.status}
-                canDelete={canDeleteVacancy}
-                applicationCount={archivedApplicationCount}
-              />
+              {/* Escritorio: todas a la vista. */}
+              <div className="hidden flex-wrap gap-2 sm:flex">{bulkLink}{editLink}{statusActions}</div>
+              {/* Celular: la principal a la vista y el resto en «⋯». */}
+              <div className="flex items-center gap-2 sm:hidden">
+                {bulkLink ?? editLink}
+                <HeaderActionsMenu>
+                  {bulkLink ? editLink : null}
+                  {statusActions}
+                </HeaderActionsMenu>
+              </div>
             </>
           ) : null
         }
       />
-      {/* En el celular las pestañas pasan a otra línea en vez de quedar ocultas fuera de la pantalla. */}
-      <nav className="flex flex-wrap gap-x-1 border-b sm:flex-nowrap sm:overflow-x-auto" aria-label="Secciones de la vacante">
-        {TABS.map((item) => (
-          <Link
-            key={item.id}
-            href={`/vacantes/${vacancy.id}?tab=${item.id}`}
-            aria-current={tab === item.id ? "page" : undefined}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap",
-              tab === item.id
-                ? "border-brand font-medium text-brand"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <VacancyTabs vacancyId={vacancy.id} tabs={TABS} active={tab} />
       {vacancy.status === "borrador" ? (
         <VacancySteps
           steps={[
@@ -425,7 +430,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
           ]}
         />
       ) : null}
-      <PublicListingStatus vacancy={vacancy} />
+      <PublicListingStatus vacancy={vacancy} showLink={tab === "portales"} />
       {content}
     </>
   );

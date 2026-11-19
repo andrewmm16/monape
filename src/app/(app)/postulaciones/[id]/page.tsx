@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CalendarClockIcon, ChevronRightIcon, ListChecksIcon, MessageCircleQuestionIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { CandidateMessageDialog } from "@/components/applications/candidate-message-dialog";
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { can } from "@/lib/auth/permissions";
+import { cn } from "@/lib/utils";
 import { requirePageUser } from "@/lib/auth/session";
 import { AppError, logServerError } from "@/lib/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -173,14 +175,24 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
     : null;
   const interviewTopics = canManage ? buildInterviewTopics({ killerAnswers, limitations: main?.limitations ?? [] }) : [];
   const interviewQuestionCount = (interviewGuide?.length ?? 0) + interviewTopics.length;
+  // Columna izquierda con dos pestañas (por la URL, sin JS): la evaluación del CV y las preguntas para la entrevista.
+  const view = canManage && search.vista === "preguntas" ? "preguntas" : "evaluacion";
+  const evaluationHref = typeof search.evaluacion === "string" ? `?evaluacion=${encodeURIComponent(search.evaluacion)}` : "?";
+  const questionsHref = `?vista=preguntas#${INTERVIEW_GUIDE_ANCHOR}`;
 
   return (
     <>
       <PageHeader
         eyebrow={
-          <Link href={`/vacantes/${application.vacancy.id}`} className="hover:underline">
-            {application.vacancy.title}
-          </Link>
+          <nav aria-label="Ruta" className="flex flex-wrap items-center gap-1">
+            <Link href="/postulaciones" className="hover:underline">
+              Postulaciones
+            </Link>
+            <ChevronRightIcon className="size-3.5" aria-hidden />
+            <Link href={`/vacantes/${application.vacancy.id}`} className="hover:underline">
+              {application.vacancy.title}
+            </Link>
+          </nav>
         }
         title={application.candidate.full_name}
         description={
@@ -188,19 +200,55 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <ApplicationStatusBadge status={application.status} />
             <span>Postulación del {formatDate(application.applied_at)}</span>
             {application.public_reference ? <span>Referencia: {application.public_reference}</span> : null}
-            <Link href={`/candidatos/${application.candidate.id}`} className="underline-offset-4 hover:underline">
+            <Link href={`/candidatos/${application.candidate.id}`} className="font-medium text-brand underline underline-offset-4">
               Ver ficha y CV
             </Link>
           </span>
         }
       />
 
-      {canManage ? <InterviewQuestionsCallout pending={interviewGuide?.length ?? 0} topics={interviewTopics.length} /> : null}
+      {canManage && view === "evaluacion" ? (
+        <InterviewQuestionsCallout pending={interviewGuide?.length ?? 0} topics={interviewTopics.length} href={questionsHref} />
+      ) : null}
 
       {/* Pantalla ancha: a la izquierda lo que dice la evaluación; a la derecha la decisión y el seguimiento. */}
       <div className="mx-auto grid max-w-3xl gap-6 xl:max-w-none xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
         <div className="min-w-0 space-y-6">
-          {canEvaluate ? (
+          {canManage ? (
+            <nav aria-label="Secciones de la postulación" className="flex gap-1 overflow-x-auto border-b">
+              {[
+                { id: "evaluacion", label: "Evaluación del CV", href: evaluationHref },
+                {
+                  id: "preguntas",
+                  label: (
+                    <>
+                      {/* En el celular, el nombre corto para que las dos pestañas quepan sin desplazarse. */}
+                      <span className="sm:hidden">Preguntas</span>
+                      <span className="hidden sm:inline">Preguntas para la entrevista</span>
+                      {interviewQuestionCount > 0 ? ` (${interviewQuestionCount})` : ""}
+                    </>
+                  ),
+                  href: `?vista=preguntas`,
+                },
+              ].map((tab) => (
+                <Link
+                  key={tab.id}
+                  href={tab.href}
+                  aria-current={view === tab.id ? "page" : undefined}
+                  className={cn(
+                    "-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm whitespace-nowrap",
+                    view === tab.id ? "border-brand font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {tab.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+
+          {view === "preguntas" ? <InterviewGuideCard guide={interviewGuide} topics={interviewTopics} /> : null}
+
+          {view === "evaluacion" && canEvaluate ? (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <ActionButton
@@ -276,6 +324,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             </div>
           ) : null}
 
+          {view === "evaluacion" ? (
+            <>
           <KillerAnswersCard answers={killerAnswers} />
           <EvaluationCard
             applicationId={application.id}
@@ -288,11 +338,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             canReview={can(user.role, "evaluations:review")}
             verifications={verifications}
           />
-          {canManage ? <InterviewGuideCard guide={interviewGuide} topics={interviewTopics} /> : null}
+            </>
+          ) : null}
         </div>
 
         <div className="min-w-0 space-y-6">
-          <Card>
+          <Card id="estado-proceso" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>Estado del proceso</CardTitle>
               {/* Sin punto final: la hora ya termina en «a. m.» o «p. m.». */}
@@ -332,7 +383,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             </Card>
           ) : null}
 
-          <Card id="entrevistas">
+          <Card id="entrevistas" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>Entrevistas</CardTitle>
               <CardDescription>Fechas y horas en hora de Perú (Lima).</CardDescription>
@@ -340,11 +391,11 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <CardContent className="space-y-3">
               {canManage && interviewQuestionCount > 0 ? (
                 <p className="text-sm">
-                  <a href={`#${INTERVIEW_GUIDE_ANCHOR}`} className="font-medium text-brand underline-offset-4 hover:underline">
+                  <Link href={questionsHref} className="font-medium text-brand underline underline-offset-4">
                     {interviewQuestionCount === 1
                       ? "Ver la pregunta recomendada para esta persona"
                       : `Ver las ${interviewQuestionCount} preguntas recomendadas para esta persona`}
-                  </a>
+                  </Link>
                 </p>
               ) : null}
               {schedulable ? (
@@ -453,6 +504,29 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           </Card>
         </div>
       </div>
+      {/* Celular: la página es larga; las acciones quedan siempre a mano. */}
+      {canManage ? (
+        <>
+          <div className="h-20 sm:hidden" aria-hidden />
+          <nav
+            aria-label="Acciones rápidas"
+            className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 gap-2 border-t bg-background/95 px-3 py-2 backdrop-blur sm:hidden"
+          >
+            <Link href="#estado-proceso" className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium text-brand">
+              <ListChecksIcon className="size-5" aria-hidden />
+              Estado
+            </Link>
+            <Link href="#entrevistas" className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium text-brand">
+              <CalendarClockIcon className="size-5" aria-hidden />
+              Entrevistas
+            </Link>
+            <Link href={questionsHref} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium text-brand">
+              <MessageCircleQuestionIcon className="size-5" aria-hidden />
+              {interviewQuestionCount > 0 ? `Preguntas (${interviewQuestionCount})` : "Preguntas"}
+            </Link>
+          </nav>
+        </>
+      ) : null}
     </>
   );
 }

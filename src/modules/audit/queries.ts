@@ -7,7 +7,7 @@ import { AUDIT_GROUPS } from "./labels";
 import { orderRef, pickRequester, REQUEST_ACTIONS, type OrderRequest } from "./requesters";
 import type { AuditParams } from "./schemas";
 
-export const AUDIT_PAGE_SIZE = 50;
+export const AUDIT_PAGE_SIZE = 20;
 
 /** Lima no tiene horario de verano: el día civil empieza siempre a las 00:00 (UTC-5). */
 const DAY_MS = 86_400_000;
@@ -20,7 +20,8 @@ export async function listAuditLog(supabase: AppSupabaseClient, params: AuditPar
       .from("audit_logs")
       .select("id, actor_id, action, entity_type, entity_id, metadata, created_at", { count: "exact" });
     if (params.actor === "sistema") query = query.is("actor_id", null);
-    else if (params.actor) query = query.eq("actor_id", params.actor);
+    else if (params.actor === "") query = query.not("actor_id", "is", null);
+    else if (params.actor !== "todos") query = query.eq("actor_id", params.actor);
     if (params.group) query = query.in("entity_type", [...AUDIT_GROUPS[params.group].entities]);
     if (params.from) query = query.gte("created_at", startOfDay(params.from).toISOString());
     if (params.to) query = query.lt("created_at", new Date(startOfDay(params.to).getTime() + DAY_MS).toISOString());

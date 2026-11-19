@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MessageCircleQuestionIcon } from "lucide-react";
 import { AssessmentBadge } from "@/components/common/badges";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ function plural(count: number, one: string, many: string) {
  * Aviso bajo el encabezado de la postulación: se ve sin desplazarse y lleva a
  * la tarjeta de preguntas. Solo aparece si hay algo que preguntar.
  */
-export function InterviewQuestionsCallout({ pending, topics }: { pending: number; topics: number }) {
+export function InterviewQuestionsCallout({ pending, topics, href }: { pending: number; topics: number; href: string }) {
   const total = pending + topics;
   if (total === 0) return null;
   const detail = [
@@ -42,7 +43,7 @@ export function InterviewQuestionsCallout({ pending, topics }: { pending: number
         </div>
       </div>
       <Button asChild variant="outline" className="w-full sm:w-auto">
-        <a href={`#${INTERVIEW_GUIDE_ANCHOR}`}>Ver preguntas</a>
+        <Link href={href}>Ver preguntas</Link>
       </Button>
     </div>
   );

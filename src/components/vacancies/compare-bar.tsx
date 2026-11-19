@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { MAX_COMPARED, MIN_COMPARED } from "@/modules/applications/ranking";
 
 /** Nombre de las casillas de la tabla de candidatos que alimentan esta barra. */
 export const COMPARE_CHECKBOX_NAME = "compare";
 
 /**
- * Barra «Comparar seleccionados (n)»: cuenta las casillas marcadas en la tabla
- * (que es un componente de servidor) y abre la comparación con 2 a 4 elegidos.
+ * Única barra de comparación: «Comparar seleccionados (n)» cuenta las casillas
+ * marcadas en la tabla (que es un componente de servidor) y abre la comparación
+ * con 2 a 4 elegidos; «Comparar los mejores» abre la de las mejores por puntuación.
  */
-export function CompareBar({ vacancyId }: { vacancyId: string }) {
+export function CompareBar({ vacancyId, bestAvailable }: { vacancyId: string; bestAvailable: boolean }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -41,6 +43,11 @@ export function CompareBar({ vacancyId }: { vacancyId: string }) {
       >
         Comparar seleccionados ({selected.length})
       </Button>
+      {bestAvailable ? (
+        <Link href={`/vacantes/${vacancyId}/comparar?mejores=1`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Comparar los mejores
+        </Link>
+      ) : null}
       <span className="text-xs text-muted-foreground">
         Marque de {MIN_COMPARED} a {MAX_COMPARED} candidatos evaluados.
       </span>

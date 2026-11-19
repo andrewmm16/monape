@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,14 @@ export async function generateMetadata({ params }: PageProps<"/empleos/[slug]">)
   };
 }
 
+function BackLink() {
+  return (
+    <Link href="/empleos" className="inline-block text-sm text-muted-foreground hover:text-foreground hover:underline">
+      ← Todas las vacantes
+    </Link>
+  );
+}
+
 export default async function PublicJobPage({ params }: PageProps<"/empleos/[slug]">) {
   const site = requirePublicJobsConfig();
   const { slug } = await params;
@@ -51,6 +60,7 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
   if (!vacancy.acceptingApplications) {
     return (
       <div className="space-y-4">
+        <BackLink />
         <h1 className="text-2xl font-semibold tracking-tight">{vacancy.title}</h1>
         <p role="status" className="rounded-lg border bg-background px-4 py-3 text-sm">
           Esta convocatoria ya no recibe postulaciones
@@ -81,6 +91,7 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
     <article className="space-y-6">
       {/* Datos estructurados: bloque de datos (no se ejecuta), por lo que la CSP no exige nonce. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+      <BackLink />
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">{vacancy.title}</h1>
         <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -99,8 +110,16 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
           <Button asChild className="mt-2">
             <a href="#postular">Postular</a>
           </Button>
-        ) : null}
+        ) : (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Button disabled>Postular</Button>
+            <p className="text-sm text-muted-foreground">Las postulaciones en línea se habilitarán próximamente</p>
+          </div>
+        )}
       </header>
+
+      {/* La barra fija vive al final de este bloque: sigue al lector mientras lee y se va antes del formulario, sin taparlo. */}
+      <div className="space-y-6">
 
       <Card>
         <CardHeader>
@@ -149,6 +168,15 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
         </Card>
       ) : null}
 
+      {offersForm ? (
+        <div className="sticky bottom-0 z-10 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur md:hidden">
+          <Button asChild className="w-full" size="lg">
+            <a href="#postular">Postular ahora</a>
+          </Button>
+        </div>
+      ) : null}
+      </div>
+
       {notice ? (
         <section id="postular" aria-labelledby="postular-titulo" className="scroll-mt-4 space-y-4">
           <h2 id="postular-titulo" className="text-xl font-semibold tracking-tight">
@@ -162,12 +190,7 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
             killerQuestions={killerQuestions}
           />
         </section>
-      ) : (
-        <div className="space-y-2">
-          <Button disabled>Postular</Button>
-          <p className="text-sm text-muted-foreground">Las postulaciones en línea se habilitarán próximamente</p>
-        </div>
-      )}
+      ) : null}
     </article>
   );
 }

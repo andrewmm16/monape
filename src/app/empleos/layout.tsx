@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandLogo } from "@/components/common/brand-logo";
 import { getPublicJobsConfig, requirePublicJobsConfig } from "@/modules/public-jobs/config";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,8 +22,10 @@ export default function PublicJobsLayout({ children }: LayoutProps<"/empleos">) 
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b bg-background">
         <div className="mx-auto flex h-14 max-w-4xl items-center px-4">
-          <Link href="/empleos" className="text-sm font-semibold">
-            {companyName}
+          <Link href="/empleos" className="flex items-center gap-3 text-sm font-semibold" aria-label={`${companyName}: todas las vacantes`}>
+            <BrandLogo />
+            {/* El logo ya dice «Iterruptivo»: el nombre se repite solo si la empresa es otra. */}
+            {companyName.trim().toLowerCase() === "iterruptivo" ? null : <span>{companyName}</span>}
           </Link>
         </div>
       </header>
