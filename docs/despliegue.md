@@ -46,7 +46,12 @@ Ver [respaldo-y-restauracion.md](respaldo-y-restauracion.md) (`scripts/respaldo/
 
 ### Consideraciones
 
-- **Tamaño de carga:** Vercel limita el cuerpo de las funciones a 4,5 MB; por eso el máximo de CV es 4 MB (`next.config.ts`, `file-validation.ts`). Para archivos mayores habría que subir directamente a Storage con URL firmadas de carga (pendiente).
+- **Tamaño de carga (CV de hasta 10 MB):** Vercel limita el cuerpo de las funciones a 4,5 MB. Los CV de hasta 4 MB siguen viajando en la Server Action (`next.config.ts`: `bodySizeLimit` 4,3 MB); los de 4 a 10 MB se suben **directo a Storage** con una URL firmada de carga que emite el servidor y se validan después (ver [seguridad.md](seguridad.md#carga-directa-de-cv-de-4-a-10-mb)). Para que funcione en un proyecto nuevo:
+  - aplique la migración `20261119150000_cv_10mb.sql` (sube el límite del bucket `resumes` y los `check` de `size_bytes` de `resumes` e `intake_batch_items` a 10 MB);
+  - en Supabase **Storage → Settings**, el límite global de archivo debe ser de **10 MB o más** (en la nube el valor por defecto es 50 MB; en local, `[storage] file_size_limit` de `supabase/config.toml`, ya en 10 MiB: hay que reiniciar el stack local con `supabase stop` y `supabase start` para que lo tome);
+  - la CSP (`src/proxy.ts`) añade el origen de `NEXT_PUBLIC_SUPABASE_URL` a `connect-src`, necesario para que el navegador suba el archivo;
+  - la extracción de texto y el OCR de un CV grande se ejecutan en el servidor igual que antes (límite de 20 s y 4 páginas de OCR): un escaneo pesado puede quedar «sin texto legible» y se transcribe a mano.
+  - Talent, el correo y el robot de portales siguen limitados a 4 MB (viajan en el cuerpo de una solicitud).
 - **Renderizado dinámico:** todas las páginas se generan por solicitud (CSP con *nonce*). No se cachean datos de candidatos.
 - **Región de funciones:** configure la región de Vercel cercana a la del proyecto Supabase.
 - **IP del postulante:** el límite de envíos del formulario público usa el primer valor de `x-forwarded-for`, que Vercel fija con la IP real del cliente.

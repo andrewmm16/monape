@@ -92,7 +92,7 @@ El rol solo puede cambiarlo un administrador; la base de datos impide dejar el s
 
 ## 5. Storage
 
-La migración `…000500_storage.sql` crea el bucket **privado** `resumes` (4 MB, solo PDF y DOCX) **sin políticas para usuarios**: nadie puede leer, firmar, subir ni borrar archivos con su sesión. El servidor de la aplicación accede con `SUPABASE_SECRET_KEY` después de autorizar, validar y (en descargas) auditar. Verifique en **Storage** que el bucket figure como *Private* y **no cree políticas** para él.
+La migración `…000500_storage.sql` crea el bucket **privado** `resumes` (solo PDF y DOCX; 4 MB, y 10 MB desde `20261119150000_cv_10mb.sql`) **sin políticas para usuarios**: nadie puede leer, firmar, subir ni borrar archivos con su sesión. El servidor de la aplicación accede con `SUPABASE_SECRET_KEY` después de autorizar, validar y (en descargas) auditar. Verifique en **Storage** que el bucket figure como *Private* y **no cree políticas** para él.
 
 ## 6. Copias de seguridad y recuperación
 

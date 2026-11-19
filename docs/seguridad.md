@@ -40,7 +40,8 @@ Estado a la Etapa 1, incluidas las correcciones de la revisión independiente de
 
 | Control | Ubicación | Prueba |
 |---|---|---|
-| Bucket privado, 4 MB, solo PDF/DOCX, **sin políticas para usuarios**: todo acceso pasa por el servidor | `…000500_storage.sql` | PGlite |
+| Bucket privado, 10 MB, solo PDF/DOCX, **sin políticas para usuarios**: todo acceso pasa por el servidor | `…000500_storage.sql`, `20261119150000_cv_10mb.sql` | PGlite |
+| CV de 4 a 10 MB: URL firmada de carga de un solo uso, ruta decidida por el servidor y validación completa sobre el archivo descargado | `src/modules/resumes/direct-upload.ts`, acciones `request…`/`confirm…` | Unitaria + PGlite |
 | Rutas `candidates/{id}/{resume_id}.ext` generadas por el servidor y validadas en BD | `resumes_storage_path_check` | PGlite |
 | CV y extracción registrados en una transacción; sin sobrescritura (versionado); el archivo se elimina si el registro falla | `register_resume`, `prepare_resume_version`, `src/modules/resumes/actions.ts` | PGlite |
 | Las evaluaciones usan el CV asociado a la postulación; cambiarlo es una acción explícita | `evaluation/service.ts`, `linkCurrentResume` | — |
@@ -89,6 +90,23 @@ Estado a la Etapa 1, incluidas las correcciones de la revisión independiente de
 | Auditoría inmutable y visible solo para administración | trigger `audit_logs_immutable`, RLS | PGlite |
 | Historial del proceso: estado anterior/nuevo, responsable, fecha, motivo | `change_application_status`, `application_events` | PGlite |
 
+### Carga directa de CV de 4 a 10 MB
+
+El cuerpo de una función de Vercel admite 4,5 MB, así que los CV de más de 4 MB no pasan por la Server Action: se suben directo a Storage. Los de 4 MB o menos conservan el camino de siempre. El bucket sigue **privado y sin políticas**; el navegador nunca recibe permisos sobre él, solo una URL firmada.
+
+1. **Solicitud** (`requestResumeUpload`, `requestBatchItemUpload`, `requestApplicationUpload`). El servidor autoriza antes de tocar nada: RRHH con su permiso (`resumes:upload`, `candidates:manage` en el lote), candidato visible por RLS y límite de solicitudes; el formulario público con las mismas protecciones que el envío normal (campo trampa, prueba de trabajo firmada y de un solo uso, datos, vacante abierta, aviso vigente y límite por IP, vacante y día). Valida solo lo que el navegador declara (extensión y tamaño ≤ 10 MB) y firma con `createSignedUploadUrl` (sin `upsert`: no sobrescribe) una URL para una **ruta que decide el servidor** (`candidates/{candidato}/{cv}.{ext}` o `intake/{lote}/{archivo}.{ext}`, identificadores nuevos). El navegador no elige ruta ni bucket. En el formulario público se entrega además un comprobante HMAC (clave `INTAKE_HASH_SECRET`) que liga vacante, identificadores y vencimiento de 10 minutos; no lleva datos personales.
+2. **Subida.** El navegador envía el archivo a esa URL. El bucket rechaza lo que pase de 10 MB o no sea PDF/DOCX por tipo declarado.
+3. **Confirmación** (`confirmResumeUpload`, `confirmBatchItemUpload`, `confirmApplicationUpload`). Vuelve a autorizar (sesión y permisos, o comprobante firmado y vigente), reconstruye la ruta en el servidor desde identificadores validados (UUID y extensión conocida; el cliente nunca manda una ruta), **descarga el archivo** y aplica exactamente las mismas funciones de siempre: tamaño real, firma (*magic bytes*), contenido activo de PDF y DOCX, texto oculto, extracción y OCR. El `Content-Type` y el tamaño que declaró el navegador no se usan. Si no pasa, borra el objeto y devuelve el mismo mensaje claro. Una confirmación repetida no toca un CV ya registrado.
+4. **Después**, todo igual: acceso por el servidor, URL de descarga de 60 s y auditoría.
+
+Por qué sigue siendo seguro:
+
+- Sin políticas, solo el servidor (clave de servicio) puede firmar; ningún usuario puede subir, listar ni leer por su cuenta. Prueba: `security-catalog.test.ts` y `rls.test.ts`.
+- Nada se registra ni se evalúa sin pasar la validación sobre los bytes reales; el archivo no se ejecuta.
+- El formulario público no puede obtener una URL sin la prueba de trabajo (de un solo uso) ni sin cupo de límite por IP.
+- **Huérfanos:** una carga abandonada deja un objeto sin registro bajo `candidates/` o `intake/`; la limpieza diaria (`/api/tareas/limpieza-cv`, `list_orphan_resume_files`) lo borra tras 48 h porque nada lo referencia.
+- **Límite conocido:** Storage de Supabase fija en 2 horas la vigencia de una URL firmada de carga y no es configurable. El comprobante y la confirmación vencen en minutos, así que una subida tardía solo puede dejar un objeto huérfano (acotado a 10 MB, sin registro ni acceso, barrido en 48 h). Es de un solo uso mientras el objeto exista.
+
 ## Pendientes de seguridad
 
-Ver [pendientes.md](pendientes.md): extracción de PDF en un *worker* aislado con límites de memoria/tiempo, MFA para administradores (descartada por ahora: solo si se pide), pruebas contra un Supabase real (incluido el ensayo de [respaldo y restauración](respaldo-y-restauracion.md) en la nube), simulacro de la [política de incidentes](politica-incidentes.md), revisión de retención de logs de proveedores, carga directa a Storage para archivos > 4 MB, OCR en entorno aislado.
+Ver [pendientes.md](pendientes.md): extracción de PDF en un *worker* aislado con límites de memoria/tiempo, MFA para administradores (descartada por ahora: solo si se pide), pruebas contra un Supabase real (incluido el ensayo de [respaldo y restauración](respaldo-y-restauracion.md) en la nube), simulacro de la [política de incidentes](politica-incidentes.md), revisión de retención de logs de proveedores, OCR en entorno aislado.

@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { submitOnlineApplication } from "@/modules/online-apply/actions";
+import { confirmApplicationUpload, requestApplicationUpload, submitOnlineApplication } from "@/modules/online-apply/actions";
 import { buildKillerAnswers, collectKillerFields, killerFieldId, KILLER_FIELD_PREFIX } from "@/modules/online-apply/killer-answers";
 import { solveChallenge } from "@/modules/online-apply/pow";
 import { onlineApplicationSchema } from "@/modules/online-apply/schema";
+import type { SubmitApplicationResult } from "@/modules/online-apply/types";
 import type { PublicKillerQuestion } from "@/modules/public-jobs/types";
+import { MAX_RESUME_UPLOAD_BYTES, maxResumeSizeMessage, needsDirectUpload, putToSignedUrl } from "@/modules/resumes/upload-limits";
 
-const MAX_CV_BYTES = 4 * 1024 * 1024;
 /** El servidor exige al menos 3 s entre la emisión del desafío y el envío. */
 const MIN_WAIT_MS = 3500;
 /** El servidor rechaza desafíos de más de 30 minutos: se renueva antes. */
@@ -56,6 +57,35 @@ async function fetchAndSolve(vacancyCode: string): Promise<Solved> {
   const receivedAt = performance.now();
   const solution = await solveChallenge(challenge, bits);
   return { challenge, solution, receivedAt };
+}
+
+/**
+ * Hasta 4 MB el CV viaja en la Server Action. Más grande: el servidor comprueba el
+ * desafío y los límites, firma una URL de carga, el navegador sube el archivo
+ * directo a Storage y otra acción lo vuelve a validar y registra la postulación.
+ */
+async function sendApplication(data: FormData): Promise<SubmitApplicationResult> {
+  const file = data.get("cv");
+  if (!(file instanceof File) || !needsDirectUpload(file.size)) return submitOnlineApplication(data);
+
+  data.delete("cv");
+  data.set("cvName", file.name);
+  data.set("cvSize", String(file.size));
+  const requested = await requestApplicationUpload(data);
+  if (!requested.ok) return requested;
+  if (!requested.decoy) {
+    data.set("ticket", requested.ticket);
+    if (!(await putToSignedUrl(requested, file))) {
+      return {
+        ok: false,
+        message: "No se pudo subir su CV. Revise su conexión e inténtelo nuevamente.",
+        refreshChallenge: true,
+      };
+    }
+  }
+  data.delete("challenge");
+  data.delete("solution");
+  return confirmApplicationUpload(data);
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -156,7 +186,7 @@ export function ApplyForm({
     }
     const file = data.get("cv");
     if (!(file instanceof File) || file.size === 0) next.cv = "Adjunte su CV en PDF o Word.";
-    else if (file.size > MAX_CV_BYTES) next.cv = "El archivo supera el tamaño máximo de 4 MB.";
+    else if (file.size > MAX_RESUME_UPLOAD_BYTES) next.cv = maxResumeSizeMessage(MAX_RESUME_UPLOAD_BYTES);
     return next;
   }
 
@@ -186,7 +216,7 @@ export function ApplyForm({
 
       // El desafío es de un solo uso: sirva o no, el siguiente envío pide otro.
       challengeRef.current = null;
-      const result = await submitOnlineApplication(data);
+      const result = await sendApplication(data);
       if (result.ok) {
         setReference(result.reference);
         return;
@@ -362,7 +392,7 @@ export function ApplyForm({
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor={FIELD_IDS.cv}>CV (PDF o Word, hasta 4 MB)</Label>
+        <Label htmlFor={FIELD_IDS.cv}>CV (PDF o Word, hasta 10 MB)</Label>
         <Input
           id={FIELD_IDS.cv}
           name="cv"

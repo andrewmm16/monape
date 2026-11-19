@@ -8,9 +8,25 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { EXTRACTION_STATUS_LABELS } from "@/lib/labels";
-import { uploadResume } from "@/modules/resumes/actions";
+import { confirmResumeUpload, requestResumeUpload, uploadResume, type UploadResumeResult } from "@/modules/resumes/actions";
+import { MAX_RESUME_UPLOAD_BYTES, maxResumeSizeMessage, needsDirectUpload, putToSignedUrl } from "@/modules/resumes/upload-limits";
+import type { ActionResult } from "@/lib/action-result";
 
-const MAX_BYTES = 4 * 1024 * 1024;
+const UPLOAD_FAILED = "No se pudo subir el archivo. Revise su conexión e inténtelo nuevamente.";
+
+/** Hasta 4 MB viaja en la Server Action; más grande, directo a Storage con URL firmada y confirmación. */
+async function sendResume(candidateId: string, file: File): Promise<ActionResult<UploadResumeResult>> {
+  if (!needsDirectUpload(file.size)) {
+    const formData = new FormData();
+    formData.set("candidateId", candidateId);
+    formData.set("file", file);
+    return uploadResume(formData);
+  }
+  const ticket = await requestResumeUpload({ candidateId, fileName: file.name, size: file.size });
+  if (!ticket.ok) return ticket;
+  if (!(await putToSignedUrl(ticket.data, file))) return { ok: false, error: UPLOAD_FAILED };
+  return confirmResumeUpload({ candidateId, resumeId: ticket.data.resumeId, kind: ticket.data.kind, fileName: file.name });
+}
 
 export function ResumeUpload({ candidateId }: { candidateId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,15 +38,12 @@ export function ResumeUpload({ candidateId }: { candidateId: string }) {
     event.preventDefault();
     if (!file) return;
     // Validación previa para dar respuesta inmediata; el servidor vuelve a validar todo.
-    if (file.size > MAX_BYTES) {
-      toast.error("El archivo supera el tamaño máximo de 4 MB.");
+    if (file.size > MAX_RESUME_UPLOAD_BYTES) {
+      toast.error(maxResumeSizeMessage(MAX_RESUME_UPLOAD_BYTES));
       return;
     }
-    const formData = new FormData();
-    formData.set("candidateId", candidateId);
-    formData.set("file", file);
     startTransition(async () => {
-      const result = await uploadResume(formData);
+      const result = await sendResume(candidateId, file).catch((): ActionResult<UploadResumeResult> => ({ ok: false, error: UPLOAD_FAILED }));
       if (result.ok) {
         const status = EXTRACTION_STATUS_LABELS[result.data.extractionStatus as keyof typeof EXTRACTION_STATUS_LABELS];
         toast.success(`CV cargado como versión ${result.data.version}. ${status ?? ""}.`);
@@ -46,7 +59,7 @@ export function ResumeUpload({ candidateId }: { candidateId: string }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <Field className="sm:max-w-md">
-        <FieldLabel htmlFor="resume-file">Cargar CV (PDF o DOCX, máx. 4 MB)</FieldLabel>
+        <FieldLabel htmlFor="resume-file">Cargar CV (PDF o DOCX, máx. 10 MB)</FieldLabel>
         <Input
           ref={inputRef}
           id="resume-file"

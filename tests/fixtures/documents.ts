@@ -37,6 +37,32 @@ export async function makeScannedPdf(lines: string[], pages = 1): Promise<Uint8A
   return doc.save();
 }
 
+/**
+ * PDF con texto real en la primera página y, en la segunda, una imagen de ruido
+ * (no se comprime) para llegar a unos `targetBytes`. Sirve para probar los CV de
+ * más de 4 MB, que van por la carga directa a Storage.
+ */
+export async function makeLargePdf(lines: string[], targetBytes: number): Promise<Uint8Array> {
+  const side = Math.ceil(Math.sqrt(targetBytes / 3));
+  const canvas = createCanvas(side, side);
+  const context = canvas.getContext("2d");
+  const pixels = context.createImageData(side, side);
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    pixels.data[i] = Math.floor(Math.random() * 256);
+    pixels.data[i + 1] = Math.floor(Math.random() * 256);
+    pixels.data[i + 2] = Math.floor(Math.random() * 256);
+    pixels.data[i + 3] = 255;
+  }
+  context.putImageData(pixels, 0, 0);
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage([595, 842]);
+  lines.forEach((line, index) => page.drawText(line, { x: 50, y: 790 - index * 18, size: 11, font }));
+  const image = await doc.embedPng(canvas.toBuffer("image/png"));
+  doc.addPage([595, 842]).drawImage(image, { x: 0, y: 0, width: 595, height: 842 });
+  return doc.save();
+}
+
 /** PDF sin texto (equivalente a un documento escaneado sin OCR). */
 export async function makeEmptyPdf(): Promise<Uint8Array> {
   const doc = await PDFDocument.create();

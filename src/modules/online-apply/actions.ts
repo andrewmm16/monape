@@ -17,16 +17,24 @@ import { getCurrentPrivacyNotice } from "@/modules/privacy/queries";
 import { getPublicVacancy, listPublicKillerQuestions } from "@/modules/public-jobs/queries";
 import { extractResume, needsOcr } from "@/modules/resumes/extraction";
 import { applyOcrToResume } from "@/modules/resumes/ocr-apply";
-import { MAX_RESUME_BYTES, validateResumeFile } from "@/modules/resumes/file-validation";
+import {
+  createDirectUploadTarget,
+  downloadStagedResume,
+  nameForConfirmedUpload,
+  parseDirectUploadRequest,
+  removeStagedResume,
+} from "@/modules/resumes/direct-upload";
+import { MAX_RESUME_BYTES, MAX_RESUME_UPLOAD_BYTES, validateResumeFile, type ResumeKind } from "@/modules/resumes/file-validation";
 import { RESUMES_BUCKET } from "@/modules/resumes/storage";
 import type { Json } from "@/types/database";
 import { verifyChallenge } from "./challenge";
 import { getOnlineApplyConfig } from "./config";
 import { buildKillerAnswers, collectKillerFields } from "./killer-answers";
 import { portalFromReferrer } from "./origin";
-import { checkboxValue, onlineApplicationSchema, textValue } from "./schema";
+import { checkboxValue, onlineApplicationSchema, textValue, type OnlineApplicationValues } from "./schema";
 import { rateLimitSubject } from "./subject";
-import { MESSAGES, type SubmitApplicationResult } from "./types";
+import { MESSAGES, type RequestApplicationUploadResult, type SubmitApplicationResult } from "./types";
+import { signUploadTicket, ticketStoragePath, UPLOAD_TICKET_TTL_MS, verifyUploadTicket } from "./upload-ticket";
 
 const VACANCY_CODE = /^[a-z0-9]{10}$/;
 const REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -116,7 +124,9 @@ function scheduleReceiptEmail(
   });
 }
 
-function fail(message: string, extra: Partial<Extract<SubmitApplicationResult, { ok: false }>> = {}): SubmitApplicationResult {
+type Failure = Extract<SubmitApplicationResult, { ok: false }>;
+
+function fail(message: string, extra: Partial<Failure> = {}): Failure {
   return { ok: false, message, ...extra };
 }
 
@@ -132,6 +142,50 @@ function cheapResumeCheck(file: File, bytes: Uint8Array): string | null {
     return extension === "pdf" ? "El archivo no es un PDF válido." : "El archivo no es un documento DOCX válido.";
   }
   return null;
+}
+
+/** Campos de texto del formulario, validados con el esquema; los errores por campo, aparte. */
+function parseApplicantFields(formData: FormData) {
+  const parsed = onlineApplicationSchema.safeParse({
+    fullName: textValue(formData.get("fullName")),
+    email: textValue(formData.get("email")),
+    phone: textValue(formData.get("phone")),
+    location: textValue(formData.get("location")),
+    linkedinUrl: textValue(formData.get("linkedinUrl")),
+    acceptNotice: checkboxValue(formData.get("acceptNotice")),
+    acceptTalentPool: checkboxValue(formData.get("acceptTalentPool")),
+    noticeId: textValue(formData.get("noticeId")),
+    killerAnswers: collectKillerFields(formData),
+  });
+  const fieldErrors: Record<string, string[]> = {};
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      (fieldErrors[issue.path.join(".") || "_"] ??= []).push(issue.message);
+    }
+  }
+  return { parsed, fieldErrors };
+}
+
+/**
+ * Vacante pública y abierta; aviso vigente (el mismo mensaje que RH412);
+ * preguntas eliminatorias: solo se valida la forma de las respuestas
+ * (obligatorias, tipo, opción existente). Que no cumplan NO bloquea: la base de
+ * datos las marca.
+ */
+async function checkVacancyContext(
+  vacancyCode: string,
+  values: OnlineApplicationValues,
+): Promise<{ ok: true; killer: ReturnType<typeof buildKillerAnswers> } | { ok: false; result: Failure }> {
+  const vacancy = await getPublicVacancy(vacancyCode);
+  if (!vacancy || !vacancy.acceptingApplications) return { ok: false, result: fail(MESSAGES.closed) };
+  const notice = await getCurrentPrivacyNotice();
+  if (!notice || notice.id !== values.noticeId) return { ok: false, result: fail(MESSAGES.noticeChanged, { reload: true }) };
+
+  const killer = buildKillerAnswers(await listPublicKillerQuestions(vacancyCode), values.killerAnswers);
+  if (Object.keys(killer.errors).length > 0) {
+    return { ok: false, result: fail(MESSAGES.validation, { fieldErrors: killer.errors, refreshChallenge: true }) };
+  }
+  return { ok: true, killer };
 }
 
 /**
@@ -177,23 +231,7 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
   if (fresh !== true) return fail(MESSAGES.challenge, { refreshChallenge: true });
 
   // 5. Comprobaciones baratas, sin gastar cupo por conexión.
-  const parsed = onlineApplicationSchema.safeParse({
-    fullName: textValue(formData.get("fullName")),
-    email: textValue(formData.get("email")),
-    phone: textValue(formData.get("phone")),
-    location: textValue(formData.get("location")),
-    linkedinUrl: textValue(formData.get("linkedinUrl")),
-    acceptNotice: checkboxValue(formData.get("acceptNotice")),
-    acceptTalentPool: checkboxValue(formData.get("acceptTalentPool")),
-    noticeId: textValue(formData.get("noticeId")),
-    killerAnswers: collectKillerFields(formData),
-  });
-  const fieldErrors: Record<string, string[]> = {};
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      (fieldErrors[issue.path.join(".") || "_"] ??= []).push(issue.message);
-    }
-  }
+  const { parsed, fieldErrors } = parseApplicantFields(formData);
   const file = formData.get("cv");
   let bytes: Uint8Array | null = null;
   if (!(file instanceof File) || file.size === 0) {
@@ -210,18 +248,9 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
   }
   const values = parsed.data;
 
-  // Vacante pública y abierta; aviso vigente (el mismo mensaje que RH412).
-  const vacancy = await getPublicVacancy(vacancyCode);
-  if (!vacancy || !vacancy.acceptingApplications) return fail(MESSAGES.closed);
-  const notice = await getCurrentPrivacyNotice();
-  if (!notice || notice.id !== values.noticeId) return fail(MESSAGES.noticeChanged, { reload: true });
-
-  // Preguntas eliminatorias: se valida la forma de las respuestas (obligatorias,
-  // tipo, opción existente). Que no cumplan NO bloquea: la base de datos las marca.
-  const killer = buildKillerAnswers(await listPublicKillerQuestions(vacancyCode), values.killerAnswers);
-  if (Object.keys(killer.errors).length > 0) {
-    return fail(MESSAGES.validation, { fieldErrors: killer.errors, refreshChallenge: true });
-  }
+  const context = await checkVacancyContext(vacancyCode, values);
+  if (!context.ok) return context.result;
+  const killer = context.killer;
 
   // 6. Límite por IP (HMAC), por vacante y total.
   const subject = rateLimitSubject(config.secret, await headers());
@@ -260,11 +289,47 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
     return fail(MESSAGES.generic, { refreshChallenge: true });
   }
 
+  return registerApplication(admin, {
+    vacancyCode,
+    values,
+    killer,
+    referrer: textValue(formData.get("referrer")),
+    resume,
+    candidateId,
+    resumeId,
+    storagePath,
+    sha256,
+    extraction,
+    scanned,
+  });
+}
+
+type Registration = {
+  vacancyCode: string;
+  values: OnlineApplicationValues;
+  killer: ReturnType<typeof buildKillerAnswers>;
+  referrer: string;
+  resume: { bytes: Uint8Array; kind: ResumeKind; mimeType: string; filename: string };
+  candidateId: string;
+  resumeId: string;
+  /** El archivo ya está en esta ruta de Storage. */
+  storagePath: string;
+  sha256: string;
+  extraction: Awaited<ReturnType<typeof extractResume>>;
+  scanned: boolean;
+};
+
+/**
+ * Registro atómico de la postulación con el archivo ya guardado, compensación si
+ * falla (sin tocar un CV que sí quedó registrado), y evaluación y acuse diferidos.
+ */
+async function registerApplication(admin: AdminClient, r: Registration): Promise<SubmitApplicationResult> {
+  const { vacancyCode, values, killer, resume, candidateId, resumeId, storagePath, sha256, extraction, scanned } = r;
   const callSubmit = () =>
     admin.rpc("submit_online_application", {
       p_vacancy_code: vacancyCode,
       p_notice_id: values.noticeId,
-      p_portal_name: portalFromReferrer(textValue(formData.get("referrer"))),
+      p_portal_name: portalFromReferrer(r.referrer),
       p_accept_talent_pool: values.acceptTalentPool,
       p_candidate_id: candidateId,
       p_resume_id: resumeId,
@@ -332,4 +397,163 @@ async function processSubmission(formData: FormData): Promise<SubmitApplicationR
 
   // 9. Referencia para la persona.
   return { ok: true, reference: result.public_reference };
+}
+
+/**
+ * Carga directa, paso 1 (CV de más de 4 MB). Mismas protecciones que el envío
+ * normal y en el mismo orden: configuración, campo trampa, desafío firmado y de
+ * un solo uso, comprobaciones baratas (datos, nombre y tamaño declarados,
+ * vacante abierta, aviso vigente) sin gastar cupo, y límite por IP. Solo
+ * entonces se firma una URL de carga de un solo uso en una ruta que decide el
+ * servidor y se entrega un comprobante firmado de corta vida.
+ */
+export async function requestApplicationUpload(formData: FormData): Promise<RequestApplicationUploadResult> {
+  try {
+    return await processUploadRequest(formData);
+  } catch (error) {
+    logServerError("online_apply.request_upload", error);
+    return fail(MESSAGES.generic);
+  }
+}
+
+async function processUploadRequest(formData: FormData): Promise<RequestApplicationUploadResult> {
+  const config = getOnlineApplyConfig();
+  if (!config.enabled) return fail(MESSAGES.unavailable);
+  if (textValue(formData.get("website")).trim() !== "") return { ok: true, decoy: true };
+
+  const vacancyCode = textValue(formData.get("vacancyCode"));
+  const challenge = textValue(formData.get("challenge"));
+  const solution = textValue(formData.get("solution"));
+  if (!VACANCY_CODE.test(vacancyCode)) return fail(MESSAGES.challenge, { refreshChallenge: true });
+  const check = verifyChallenge(config.secret, vacancyCode, challenge, solution);
+  if (!check.ok) return fail(MESSAGES.challenge, { refreshChallenge: true });
+
+  const admin = createSupabaseAdminClient();
+  const { data: fresh, error: challengeError } = await admin.rpc("consume_form_challenge", { p_hash: check.hash });
+  if (challengeError) {
+    logServerError("online_apply.challenge", challengeError);
+    return fail(MESSAGES.generic, { refreshChallenge: true });
+  }
+  if (fresh !== true) return fail(MESSAGES.challenge, { refreshChallenge: true });
+
+  const { parsed, fieldErrors } = parseApplicantFields(formData);
+  const declared = parseDirectUploadRequest({
+    fileName: textValue(formData.get("cvName")),
+    size: Number(textValue(formData.get("cvSize"))),
+  });
+  if (!declared.ok) fieldErrors.cv = [declared.reason];
+  if (!parsed.success || !declared.ok || fieldErrors.cv) {
+    return fail(MESSAGES.validation, { fieldErrors, refreshChallenge: true });
+  }
+  const context = await checkVacancyContext(vacancyCode, parsed.data);
+  if (!context.ok) return context.result;
+
+  const subject = rateLimitSubject(config.secret, await headers());
+  const { data: allowed, error: limitError } = await admin.rpc("consume_public_rate_limit", {
+    p_subject: subject,
+    p_vacancy_code: vacancyCode,
+  });
+  if (limitError) {
+    logServerError("online_apply.rate_limit", limitError);
+    return fail(MESSAGES.generic, { refreshChallenge: true });
+  }
+  if (allowed !== true) return fail(MESSAGES.rateLimited, { refreshChallenge: true });
+
+  const ticket = {
+    vacancyCode,
+    candidateId: randomUUID(),
+    resumeId: randomUUID(),
+    kind: declared.kind,
+    expiresAt: Date.now() + UPLOAD_TICKET_TTL_MS,
+  };
+  const target = await createDirectUploadTarget(admin, ticketStoragePath(ticket), declared.kind);
+  return { ok: true, ticket: signUploadTicket(config.secret, ticket), ...target };
+}
+
+/**
+ * Carga directa, paso 2. El comprobante firmado sustituye al desafío (que ya se
+ * gastó en el paso 1) y fija la vacante y la ruta; no se vuelve a gastar cupo.
+ * Se descarga el archivo desde Storage y se aplican las mismas validaciones, la
+ * misma extracción y el mismo registro que en el envío normal. Si algo falla y
+ * el CV no quedó registrado, se borra el objeto.
+ */
+export async function confirmApplicationUpload(formData: FormData): Promise<SubmitApplicationResult> {
+  try {
+    return await processUploadConfirmation(formData);
+  } catch (error) {
+    logServerError("online_apply.confirm_upload", error);
+    return fail(MESSAGES.generic);
+  }
+}
+
+async function processUploadConfirmation(formData: FormData): Promise<SubmitApplicationResult> {
+  const config = getOnlineApplyConfig();
+  if (!config.enabled) return fail(MESSAGES.unavailable);
+  if (textValue(formData.get("website")).trim() !== "") return { ok: true, reference: fakeReference() };
+
+  const rawTicket = textValue(formData.get("ticket"));
+  const ticket = verifyUploadTicket(config.secret, rawTicket);
+  if (!ticket) return fail(MESSAGES.challenge, { refreshChallenge: true });
+  const { vacancyCode, resumeId, candidateId } = ticket;
+  const storagePath = ticketStoragePath(ticket);
+
+  const admin = createSupabaseAdminClient();
+  // El comprobante es de un solo uso (se gasta como un desafío): repetir la
+  // confirmación no vuelve a enviar el acuse ni a gastar descargas y lecturas.
+  const ticketHash = createHash("sha256").update(`cv-upload-ticket-used:v1:${rawTicket}`).digest("hex");
+  const { data: freshTicket, error: ticketError } = await admin.rpc("consume_form_challenge", { p_hash: ticketHash });
+  if (ticketError) {
+    logServerError("online_apply.ticket", ticketError);
+    return fail(MESSAGES.generic, { refreshChallenge: true });
+  }
+  if (freshTicket !== true) return fail(MESSAGES.challenge, { refreshChallenge: true });
+  // Salida con error: borra el objeto salvo que el CV ya conste registrado (confirmación repetida).
+  const reject = async (result: SubmitApplicationResult) => {
+    if ((await isResumeRegistered(admin, resumeId)) === false) await removeStagedResume(admin, storagePath);
+    return result;
+  };
+
+  const { parsed, fieldErrors } = parseApplicantFields(formData);
+  if (!parsed.success) return reject(fail(MESSAGES.validation, { fieldErrors, refreshChallenge: true }));
+  const values = parsed.data;
+  const context = await checkVacancyContext(vacancyCode, values);
+  if (!context.ok) return reject(context.result);
+
+  const bytes = await downloadStagedResume(admin, storagePath);
+  if (!bytes) {
+    return reject(
+      fail(MESSAGES.validation, {
+        fieldErrors: { cv: ["No se recibió el archivo. Adjúntelo e inténtelo nuevamente."] },
+        refreshChallenge: true,
+      }),
+    );
+  }
+  const validation = validateResumeFile({
+    name: nameForConfirmedUpload(textValue(formData.get("cvName")), ticket.kind),
+    size: bytes.length,
+    declaredType: "",
+    bytes,
+    maxBytes: MAX_RESUME_UPLOAD_BYTES,
+  });
+  if (!validation.ok) {
+    return reject(fail(MESSAGES.validation, { fieldErrors: { cv: [validation.reason] }, refreshChallenge: true }));
+  }
+  const resume = { bytes, kind: validation.kind, mimeType: validation.mimeType, filename: validation.safeName };
+
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  // Sin OCR en línea, como en el envío normal: el OCR corre después de responder.
+  const extraction = await extractResume(bytes, resume.kind);
+  return registerApplication(admin, {
+    vacancyCode,
+    values,
+    killer: context.killer,
+    referrer: textValue(formData.get("referrer")),
+    resume,
+    candidateId,
+    resumeId,
+    storagePath,
+    sha256,
+    extraction,
+    scanned: needsOcr(extraction),
+  });
 }

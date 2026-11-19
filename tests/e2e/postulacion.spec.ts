@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { makePdf } from "../fixtures/documents";
+import { makeLargePdf, makePdf } from "../fixtures/documents";
 
 /**
  * Formulario público de postulación (2.2) contra un proyecto Supabase de PRUEBAS.
@@ -124,7 +124,7 @@ async function fillForm(
   await page.getByLabel("Correo electrónico").fill(values.email);
   await page.getByLabel("Teléfono").fill(values.phone);
   await page.getByLabel("Ciudad (opcional)").fill("Lima");
-  await page.getByLabel(/^CV \(PDF o Word, hasta 4 MB\)/).setInputFiles(values.file);
+  await page.getByLabel(/^CV \(PDF o Word, hasta 10 MB\)/).setInputFiles(values.file);
   await page.getByLabel("He leído y acepto el aviso de privacidad").click();
   if (values.talentPool) await page.getByLabel("Acepto que conserven mi CV para futuras vacantes (opcional)").click();
 }
@@ -293,6 +293,44 @@ test("postulación pública: envío sin sesión, bandeja, repetición con el mis
   await expect(closedPage.locator("form")).toHaveCount(0);
   await expect(closedPage.getByRole("link", { name: "Postular", exact: true })).toHaveCount(0);
   await closedVisitor.close();
+});
+
+test("postulación pública con un CV de más de 4 MB: va directo a Storage y se registra y evalúa", async ({ page, browser }, testInfo) => {
+  test.setTimeout(240_000);
+  test.skip(testInfo.project.name !== "escritorio", "Se ejecuta una vez en escritorio.");
+  const tag = lettersOnly();
+  const title = `Analista Postulacion ${tag}`;
+  const applicantName = `Elena ${tag} Grande`;
+
+  const adminContext = await desktopContext(browser);
+  await activateTestNotice(await adminContext.newPage(), `grande-${tag.toLowerCase()}`);
+  await adminContext.close();
+  const { publicPath } = await createPublishedVacancy(page, title);
+
+  // Unos 5 MB: más que el cuerpo que acepta una función de Vercel, menos que el tope de 10 MB.
+  const pdf = Buffer.from(await makeLargePdf([applicantName, "Experiencia con SQL Server y reportes de gestión."], 5 * 1024 * 1024));
+  expect(pdf.length).toBeGreaterThan(4.5 * 1024 * 1024);
+
+  const visitor = await publicContext(browser);
+  const publicPage = await visitor.newPage();
+  await publicPage.goto(publicPath);
+  await fillForm(publicPage, {
+    name: applicantName,
+    email: `elena.${tag.toLowerCase()}@correo.test`,
+    phone: `9${String(Date.now()).slice(-8)}`,
+    file: { name: "cv-grande.pdf", mimeType: "application/pdf", buffer: pdf },
+  });
+  await publicPage.getByRole("button", { name: "Enviar postulación" }).click();
+  await expect(publicPage.getByText(SUCCESS)).toBeVisible({ timeout: 90_000 });
+  expect(await visitor.cookies()).toEqual([]);
+  await visitor.close();
+
+  // RRHH la ve en la bandeja, con el CV leído y evaluado.
+  await page.goto("/postulaciones");
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole("row").filter({ hasText: applicantName })).toContainText("acreditado");
+  }).toPass({ timeout: 60_000 });
 });
 
 test("móvil: el formulario cabe en pantalla, sin desplazamiento horizontal, y envía", async ({ browser }, testInfo) => {

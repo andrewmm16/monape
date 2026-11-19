@@ -82,10 +82,21 @@ describe("migraciones", () => {
     }>(`select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'resumes'`);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.public).toBe(false);
-    expect(Number(rows[0]!.file_size_limit)).toBe(4 * 1024 * 1024);
+    expect(Number(rows[0]!.file_size_limit)).toBe(10 * 1024 * 1024);
     expect(rows[0]!.allowed_mime_types).toEqual([
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ]);
+  });
+  it("el tamaño registrado de un CV admite hasta 10 MB (carga directa) y ni un byte más", async () => {
+    const { rows } = await db.query<{ id: string }>(`insert into public.candidates (full_name) values ('Prueba Tamaño') returning id`);
+    const insert = (size: number) =>
+      db.query(
+        `insert into public.resumes (candidate_id, storage_path, original_filename, mime_type, size_bytes, sha256)
+         values ($1::uuid, 'candidates/' || $1::text || '/' || gen_random_uuid() || '.pdf', 'cv.pdf', 'application/pdf', $2, repeat('b', 64))`,
+        [rows[0]!.id, size],
+      );
+    await expect(insert(10 * 1024 * 1024)).resolves.toBeDefined();
+    await expect(insert(10 * 1024 * 1024 + 1)).rejects.toThrow(/size_bytes_check/);
   });
 });

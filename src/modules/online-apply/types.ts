@@ -11,6 +11,16 @@ export type SubmitApplicationResult =
       reload?: boolean;
     };
 
+/**
+ * Primer paso de la carga directa (CV de más de 4 MB): la URL firmada y el
+ * comprobante que el navegador devuelve al confirmar. `decoy` es el campo trampa:
+ * no hay nada que subir y la confirmación responde con éxito ficticio.
+ */
+export type RequestApplicationUploadResult =
+  | { ok: true; decoy: true }
+  | { ok: true; decoy?: false; ticket: string; signedUrl: string; contentType: string }
+  | Extract<SubmitApplicationResult, { ok: false }>;
+
 export const MESSAGES = {
   unavailable: "Las postulaciones en línea no están disponibles por ahora.",
   rateLimited: "Demasiados intentos desde esta conexión. Inténtelo más tarde",

@@ -59,6 +59,19 @@ function isCookielessPublicPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Origen de Supabase, el único externo al que el navegador se conecta: sube los CV
+ * de más de 4 MB directo a Storage con una URL firmada de un solo uso (el bucket
+ * es privado y sin políticas; ver docs/seguridad.md).
+ */
+function supabaseOrigin(): string | null {
+  try {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildContentSecurityPolicy(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
   return [
@@ -71,7 +84,7 @@ function buildContentSecurityPolicy(nonce: string): string {
     // iconos y su CSS salen del propio paquete (mismo origen) y no hace falta tocar connect-src.
     "img-src 'self' blob: data: https://tile.openstreetmap.org",
     "font-src 'self'",
-    "connect-src 'self'",
+    ["connect-src 'self'", supabaseOrigin()].filter(Boolean).join(" "),
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

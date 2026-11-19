@@ -89,7 +89,8 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       // CV de hasta 4 MB + margen del multipart. Vercel limita el cuerpo de
-      // las funciones a 4,5 MB (ver docs/pendientes.md).
+      // las funciones a 4,5 MB; los CV de 4 a 10 MB no pasan por aquí: se suben
+      // directo a Storage con URL firmada (ver docs/despliegue.md).
       bodySizeLimit: "4.3mb",
     },
     // Desactivado a propósito. En desarrollo, Next 16 arranca un único proceso

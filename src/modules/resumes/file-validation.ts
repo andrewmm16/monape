@@ -1,7 +1,15 @@
 import { constants as zlibConstants, inflateSync } from "node:zlib";
 import { inspectDocx } from "./docx";
 
-export const MAX_RESUME_BYTES = 4 * 1024 * 1024;
+import { INLINE_RESUME_BYTES, MAX_RESUME_UPLOAD_BYTES, maxResumeSizeMessage } from "./upload-limits";
+
+/**
+ * Tope por defecto: lo que cabe en el cuerpo de una solicitud (Talent, correo,
+ * robot y Server Actions de carga normal). La carga directa a Storage pasa
+ * `maxBytes: MAX_RESUME_UPLOAD_BYTES` (10 MB).
+ */
+export const MAX_RESUME_BYTES = INLINE_RESUME_BYTES;
+export { MAX_RESUME_UPLOAD_BYTES };
 
 export const RESUME_MIME_TYPES = {
   pdf: "application/pdf",
@@ -121,10 +129,13 @@ export function validateResumeFile(input: {
   size: number;
   declaredType: string;
   bytes: Uint8Array;
+  /** Tope de tamaño; por defecto MAX_RESUME_BYTES. */
+  maxBytes?: number;
 }): FileValidationResult {
+  const maxBytes = input.maxBytes ?? MAX_RESUME_BYTES;
   if (input.size <= 0 || input.bytes.length === 0) return { ok: false, reason: "El archivo está vacío." };
-  if (input.size > MAX_RESUME_BYTES || input.bytes.length > MAX_RESUME_BYTES) {
-    return { ok: false, reason: "El archivo supera el tamaño máximo de 4 MB." };
+  if (input.size > maxBytes || input.bytes.length > maxBytes) {
+    return { ok: false, reason: maxResumeSizeMessage(maxBytes) };
   }
   if (input.bytes.length !== input.size) return { ok: false, reason: "El archivo no se recibió completo." };
 

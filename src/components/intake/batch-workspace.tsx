@@ -15,15 +15,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DUPLICATE_REASON_LABELS } from "@/lib/labels";
 import {
   closeBatch,
+  confirmBatchItemUpload,
   discardBatchItem,
   registerBatchItems,
+  requestBatchItemUpload,
   updateBatchItem,
   uploadBatchItem,
   type RegisterBatchSummary,
 } from "@/modules/intake/actions";
 import { MAX_BATCH_ITEMS } from "@/modules/intake/schemas";
+import { MAX_RESUME_UPLOAD_BYTES, maxResumeSizeMessage, needsDirectUpload, putToSignedUrl } from "@/modules/resumes/upload-limits";
 
-const MAX_BYTES = 4 * 1024 * 1024;
 const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export type BatchItemView = {
@@ -193,6 +195,21 @@ export function BatchWorkspace({
     item.status === "listo" && (choices[item.id] ?? item.duplicates.length === 0);
   const selected = pending.filter(isChecked);
 
+  const sendFile = async (file: File) => {
+    if (!needsDirectUpload(file.size)) {
+      const formData = new FormData();
+      formData.set("batchId", batchId);
+      formData.set("file", file);
+      return uploadBatchItem(formData);
+    }
+    const ticket = await requestBatchItemUpload({ batchId, fileName: file.name, size: file.size });
+    if (!ticket.ok) return ticket;
+    if (!(await putToSignedUrl(ticket.data, file))) {
+      return { ok: false as const, error: "No se pudo subir el archivo. Revise su conexión e inténtelo nuevamente." };
+    }
+    return confirmBatchItemUpload({ batchId, itemId: ticket.data.itemId, kind: ticket.data.kind, fileName: file.name });
+  };
+
   const uploadFiles = async (files: File[]) => {
     if (files.length === 0 || uploading) return;
     const room = MAX_BATCH_ITEMS - items.length;
@@ -208,17 +225,14 @@ export function BatchWorkspace({
     const update = (index: number, patch: Partial<UploadEntry>) =>
       setUploads((current) => current.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
 
-    // Uno por uno: el límite es de 4 MB por solicitud.
+    // Uno por uno. Hasta 4 MB viaja en la Server Action; más grande, directo a Storage con URL firmada.
     for (const [index, file] of files.entries()) {
-      if (file.size > MAX_BYTES) {
-        update(index, { state: "error", message: "El archivo supera el tamaño máximo de 4 MB." });
+      if (file.size > MAX_RESUME_UPLOAD_BYTES) {
+        update(index, { state: "error", message: maxResumeSizeMessage(MAX_RESUME_UPLOAD_BYTES) });
         continue;
       }
-      const formData = new FormData();
-      formData.set("batchId", batchId);
-      formData.set("file", file);
       try {
-        const result = await uploadBatchItem(formData);
+        const result = await sendFile(file);
         if (!result.ok) {
           update(index, { state: "error", message: result.error });
           if (result.error.startsWith("Demasiadas solicitudes")) {
@@ -309,7 +323,7 @@ export function BatchWorkspace({
         >
           <UploadIcon className="size-6 text-muted-foreground" aria-hidden />
           <span className="font-medium">Arrastre los CV aquí o selecciónelos desde su equipo</span>
-          <span className="text-xs text-muted-foreground">PDF o DOCX, máximo 4 MB cada uno</span>
+          <span className="text-xs text-muted-foreground">PDF o DOCX, máximo 10 MB cada uno</span>
           <input
             ref={inputRef}
             id={`batch-files-${vacancyId}`}

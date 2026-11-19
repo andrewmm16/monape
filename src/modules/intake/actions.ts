@@ -11,9 +11,19 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient, type AppSupabaseClient } from "@/lib/supabase/server";
 import { evaluateApplication } from "@/modules/evaluation/service";
 import { extractResume } from "@/modules/resumes/extraction";
-import { sanitizeFileName, validateResumeFile } from "@/modules/resumes/file-validation";
+import {
+  confirmBatchUploadSchema,
+  createDirectUploadTarget,
+  directBatchPath,
+  downloadStagedResume,
+  nameForConfirmedUpload,
+  parseDirectUploadRequest,
+  removeStagedResume,
+} from "@/modules/resumes/direct-upload";
+import { MAX_RESUME_UPLOAD_BYTES, sanitizeFileName, validateResumeFile } from "@/modules/resumes/file-validation";
 import { RESUMES_BUCKET } from "@/modules/resumes/storage";
 import { suggestName } from "@/modules/resumes/suggestions";
+import type { DirectResumeKind, DirectUploadTarget } from "@/modules/resumes/upload-limits";
 import type { Enums, Json } from "@/types/database";
 import { intakeStoragePath } from "./paths";
 import { registerItemsSchema, startBatchSchema, updateItemSchema, type UpdateItemInput } from "./schemas";
@@ -144,7 +154,41 @@ export async function uploadBatchItem(formData: FormData): Promise<ActionResult<
     const validation = validateResumeFile({ name: file.name, size: file.size, declaredType: file.type, bytes });
     if (!validation.ok) return insertErrorItem(supabase, batchId, file.name, "archivo_invalido", validation.reason);
 
-    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    return finishBatchItem(supabase, { batchId, itemId: randomUUID(), fileName: file.name, bytes, validation, stored: false });
+  });
+}
+
+type ValidResume = Extract<ReturnType<typeof validateResumeFile>, { ok: true }>;
+
+/**
+ * Tramo común de la carga normal y de la directa, a partir de un archivo ya
+ * validado: duplicado en el lote, extracción, guardado (si aún no está en
+ * Storage) y alta del ítem. Con `stored`, el objeto ya existe en la ruta del
+ * ítem y se borra en cualquier salida que no deje el ítem creado.
+ */
+/** ¿Ya existe el ítem? Mismo criterio que en los CV: ante la duda, no se borra el archivo. */
+async function batchItemExists(supabase: AppSupabaseClient, itemId: string): Promise<boolean> {
+  const { data, error } = await supabase.from("intake_batch_items").select("id").eq("id", itemId).maybeSingle();
+  return Boolean(error) || Boolean(data);
+}
+
+async function finishBatchItem(
+  supabase: AppSupabaseClient,
+  input: { batchId: string; itemId: string; fileName: string; bytes: Uint8Array; validation: ValidResume; stored: boolean },
+): Promise<UploadBatchItemResult> {
+  const { batchId, itemId, bytes, validation } = input;
+  const storagePath = intakeStoragePath(batchId, itemId, validation.kind);
+  const bucket = resumesBucket();
+  const dropStored = async () => {
+    if (!input.stored || (await batchItemExists(supabase, itemId))) return;
+    const { error: removeError } = await bucket.remove([storagePath]);
+    if (removeError) logServerError("intake.orphan", { code: "archivo_huerfano" });
+  };
+
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  let extraction: Awaited<ReturnType<typeof extractResume>>;
+  let name: ReturnType<typeof suggestName> | undefined;
+  try {
     const { data: repeated, error: repeatedError } = await supabase
       .from("intake_batch_items")
       .select("id")
@@ -153,17 +197,20 @@ export async function uploadBatchItem(formData: FormData): Promise<ActionResult<
       .maybeSingle();
     if (repeatedError) throw toAppError(repeatedError);
     if (repeated) {
-      return insertErrorItem(supabase, batchId, file.name, "duplicado_en_lote", "Este archivo ya está en el lote.");
+      await dropStored();
+      return insertErrorItem(supabase, batchId, input.fileName, "duplicado_en_lote", "Este archivo ya está en el lote.");
     }
 
     // PDF escaneado: se lee con OCR en línea para proponer nombre, correo y teléfono.
-    const extraction = await extractResume(bytes, validation.kind, { ocr: "inline" });
-    const name = extraction.text ? suggestName(extraction.text) : undefined;
-    const suggestedFields = { ...extraction.suggestions, ...(name ? { name } : {}) };
+    extraction = await extractResume(bytes, validation.kind, { ocr: "inline" });
+    name = extraction.text ? suggestName(extraction.text) : undefined;
+  } catch (error) {
+    await dropStored();
+    throw error;
+  }
+  const suggestedFields = { ...extraction.suggestions, ...(name ? { name } : {}) };
 
-    const itemId = randomUUID();
-    const storagePath = intakeStoragePath(batchId, itemId, validation.kind);
-    const bucket = resumesBucket();
+  if (!input.stored) {
     const { error: uploadError } = await bucket.upload(storagePath, bytes, {
       contentType: validation.mimeType,
       upsert: false,
@@ -173,39 +220,128 @@ export async function uploadBatchItem(formData: FormData): Promise<ActionResult<
       logServerError("intake.storage_upload", { code: uploadError.name });
       throw new AppError("No se pudo guardar el archivo. Intente nuevamente.", "unavailable");
     }
+  }
 
-    const { data, error } = await supabase
-      .from("intake_batch_items")
-      .insert({
-        id: itemId,
-        batch_id: batchId,
-        status: "listo",
-        original_filename: validation.safeName,
-        storage_path: storagePath,
-        mime_type: validation.mimeType,
-        size_bytes: bytes.length,
-        sha256,
-        extraction_status: extraction.status,
-        extraction_method: extraction.method,
-        raw_text: extraction.text,
-        suggested_fields: suggestedFields as Json,
-        warnings: extraction.warnings,
-        error_code: extraction.errorCode,
-        // Valores propuestos: RRHH los ve y corrige en la revisión antes de registrar.
-        full_name: name?.value.slice(0, 160) ?? null,
-        name_from_cv: Boolean(name),
-        email: extraction.suggestions.email?.value ?? null,
-        phone: extraction.suggestions.phone?.value ?? null,
-      })
-      .select("id, status")
-      .single();
-    if (error) {
-      // Compensación: no dejar archivos sin ítem.
+  const { data, error } = await supabase
+    .from("intake_batch_items")
+    .insert({
+      id: itemId,
+      batch_id: batchId,
+      status: "listo",
+      original_filename: validation.safeName,
+      storage_path: storagePath,
+      mime_type: validation.mimeType,
+      size_bytes: bytes.length,
+      sha256,
+      extraction_status: extraction.status,
+      extraction_method: extraction.method,
+      raw_text: extraction.text,
+      suggested_fields: suggestedFields as Json,
+      warnings: extraction.warnings,
+      error_code: extraction.errorCode,
+      // Valores propuestos: RRHH los ve y corrige en la revisión antes de registrar.
+      full_name: name?.value.slice(0, 160) ?? null,
+      name_from_cv: Boolean(name),
+      email: extraction.suggestions.email?.value ?? null,
+      phone: extraction.suggestions.phone?.value ?? null,
+    })
+    .select("id, status")
+    .single();
+  if (error) {
+    // Compensación: no dejar archivos sin ítem, salvo que otra confirmación ya creara el ítem.
+    if (!(await batchItemExists(supabase, itemId))) {
       const { error: removeError } = await bucket.remove([storagePath]);
       if (removeError) logServerError("intake.orphan", { code: "archivo_huerfano" });
-      throw toAppError(error, { conflict: "Este archivo ya está en el lote." });
     }
-    return { itemId: data.id, status: data.status };
+    throw toAppError(error, { conflict: "Este archivo ya está en el lote." });
+  }
+  return { itemId: data.id, status: data.status };
+}
+
+export type BatchUploadTicket = DirectUploadTarget & { itemId: string; kind: DirectResumeKind };
+
+/**
+ * Paso 1 de la carga directa de un archivo del lote (más de 4 MB): autoriza,
+ * comprueba el lote abierto y firma una URL de un solo uso en la ruta temporal
+ * que decide el servidor.
+ */
+export async function requestBatchItemUpload(input: {
+  batchId: string;
+  fileName: string;
+  size: number;
+}): Promise<ActionResult<BatchUploadTicket>> {
+  return runAction("intake.request_upload", async () => {
+    await requirePermission("resumes:upload");
+    await requirePermission("candidates:manage");
+    const batchId = parseInput(z.uuid(), input?.batchId);
+    const request = parseDirectUploadRequest({ fileName: input?.fileName, size: input?.size });
+    if (!request.ok) throw new AppError(request.reason, "validation");
+
+    const supabase = await createSupabaseServerClient();
+    await enforceRateLimit(supabase, RATE_LIMITS.cvBulkUpload);
+    await requireOpenBatch(supabase, batchId);
+
+    const itemId = randomUUID();
+    const target = await createDirectUploadTarget(
+      createSupabaseAdminClient(),
+      directBatchPath(batchId, itemId, request.kind),
+      request.kind,
+    );
+    return { ...target, itemId, kind: request.kind };
+  });
+}
+
+/**
+ * Paso 2: vuelve a autorizar, descarga el archivo y aplica las mismas
+ * validaciones que la carga normal. Un archivo inválido o repetido crea un ítem
+ * con error y borra el objeto, igual que hoy.
+ */
+export async function confirmBatchItemUpload(input: {
+  batchId: string;
+  itemId: string;
+  kind: string;
+  fileName: string;
+}): Promise<ActionResult<UploadBatchItemResult>> {
+  return runAction("intake.confirm_upload", async () => {
+    await requirePermission("resumes:upload");
+    await requirePermission("candidates:manage");
+    const values = parseInput(confirmBatchUploadSchema, input);
+    const supabase = await createSupabaseServerClient();
+    await requireOpenBatch(supabase, values.batchId);
+
+    // Una confirmación repetida no debe tocar (ni borrar) un ítem que ya existe.
+    const { data: existing, error: existingError } = await supabase
+      .from("intake_batch_items")
+      .select("id")
+      .eq("id", values.itemId)
+      .maybeSingle();
+    if (existingError) throw toAppError(existingError);
+    if (existing) throw new AppError("Este archivo ya está en el lote.", "conflict");
+
+    const admin = createSupabaseAdminClient();
+    const path = directBatchPath(values.batchId, values.itemId, values.kind);
+    const bytes = await downloadStagedResume(admin, path);
+    if (!bytes) throw new AppError("No se recibió el archivo. Intente cargarlo nuevamente.", "validation");
+
+    const validation = validateResumeFile({
+      name: nameForConfirmedUpload(values.fileName, values.kind),
+      size: bytes.length,
+      declaredType: "",
+      bytes,
+      maxBytes: MAX_RESUME_UPLOAD_BYTES,
+    });
+    if (!validation.ok) {
+      await removeStagedResume(admin, path);
+      return insertErrorItem(supabase, values.batchId, values.fileName, "archivo_invalido", validation.reason);
+    }
+    return finishBatchItem(supabase, {
+      batchId: values.batchId,
+      itemId: values.itemId,
+      fileName: values.fileName,
+      bytes,
+      validation,
+      stored: true,
+    });
   });
 }
 

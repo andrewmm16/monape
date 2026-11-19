@@ -137,7 +137,7 @@ Al publicarla, si no es confidencial:
 
 > **Hoy** esto funciona solo en el equipo local. Para que Google y los buscadores la encuentren hace falta ponerla en internet: un dominio, el registro en Google Search Console y el alta en cada buscador.
 
-**Postular desde la página.** Cada página pública tiene un formulario de un solo paso. Pide el nombre, el correo, el teléfono, el CV (PDF o Word, hasta 4 MB), y opcionalmente la ciudad y el perfil de LinkedIn. Hay que aceptar el aviso de privacidad vigente. Hay además una casilla opcional, desmarcada, para que conserven el CV para futuras vacantes.
+**Postular desde la página.** Cada página pública tiene un formulario de un solo paso. Pide el nombre, el correo, el teléfono, el CV (PDF o Word, hasta 10 MB), y opcionalmente la ciudad y el perfil de LinkedIn. Hay que aceptar el aviso de privacidad vigente. Hay además una casilla opcional, desmarcada, para que conserven el CV para futuras vacantes.
 - Al enviar, la persona recibe un número de referencia.
 - La postulación llega sola a la bandeja con el portal «Página de empleos», o «Google» si llegó desde Google, y la forma de ingreso «Formulario en línea». Se evalúa por reglas.
 - Si la misma persona postula dos veces, recibe la misma respuesta, para no revelar quién ya postuló, y RRHH la ve marcada como «Posible duplicado».
@@ -157,7 +157,7 @@ Después de unos días, Luis descarga desde Computrabajo los CV que llegaron. En
 
 1. Pulsa **«Carga masiva de CV»**.
 2. Elige el portal de origen, «Computrabajo», y pulsa **«Iniciar lote»**.
-3. Selecciona los archivos de una sola vez: hasta 50 por lote, en PDF o Word, de hasta 4 MB cada uno.
+3. Selecciona los archivos de una sola vez: hasta 50 por lote, en PDF o Word, de hasta 10 MB cada uno.
 
 La plataforma lee cada archivo y, por cada uno, muestra una fila con:
 

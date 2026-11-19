@@ -11,9 +11,19 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { extractResume } from "./extraction";
-import { validateResumeFile } from "./file-validation";
+import {
+  confirmResumeUploadSchema,
+  createDirectUploadTarget,
+  directResumePath,
+  downloadStagedResume,
+  nameForConfirmedUpload,
+  parseDirectUploadRequest,
+  removeStagedResume,
+} from "./direct-upload";
+import { MAX_RESUME_UPLOAD_BYTES, validateResumeFile } from "./file-validation";
 import { applyOcrToResume, describeOcrResult } from "./ocr-apply";
 import { RESUMES_BUCKET } from "./storage";
+import type { DirectResumeKind, DirectUploadTarget } from "./upload-limits";
 
 export type UploadResumeResult = { resumeId: string; version: number; extractionStatus: string };
 
@@ -44,7 +54,46 @@ export async function uploadResume(formData: FormData): Promise<ActionResult<Upl
     const validation = validateResumeFile({ name: file.name, size: file.size, declaredType: file.type, bytes });
     if (!validation.ok) throw new AppError(validation.reason, "validation");
 
-    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    return finishResumeUpload(supabase, { candidateId, resumeId: randomUUID(), bytes, validation, stored: false });
+  });
+}
+
+type ValidResume = Extract<ReturnType<typeof validateResumeFile>, { ok: true }>;
+
+/**
+ * ¿Ya quedó registrado el CV con este id? Con dos confirmaciones simultáneas del
+ * mismo archivo, la que falla no debe borrar el objeto que la otra registró. Si
+ * no se puede comprobar, se responde que sí: es preferible un archivo huérfano
+ * (lo barre la limpieza diaria) a un CV sin archivo.
+ */
+async function resumeRegistered(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, resumeId: string): Promise<boolean> {
+  const { data, error } = await supabase.from("resumes").select("id").eq("id", resumeId).maybeSingle();
+  return Boolean(error) || Boolean(data);
+}
+
+/**
+ * Tramo común de la carga normal y de la directa, a partir de un archivo ya
+ * validado: duplicado, extracción, guardado (solo si aún no está en Storage) y
+ * registro en una transacción. Con `stored` la ruta ya existe y todo error
+ * posterior borra ese objeto (no queda registrado en ningún caso).
+ */
+async function finishResumeUpload(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  input: { candidateId: string; resumeId: string; bytes: Uint8Array; validation: ValidResume; stored: boolean },
+): Promise<UploadResumeResult> {
+  const { candidateId, resumeId, bytes, validation } = input;
+  // El almacenamiento solo lo accede el servidor (ver migración 0005).
+  const storage = createSupabaseAdminClient().storage.from(RESUMES_BUCKET);
+  const storagePath = directResumePath(candidateId, resumeId, validation.kind);
+  const dropStored = async () => {
+    if (!input.stored || (await resumeRegistered(supabase, resumeId))) return;
+    const { error: removeError } = await storage.remove([storagePath]);
+    if (removeError) logServerError("resumes.orphan", { code: "archivo_huerfano" });
+  };
+
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  let extraction: Awaited<ReturnType<typeof extractResume>>;
+  try {
     const { data: existing } = await supabase
       .from("resumes")
       .select("version")
@@ -56,12 +105,13 @@ export async function uploadResume(formData: FormData): Promise<ActionResult<Upl
     }
 
     // Extracción antes de escribir nada: es local y no depende del almacenamiento.
-    const extraction = await extractResume(bytes, validation.kind, { ocr: "inline" });
+    extraction = await extractResume(bytes, validation.kind, { ocr: "inline" });
+  } catch (error) {
+    await dropStored();
+    throw error;
+  }
 
-    // El almacenamiento solo lo accede el servidor (ver migración 0005).
-    const storage = createSupabaseAdminClient().storage.from(RESUMES_BUCKET);
-    const resumeId = randomUUID();
-    const storagePath = `candidates/${candidateId}/${resumeId}.${validation.kind}`;
+  if (!input.stored) {
     const { error: uploadError } = await storage.upload(storagePath, bytes, {
       contentType: validation.mimeType,
       upsert: false,
@@ -71,33 +121,134 @@ export async function uploadResume(formData: FormData): Promise<ActionResult<Upl
       logServerError("resumes.storage_upload", { code: uploadError.name });
       throw new AppError("No se pudo guardar el archivo. Intente nuevamente.", "unavailable");
     }
+  }
 
-    // CV + extracción en una sola transacción, con la sesión del usuario.
-    const { data: version, error: registerError } = await supabase.rpc("register_resume", {
-      p_resume_id: resumeId,
-      p_candidate_id: candidateId,
-      p_storage_path: storagePath,
-      p_original_filename: validation.safeName,
-      p_mime_type: validation.mimeType,
-      p_size_bytes: bytes.length,
-      p_sha256: sha256,
-      p_extraction_status: extraction.status,
-      p_extraction_method: extraction.method,
-      p_extractor_version: extraction.extractorVersion,
-      p_raw_text: extraction.text,
-      p_suggested_fields: extraction.suggestions as Json,
-      p_warnings: extraction.warnings,
-      p_error_code: extraction.errorCode,
-    });
-    if (registerError || version === null) {
-      // Compensación: no dejar archivos sin registro.
+  // CV + extracción en una sola transacción, con la sesión del usuario.
+  const { data: version, error: registerError } = await supabase.rpc("register_resume", {
+    p_resume_id: resumeId,
+    p_candidate_id: candidateId,
+    p_storage_path: storagePath,
+    p_original_filename: validation.safeName,
+    p_mime_type: validation.mimeType,
+    p_size_bytes: bytes.length,
+    p_sha256: sha256,
+    p_extraction_status: extraction.status,
+    p_extraction_method: extraction.method,
+    p_extractor_version: extraction.extractorVersion,
+    p_raw_text: extraction.text,
+    p_suggested_fields: extraction.suggestions as Json,
+    p_warnings: extraction.warnings,
+    p_error_code: extraction.errorCode,
+  });
+  if (registerError || version === null) {
+    // Compensación: no dejar archivos sin registro, salvo que otra confirmación ya lo registrara.
+    if (!(await resumeRegistered(supabase, resumeId))) {
       const { error: removeError } = await storage.remove([storagePath]);
       if (removeError) logServerError("resumes.orphan", { code: "archivo_huerfano" });
-      throw toAppError(registerError);
     }
+    throw toAppError(registerError);
+  }
 
-    revalidatePath(`/candidatos/${candidateId}`);
-    return { resumeId, version, extractionStatus: extraction.status };
+  revalidatePath(`/candidatos/${candidateId}`);
+  return { resumeId, version, extractionStatus: extraction.status };
+}
+
+export type ResumeUploadTicket = DirectUploadTarget & { resumeId: string; kind: DirectResumeKind };
+
+/**
+ * Paso 1 de la carga directa (CV de más de 4 MB): autoriza, comprueba que el
+ * candidato es visible y firma una URL de carga de un solo uso en una ruta que
+ * decide el servidor. No registra nada.
+ */
+export async function requestResumeUpload(input: {
+  candidateId: string;
+  fileName: string;
+  size: number;
+}): Promise<ActionResult<ResumeUploadTicket>> {
+  return runAction("resumes.request_upload", async () => {
+    await requirePermission("resumes:upload");
+    const candidateId = parseInput(z.uuid(), input?.candidateId);
+    const request = parseDirectUploadRequest({ fileName: input?.fileName, size: input?.size });
+    if (!request.ok) throw new AppError(request.reason, "validation");
+
+    const supabase = await createSupabaseServerClient();
+    await enforceRateLimit(supabase, RATE_LIMITS.cvUpload);
+    const { data: candidate, error: candidateError } = await supabase
+      .from("candidates")
+      .select("id")
+      .eq("id", candidateId)
+      .maybeSingle();
+    if (candidateError) throw toAppError(candidateError);
+    if (!candidate) throw new AppError("El candidato no existe o no tiene acceso.", "not_found");
+
+    const resumeId = randomUUID();
+    const target = await createDirectUploadTarget(
+      createSupabaseAdminClient(),
+      directResumePath(candidateId, resumeId, request.kind),
+      request.kind,
+    );
+    return { ...target, resumeId, kind: request.kind };
+  });
+}
+
+/**
+ * Paso 2 de la carga directa: vuelve a autorizar, descarga el archivo desde
+ * Storage y aplica las mismas validaciones que la carga normal (tamaño real,
+ * firma, contenido activo, texto oculto, extracción y OCR). Si no pasa, borra el
+ * objeto y devuelve el mismo error claro.
+ */
+export async function confirmResumeUpload(input: {
+  candidateId: string;
+  resumeId: string;
+  kind: string;
+  fileName: string;
+}): Promise<ActionResult<UploadResumeResult>> {
+  return runAction("resumes.confirm_upload", async () => {
+    await requirePermission("resumes:upload");
+    const values = parseInput(confirmResumeUploadSchema, input);
+    const supabase = await createSupabaseServerClient();
+
+    const { data: candidate, error: candidateError } = await supabase
+      .from("candidates")
+      .select("id")
+      .eq("id", values.candidateId)
+      .maybeSingle();
+    if (candidateError) throw toAppError(candidateError);
+    if (!candidate) throw new AppError("El candidato no existe o no tiene acceso.", "not_found");
+
+    // Una confirmación repetida no debe tocar (ni borrar) un CV que ya quedó registrado.
+    const { data: registered, error: registeredError } = await supabase
+      .from("resumes")
+      .select("id")
+      .eq("id", values.resumeId)
+      .maybeSingle();
+    if (registeredError) throw toAppError(registeredError);
+    if (registered) throw new AppError("Este archivo ya fue registrado.", "conflict");
+
+    const admin = createSupabaseAdminClient();
+    const path = directResumePath(values.candidateId, values.resumeId, values.kind);
+    const bytes = await downloadStagedResume(admin, path);
+    if (!bytes) throw new AppError("No se recibió el archivo. Intente cargarlo nuevamente.", "validation");
+
+    // El tipo declarado no se usa: lo decide el contenido (firma y estructura).
+    const validation = validateResumeFile({
+      name: nameForConfirmedUpload(values.fileName, values.kind),
+      size: bytes.length,
+      declaredType: "",
+      bytes,
+      maxBytes: MAX_RESUME_UPLOAD_BYTES,
+    });
+    if (!validation.ok) {
+      await removeStagedResume(admin, path);
+      throw new AppError(validation.reason, "validation");
+    }
+    return finishResumeUpload(supabase, {
+      candidateId: values.candidateId,
+      resumeId: values.resumeId,
+      bytes,
+      validation,
+      stored: true,
+    });
   });
 }
 
