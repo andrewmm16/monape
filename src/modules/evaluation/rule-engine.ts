@@ -2,7 +2,7 @@ import { conjunctTerms } from "./conjunctions";
 import { applyLearnedRules, groupLearnedRules, requirementKey, type LearnedRule } from "./learned";
 import { findExplicitNegations, markExplicitNegation } from "./negation";
 import { coreTerms, relatedListTerms } from "./related";
-import { equivalentsFor } from "./synonyms";
+import { collegeEquivalentsFor, equivalentsFor } from "./synonyms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
 import {
   findTermOccurrences,
@@ -155,8 +155,20 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    («01.19») no, porque puede ser un decimal; un año suelto de dos dígitos
  *    tampoco. También se acepta el mes con nombre y guion con el año completo
  *    («ene-2019»).
+ *
+ * Novedades de reglas-v14 (banco ciego del 19/11/2026: 30 CV que el motor nunca
+ * vio, escritos por alguien que no lo conocía; vara puesta a ciegas):
+ *  - Cursos: la lista rotulada «Cursos: A, B» y los encabezados en inglés
+ *    («Courses», «Training») cuentan como formación; también «Curso: X».
+ *  - Un curso o certificación «(in progress)» / «(en curso)» no muestra uso:
+ *    queda pendiente como «solo capacitación».
+ *  - «Poco», «escaso» y «limitado» declaran un conocimiento mínimo, como «nociones».
+ *  - Niveles de idioma de LinkedIn («competencia profesional completa», «básica
+ *    limitada», «full professional», «bilingüe»).
+ *  - Siglas de los colegios profesionales (CEP, CIP, CMP, CCPL…) en formación y
+ *    certificación; la colegiatura sigue quedando para verificar con documentos.
  */
-export const RULE_ENGINE_VERSION = "reglas-v13";
+export const RULE_ENGINE_VERSION = "reglas-v14";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -394,9 +406,19 @@ const STUDY_CUES = /\b(?:bachiller|titul[oa]d[oa]?|titulo|licenciad[oa]|egresad[
  */
 // reglas-v11: también los niveles escritos en inglés («fluent», «native»,
 // «beginner»). «Basic» no cuenta en «Visual Basic», que es un lenguaje.
+// reglas-v14: los niveles de idioma de LinkedIn. «Competencia profesional completa»
+// y «bilingüe o nativa» son avanzado; «competencia básica profesional»
+// (professional working) y «básica limitada» (limited working), intermedio; la
+// «competencia básica» a secas sigue siendo básico. Van antes que «básica».
 const LEVEL_WORDS: ReadonlyArray<readonly [number, RegExp]> = [
-  [3, /\b(?:avanzad[oa]s?|experto|experta|senior|advanced|fluido|fluida|nativ[oa]|fluent|native|proficient|expert)\b/],
-  [2, /\b(?:intermedi[oa]s?|intermediate|conversational)\b/],
+  [
+    3,
+    /\b(?:avanzad[oa]s?|experto|experta|senior|advanced|fluido|fluida|nativ[oa]|fluent|native|proficient|expert|profesional complet[oa]|full professional|bilingue)\b/,
+  ],
+  [
+    2,
+    /\b(?:intermedi[oa]s?|intermediate|conversational|competencia basica profesional|basica limitada|competencia profesional|professional working|limited working)\b/,
+  ],
   [1, /\b(?:basic[oa]s?|inicial|principiante|elemental|nociones|beginner|elementary)\b|(?<!\bvisual )\bbasic\b/],
 ];
 const LEVEL_NAMES: Record<number, string> = { 1: "básico", 2: "intermedio", 3: "avanzado" };
@@ -407,7 +429,8 @@ const USER_LEVEL = /\b(?:a\s+)?nivel\s+usuario\b|\busuario\b/;
 // «Nociones de X» es un conocimiento superficial declarado por la propia persona.
 // Aunque el requisito no fije nivel, es un cumplimiento parcial a verificar. Es
 // más débil que «básico», que sí basta cuando no se pide un nivel concreto.
-const NOCIONES = /\bnociones\b/;
+// reglas-v14: también «poco», «escaso» y «limitado» («CRM (poco)», «manejo escaso de SAP»).
+const NOCIONES = /\b(?:nociones|poc[oa]|escas[oa]|limitad[oa])\b/;
 
 /** Nivel más alto declarado en un texto (3 avanzado … 1 básico), o null. */
 function declaredSkillLevel(texto: string): number | null {
@@ -424,9 +447,13 @@ function requiredSkillLevel(texto: string): number | null {
 }
 
 /** Nivel más bajo declarado en un texto, o null. Sirve para leer rangos («básico-intermedio»). */
+// Niveles de LinkedIn que llevan «básica» en el nombre sin ser básicos (reglas-v14).
+const LINKEDIN_BASIC_NAMED = /\b(?:competencia basica profesional|competencia basica limitada|basica limitada)\b/g;
+
 function lowestSkillLevel(texto: string): number | null {
+  const limpio = texto.replace(LINKEDIN_BASIC_NAMED, " ");
   let minimo: number | null = null;
-  for (const [nivel, patron] of LEVEL_WORDS) if (patron.test(texto) && (minimo === null || nivel < minimo)) minimo = nivel;
+  for (const [nivel, patron] of LEVEL_WORDS) if (patron.test(limpio) && (minimo === null || nivel < minimo)) minimo = nivel;
   return minimo;
 }
 
@@ -942,11 +969,15 @@ export function evaluateRequirement(
     };
   }
 
+  // reglas-v14: formación y certificación también reconocen las siglas de los
+  // colegios profesionales («CEP» por «Colegio de Enfermeros»).
   const expand = isEquivalenceScope(requirement)
     ? equivalentsFor
     : isFormationRequirement(requirement)
-      ? formationAbbreviations
-      : () => [];
+      ? (term: string) => [...formationAbbreviations(term), ...collegeEquivalentsFor(term)]
+      : requirement.category === "certificacion"
+        ? collegeEquivalentsFor
+        : () => [];
   const allMatches = collectMatches(haystack, terms, expand);
   // «Sin experiencia en SAP» menciona el término pero no lo acredita.
   const matches = allMatches.filter((m) => countsAsEvidence(original, haystack, m));
@@ -1157,7 +1188,7 @@ export function evaluateRequirement(
         ...base,
         assessment: "pendiente_verificacion",
         evidence,
-        rationale: `${foundText} Pero el CV lo declara solo como «nociones», un conocimiento general que conviene verificar.`,
+        rationale: `${foundText} Pero el CV lo declara solo como un conocimiento mínimo («nociones», «poco», «escaso» o «limitado»), que conviene verificar.`,
       };
     }
   }

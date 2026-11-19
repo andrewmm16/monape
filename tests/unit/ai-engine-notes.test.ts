@@ -152,6 +152,17 @@ describe("¿cuándo pide el motor la segunda opinión?", () => {
     expect(doubtReasons(claro, [], { suspiciousText: true })).toEqual(["posible_relleno"]);
   });
 
+  it("un candidato competitivo con un obligatorio sin evidencia pide segunda opinión; uno débil no", () => {
+    const obligatorio = [{ id: "r1", priority: "obligatorio" as const }];
+    const sinEvidencia = [{ requirementId: "r1", assessment: "sin_evidencia" as const }];
+    const competitivo = { level: "parcial" as CompatibilityLevel, scores: scores(55), items: sinEvidencia };
+    const debil = { level: "baja" as CompatibilityLevel, scores: scores(20), items: sinEvidencia };
+    expect(doubtReasons(competitivo as never, obligatorio)).toEqual(["obligatorio_sin_evidencia"]);
+    expect(doubtReasons(debil as never, obligatorio)).toEqual([]);
+    const deseable = [{ id: "r1", priority: "deseable" as const }];
+    expect(doubtReasons(competitivo as never, deseable)).toEqual([]);
+  });
+
   it("copiar frases del aviso de la vacante también pide segunda opinión", () => {
     expect(doubtReasons(claro, [], { copiedFromAd: true })).toEqual(["copia_del_aviso"]);
     expect(isDoubtful(claro, [], { copiedFromAd: false })).toBe(false);

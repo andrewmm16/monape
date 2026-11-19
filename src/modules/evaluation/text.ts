@@ -536,11 +536,24 @@ export function isCompanyNameMention(original: string, haystack: NormalizedText,
 // La palabra va ANTES del término y cerca, sin comas en medio: «Curso de SAP FI»,
 // «Capacitación en Excel». En «Manejo Excel, que perfeccionaré con un curso», el
 // curso viene después y la persona dice que ya lo maneja: no cuenta.
+// reglas-v14: admite «:» tras la palabra («Curso: SAP FI») y las palabras en inglés.
 const TRAINING_BEFORE =
-  /\b(?:curso|cursos|taller|talleres|capacitacion|capacitaciones|seminario|seminarios|webinar|diplomado|diplomados)\b(?:\s+[^\s,;:()]+){0,4}\s*$/;
+  /\b(?:curso|cursos|taller|talleres|capacitacion|capacitaciones|seminario|seminarios|webinar|diplomado|diplomados|course|courses|workshop|workshops)\b:?(?:\s+[^\s,;:()]+){0,4}\s*$/;
+/**
+ * Línea rotulada como lista de cursos («Cursos: Legislación laboral básica,
+ * Gestión de personal»): todo lo que enumera es formación (reglas-v14).
+ */
+const TRAINING_LABEL = /^(?:cursos?|talleres?|capacitaciones|seminarios?|diplomados?|courses?|trainings?|workshops?)\s*:/;
+/**
+ * Curso o certificación aún sin terminar, anotado entre paréntesis junto al
+ * término: «TypeScript fundamentals (in progress)», «SAP FI (en curso)»
+ * (reglas-v14). Solo el paréntesis con la marca sola: «(proyecto en curso)»
+ * describe un trabajo en marcha, no un estudio.
+ */
+const IN_PROGRESS_NOTE = /\(\s*(?:in progress|ongoing|en curso|en progreso|cursando|por culminar)\s*\)/;
 /** Encabezados de secciones de formación complementaria. */
 const TRAINING_HEADING =
-  /^(?:cursos|capacitaciones|seminarios|talleres|diplomados|formacion complementaria|estudios complementarios|cursos y capacitaciones)\b/;
+  /^(?:cursos|capacitaciones|seminarios|talleres|diplomados|formacion complementaria|estudios complementarios|cursos y capacitaciones|courses|training|trainings|workshops)\b/;
 /** Línea con aspecto de encabezado: corta y toda en mayúsculas. */
 function isHeadingLine(line: string): boolean {
   const letters = line.replace(/[^\p{L}]/gu, "");
@@ -556,6 +569,14 @@ export function isTrainingMention(original: string, haystack: NormalizedText, ma
   const start = haystack.map[match.start]!;
   const line = lineAround(original, start);
   if (TRAINING_BEFORE.test(normalizeForSearch(original.slice(line.from, start)).text)) return true;
+  let lineText = normalizeForSearch(original.slice(line.from, line.to)).text;
+  // Un paréntesis que el PDF partió en dos líneas en una columna angosta
+  // («TypeScript fundamentals (in» / «progress)»): se lee también la siguiente.
+  if (/\([^)]*$/.test(lineText) && line.to < original.length) {
+    const next = lineAround(original, line.to + 1);
+    lineText += ` ${normalizeForSearch(original.slice(next.from, next.to)).text}`;
+  }
+  if (TRAINING_LABEL.test(lineText) || IN_PROGRESS_NOTE.test(lineText)) return true;
   // Encabezado más cercano por encima (hasta 30 líneas).
   let cursor = line.from - 1;
   for (let i = 0; i < 30 && cursor > 0; i++) {

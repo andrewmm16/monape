@@ -45,6 +45,20 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
     concepto: "PLE",
     equivalentes: ["PLE", "libros electrónicos", "programa de libros electrónicos"],
   },
+  // reglas-v14: siglas de los colegios profesionales del Perú («CEP N.º 000000»).
+  // La colegiatura es un requisito legal: la sigla la encuentra, pero el motor la
+  // deja para verificar con documentos, como el nombre completo. Se omiten las
+  // siglas que también son palabras comunes (CAP, CAL, COP).
+  { concepto: "Colegio de Enfermeros", equivalentes: ["Colegio de Enfermeros", "Colegio de Enfermeros del Perú", "CEP"] },
+  { concepto: "Colegio de Ingenieros", equivalentes: ["Colegio de Ingenieros", "Colegio de Ingenieros del Perú", "CIP"] },
+  { concepto: "Colegio Médico", equivalentes: ["Colegio Médico", "Colegio Médico del Perú", "CMP"] },
+  {
+    concepto: "Colegio de Contadores",
+    equivalentes: ["Colegio de Contadores", "Colegio de Contadores Públicos", "Colegio de Contadores Públicos de Lima", "CCPL"],
+  },
+  { concepto: "Colegio de Psicólogos", equivalentes: ["Colegio de Psicólogos", "Colegio de Psicólogos del Perú", "CPsP"] },
+  { concepto: "Colegio Químico Farmacéutico", equivalentes: ["Colegio Químico Farmacéutico", "Colegio Químico Farmacéutico del Perú", "CQFP"] },
+  { concepto: "Colegio Tecnólogo Médico", equivalentes: ["Colegio Tecnólogo Médico", "Colegio Tecnólogo Médico del Perú", "CTMP"] },
 ];
 
 /**
@@ -52,10 +66,26 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
  * `normalizeTerm`. `[]` si no pertenece a ningún grupo.
  */
 export function equivalentsFor(term: string): string[] {
+  return equivalentsIn(EQUIVALENCE_GROUPS, term);
+}
+
+/**
+ * Solo las siglas de los colegios profesionales (reglas-v14). Las usan los
+ * requisitos de formación y de certificación, que no buscan el resto de las
+ * equivalencias: ahí «contable» no debe valer por «Contabilidad».
+ */
+export function collegeEquivalentsFor(term: string): string[] {
+  return equivalentsIn(
+    EQUIVALENCE_GROUPS.filter((group) => group.concepto.startsWith("Colegio")),
+    term,
+  );
+}
+
+function equivalentsIn(groups: typeof EQUIVALENCE_GROUPS, term: string): string[] {
   const key = normalizeTerm(term);
   const seen = new Set<string>([key]);
   const out: string[] = [];
-  for (const group of EQUIVALENCE_GROUPS) {
+  for (const group of groups) {
     if (!group.equivalentes.some((e) => normalizeTerm(e) === key)) continue;
     for (const e of [...group.equivalentes, ...(group.implicados ?? [])]) {
       const n = normalizeTerm(e);

@@ -1,8 +1,14 @@
 import { createHash } from "node:crypto";
+import { INBOX_PARTIAL_SCORE } from "../inbox";
 import type { EvaluationResult, ItemAssessment, RequirementInput } from "../types";
 
 /** Por qué una evaluación del motor pide segunda opinión (para medir y explicar, no se persiste). */
-export type DoubtReason = "duda_del_motor" | "posible_relleno" | "copia_del_aviso" | "obligatorio_no_cumplido";
+export type DoubtReason =
+  | "duda_del_motor"
+  | "posible_relleno"
+  | "copia_del_aviso"
+  | "obligatorio_no_cumplido"
+  | "obligatorio_sin_evidencia";
 
 export type DoubtExtras = {
   /** Valoraciones del motor CON sus marcas de duda (`signal`), que el resultado ensamblado no conserva. */
@@ -36,6 +42,16 @@ export function doubtReasons(
   const mandatory = new Set(requirements.filter((r) => r.priority === "obligatorio").map((r) => r.id));
   if (result.items.some((item) => item.assessment === "no_cumplido" && mandatory.has(item.requirementId))) {
     reasons.push("obligatorio_no_cumplido");
+  }
+  // Candidato competitivo (el mismo umbral que «por confirmar» en la bandeja) con
+  // un obligatorio que el motor no encontró: si el CV lo dice con otras palabras,
+  // es un buen candidato que se perdería (banco ciego del 19/11/2026: los méritos
+  // perdidos que quedaban eran de este tipo y no llegaban a la IA).
+  if (
+    result.scores.score >= INBOX_PARTIAL_SCORE &&
+    result.items.some((item) => item.assessment === "sin_evidencia" && mandatory.has(item.requirementId) && !item.cvAssessment)
+  ) {
+    reasons.push("obligatorio_sin_evidencia");
   }
   if (extras.engineItems?.some((item) => item.signal && !item.cvAssessment)) reasons.push("duda_del_motor");
   if (extras.suspiciousText) reasons.push("posible_relleno");

@@ -26,9 +26,9 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v13`; antes `reglas-v12` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v14`; antes `reglas-v13` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
 
-Las novedades de reglas-v6 a reglas-v13 se resumen en «Cambios de reglas-v6 a reglas-v13», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
+Las novedades de reglas-v6 a reglas-v14 se resumen en «Cambios de reglas-v6 a reglas-v14», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
 
 Determinista: con el mismo texto, los mismos criterios y la misma fecha de evaluación, da el mismo resultado. La fecha importa solo para los empleos «a la actualidad» (regla 5). Las evaluaciones anteriores al 28/10/2026 indican `reglas-v1`, que no calculaba años por fechas.
 
@@ -203,7 +203,7 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
 
 **Equivalencias en un solo sentido (reglas-v11).** Un grupo puede tener `implicados`: expresiones que demuestran el concepto pero no al revés. «Contador» demuestra contabilidad, pero quien hace tareas contables no es contador; pedir «contador» no se expande al grupo.
 
-## Cambios de reglas-v6 a reglas-v13
+## Cambios de reglas-v6 a reglas-v14
 
 Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* en lugar de *acreditado*, o *por confirmar* en lugar de *sin evidencia*. Se miden contra la vara de 248 casillas revisadas a mano (`npm run gold:motor`) y los bancos (`npm run verificar:motor`).
 
@@ -215,8 +215,35 @@ Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* e
 - **v11. Puntos ciegos** hallados con casos realistas: no cuentan «me interesa…», la intención futura («próximamente», «planeo») ni el término dentro del **nombre de una empresa** («SAP Perú S.A.C.»); una herramienta que **solo aparece en cursos** queda por confirmar; los años de una mención con **área propia distinta** («10 años de experiencia en ventas y conocimientos de contabilidad») no se atribuyen a un término lejano; se reconocen idiomas y niveles en inglés, abreviaturas de títulos («Ing. Civil») y posibles **faltas de ortografía** («Exel» → por confirmar, nunca acreditado).
 - **v12. Negación explícita** con otras palabras («sin experiencia en reclamos»): marca la duda para la IA (ver «Prueba de punta a punta en la app y calibración»).
 - **v13. Años de dos dígitos** junto a un mes («01/19 – 12/23», «15/03/19», «Ene-19», «Jan '19»), con el siglo deducido del año de la evaluación («98» → 1998). Antes esos periodos no se leían y el requisito de años quedaba pendiente; ahora cuentan igual que con el año completo, así que pueden acreditar. Sin cambios en la vara ni en los bancos, y sin falsos positivos en los 73 CV de la base local.
+- **v14. Puntos ciegos del banco ciego** (ver «Banco ciego», abajo): la lista «Cursos: A, B», «Curso: X» y los encabezados en inglés («Courses», «Training») cuentan como formación; un curso o certificación «(in progress)» o «(en curso)», aunque el PDF parta el paréntesis en dos líneas, queda como *solo capacitación*; «poco», «escaso» y «limitado» declaran un conocimiento mínimo, como «nociones»; se leen los niveles de idioma de LinkedIn («competencia profesional completa» y «bilingüe» → avanzado; «básica profesional» y «básica limitada» → intermedio) y las siglas de los colegios profesionales (CEP, CIP, CMP, CCPL, CPsP, CQFP, CTMP) en formación y certificación. Vara y bancos sin cambios.
 
 **Límite conocido.** El motor no entiende paráfrasis sin palabras clave («atendí llamadas y resolví quejas» para atención al cliente): queda *sin evidencia*. Es uno de los casos previstos para la segunda opinión con IA.
+
+### Banco ciego (19/11/2026)
+
+Todas las mediciones anteriores eran exámenes que el motor ya conocía: se afinó mirándolos o eran CV de plantilla. Para medirlo con lo que nunca vio:
+
+- 30 CV ficticios (3 por cada una de las 10 vacantes de la base local: fuerte, medio y débil) escritos por un agente que no conocía el motor, con los diseños y la redacción de los CV reales: 10 a dos columnas tipo Canva, 6 exportaciones de LinkedIn, 4 como los genera Computrabajo o Bumeran, Word clásico, tablas, Europass, funcional, 2 en inglés y 1 mixto, fechas escritas de mil formas, faltas de ortografía, frases negativas honestas y 3 que copian el aviso.
+- Pasados a PDF con Chromium y leídos con el lector de la app (`extraction-core.ts`), como un CV real.
+- Vara de Opus **a ciegas**, sobre el texto limpio del HTML (lo que lee una persona), sin ver al motor ni a Haiku. Las casillas que Opus marcó como dudosas (49 de 219) quedan fuera de las métricas.
+- La IA como en producción: Haiku solo en los dudosos y en la muestra de control.
+
+| 170 casillas firmes | Contando *pendiente* = *sin evidencia* | Acreditó de más | Mérito perdido |
+|---|---:|---:|---:|
+| Motor solo, reglas-v13 | 91,2 % | 5 | 4 |
+| Vigente (motor + IA), reglas-v13 | 94,1 % | 5 | 3 |
+| Motor solo, **reglas-v14** | 93,5 % | 2 | 3 |
+| **Vigente (motor + IA), reglas-v14** | **96,5 %** | **2** | **1** |
+| Haiku solo (en los 26 CV que recibió) | 97,9 % | 0 | 0 |
+
+Qué se aprendió:
+
+- **La IA no corrige un «acreditado» del motor** (el relevo solo actúa en sus dudas). Los errores de más hay que cerrarlos en el motor: reglas-v14.
+- **Un obligatorio «sin evidencia» no llegaba a la IA.** Desde el 19/11/2026 va si el candidato es competitivo (puntaje ≥ 40, el mismo umbral de «por confirmar» en la bandeja): en la base local, del 41 % al 45 % de los CV.
+- **Las dos columnas no rompen la lectura:** el lector deja la columna principal y luego la lateral. En esos 10 CV el motor acertó algo menos (90,9 % frente a 93,5 % del total), pero sus errores son de palabras clave («Hospital» frente a «hospitalización», «Capacitación de 14 asesores» frente a «Capacité»), no de lectura. El único problema de diseño, un paréntesis partido en dos líneas en la columna angosta, quedó resuelto en reglas-v14.
+- Lo que queda son decisiones discutibles de la vara (un conocimiento declarado «básico» y un curso de IGV para «tributación (IGV, renta, PDT 621)»; reclutamiento con un taller y «entrevistas» en habilidades), la colegiatura (el motor la deja siempre para verificar con documentos, la vara la acredita) y una palabra clave en primera persona («Capacité») frente a «Capacitación de 14 asesores».
+
+Ojo: después de afinar el motor con estos 30 CV, también se convirtieron en un examen conocido. La medición que falta es con CV reales.
 
 ### Notas del CV para la entrevista
 
