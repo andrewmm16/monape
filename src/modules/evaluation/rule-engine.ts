@@ -147,8 +147,16 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    como estaba, con la marca «negacion_explicita» y la cita, para que la IA lo
  *    confirme. El motor sigue sin descartar a nadie por su cuenta.
  *  - Reglas aprendidas de la IA y de RRHH (learned.ts), si se le pasan.
+ *
+ * Novedades de reglas-v13 (19/11/2026):
+ *  - Años de dos dígitos junto a un mes (experience-dates.ts): «01/19 – 12/23»,
+ *    «15/03/19», «Ene-19», «Jan '19». «19» es 2019 si no pasa del año de la
+ *    fecha de referencia y del siglo anterior si pasa («98» → 1998). Con punto
+ *    («01.19») no, porque puede ser un decimal; un año suelto de dos dígitos
+ *    tampoco. También se acepta el mes con nombre y guion con el año completo
+ *    («ene-2019»).
  */
-export const RULE_ENGINE_VERSION = "reglas-v12";
+export const RULE_ENGINE_VERSION = "reglas-v13";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;

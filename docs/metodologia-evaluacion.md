@@ -26,9 +26,9 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v12`; antes `reglas-v11` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v13`; antes `reglas-v12` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
 
-Las novedades de reglas-v6 a reglas-v11 se resumen en «Cambios de reglas-v6 a reglas-v11», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
+Las novedades de reglas-v6 a reglas-v13 se resumen en «Cambios de reglas-v6 a reglas-v13», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
 
 Determinista: con el mismo texto, los mismos criterios y la misma fecha de evaluación, da el mismo resultado. La fecha importa solo para los empleos «a la actualidad» (regla 5). Las evaluaciones anteriores al 28/10/2026 indican `reglas-v1`, que no calculaba años por fechas.
 
@@ -203,7 +203,7 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
 
 **Equivalencias en un solo sentido (reglas-v11).** Un grupo puede tener `implicados`: expresiones que demuestran el concepto pero no al revés. «Contador» demuestra contabilidad, pero quien hace tareas contables no es contador; pedir «contador» no se expande al grupo.
 
-## Cambios de reglas-v6 a reglas-v11
+## Cambios de reglas-v6 a reglas-v13
 
 Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* en lugar de *acreditado*, o *por confirmar* en lugar de *sin evidencia*. Se miden contra la vara de 248 casillas revisadas a mano (`npm run gold:motor`) y los bancos (`npm run verificar:motor`).
 
@@ -213,6 +213,8 @@ Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* e
 - **v9. Rangos que parten de básico** («básico-intermedio» frente a intermedio) → por confirmar.
 - **v10. Evidencia relacionada** (`related.ts`): sin el término pero con un cargo parecido («asistente de residencia» frente a «residente de obra») o una habilidad más general («negociación» frente a «negociación de contratos») → por confirmar con la pista, nunca acreditado. Cada duda lleva una marca legible por código (`signal`) para la segunda opinión.
 - **v11. Puntos ciegos** hallados con casos realistas: no cuentan «me interesa…», la intención futura («próximamente», «planeo») ni el término dentro del **nombre de una empresa** («SAP Perú S.A.C.»); una herramienta que **solo aparece en cursos** queda por confirmar; los años de una mención con **área propia distinta** («10 años de experiencia en ventas y conocimientos de contabilidad») no se atribuyen a un término lejano; se reconocen idiomas y niveles en inglés, abreviaturas de títulos («Ing. Civil») y posibles **faltas de ortografía** («Exel» → por confirmar, nunca acreditado).
+- **v12. Negación explícita** con otras palabras («sin experiencia en reclamos»): marca la duda para la IA (ver «Prueba de punta a punta en la app y calibración»).
+- **v13. Años de dos dígitos** junto a un mes («01/19 – 12/23», «15/03/19», «Ene-19», «Jan '19»), con el siglo deducido del año de la evaluación («98» → 1998). Antes esos periodos no se leían y el requisito de años quedaba pendiente; ahora cuentan igual que con el año completo, así que pueden acreditar. Sin cambios en la vara ni en los bancos, y sin falsos positivos en los 73 CV de la base local.
 
 **Límite conocido.** El motor no entiende paráfrasis sin palabras clave («atendí llamadas y resolví quejas» para atención al cliente): queda *sin evidencia*. Es uno de los casos previstos para la segunda opinión con IA.
 
@@ -250,7 +252,7 @@ Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* e
 
 - **El término coincide con el nombre del empleador.** «Recepcionista en Concar Consultores SAC» acredita un requisito de «Concar (software contable)». Es genuinamente ambiguo —el software y la empresa se llaman igual— y una regla que mirase el sufijo societario castigaría a quien escribe «Implementé Concar en Comercial SAC». Se deja acreditado con la cita literal delante, que es lo que el reclutador necesita para descartarlo de un vistazo.
 - **Negación que encabeza una lista.** «No manejo los siguientes sistemas:» seguido de viñetas acredita cada viñeta: la negación está en otra línea, fuera del alcance de la regla. No se corrige porque un CV real no enumera lo que la persona no sabe hacer, y una regla que arrastre la negación entre líneas tiene mucho más que perder que ganar.
-- **Años escritos con dos dígitos.** «01/19 - 12/23» no se interpreta como periodo y el requisito de años queda pendiente de verificación, nunca negado.
+- **Años de dos dígitos con punto.** Desde reglas-v13 se leen «01/19 – 12/23», «15/03/19», «Ene-19» y «Jan '19» (un «19» es 2019 si no pasa del año de la evaluación y del siglo anterior si pasa: «98» es 1998). Con punto («01.19 - 12.23») no, porque puede ser un decimal, y un año suelto de dos dígitos tampoco: el requisito de años queda pendiente de verificación, nunca negado.
 
 ### Cómo se mide el motor
 

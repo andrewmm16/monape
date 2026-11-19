@@ -96,10 +96,24 @@ const MONTH_NAMES = Object.keys(MONTHS)
   .join("|");
 const YEAR = String.raw`(?<!\d)((?:19|20)\d{2})(?!\d)`;
 const PRESENT = String.raw`(?:a la fecha|a la actualidad|la fecha|la actualidad|actualidad|actual|presente|hoy|present|current|now)(?![\p{L}\p{N}])`;
-// Fecha con tres formas: mes con nombre + año, mes numérico (con día opcional:
-// dd/mm/aaaa, dd-mm-aaaa, dd.mm.aaaa) + año, o año solo. Los separadores
-// numéricos no admiten espacios para no confundir «12 - 2019» con un rango.
-const DATE_CORE = String.raw`(?:(?<![\p{L}\p{N}])(${MONTH_NAMES})\.?\s*,?\s*(?:de\s+|del\s+)?${YEAR}|(?<!\d)(?:(?:0?[1-9]|[12]\d|3[01])[/.\-])?(0?[1-9]|1[0-2])[/.\-]${YEAR}|${YEAR})`;
+// Año de dos dígitos: solo junto a un mes, nunca suelto («19» a secas es cualquier número).
+const SHORT_YEAR = String.raw`(\d{2})(?!\d)`;
+// Fecha con cinco formas:
+//  1. mes con nombre + año («marzo 2019», «ene-2019»);
+//  2. mes numérico (con día opcional: dd/mm/aaaa, dd-mm-aaaa, dd.mm.aaaa) + año;
+//  3. año solo;
+//  4. mes con nombre + año de dos dígitos («ene-19», «Ene. 19», «Jan '19»);
+//  5. mes numérico (con día opcional) + año de dos dígitos («01/19», «15/03/19»,
+//     «05-18»). Con punto no: «3.50 - 4.20» puede ser un decimal.
+// Los separadores numéricos no admiten espacios para no confundir «12 - 2019»
+// con un rango. Las formas con año completo van primero en la alternancia.
+const DATE_CORE = String.raw`(?:(?<![\p{L}\p{N}])(${MONTH_NAMES})\.?\s*[-/]?\s*,?\s*(?:de\s+|del\s+)?${YEAR}|(?<!\d)(?:(?:0?[1-9]|[12]\d|3[01])[/.\-])?(0?[1-9]|1[0-2])[/.\-]${YEAR}|${YEAR}|(?<![\p{L}\p{N}])(${MONTH_NAMES})(?:\.?\s*[-/'’]\s*|\.?\s+|\.)${SHORT_YEAR}|(?<!\d)(?:(?:0?[1-9]|[12]\d|3[01])[/\-])?(0?[1-9]|1[0-2])[/\-]${SHORT_YEAR})`;
+/** Grupos de captura de cada `DATE_CORE` (ver `parseDate`). */
+const DATE_GROUPS = 9;
+/** Grupos del rango: inicio desde el 1, fin con fecha desde el 1 + DATE_GROUPS y, al final, el fin «en curso». */
+const START_OFFSET = 1;
+const END_OFFSET = START_OFFSET + DATE_GROUPS;
+const PRESENT_GROUP = END_OFFSET + DATE_GROUPS;
 // El inicio no puede ir pegado a otros dígitos ni a un patrón «dígito-guion» (números de
 // teléfono, códigos) ni a una etiqueta de teléfono/documento: «Tel 987-2019 - 2025».
 const START_GUARD = String.raw`(?<![\d\-/])(?<!(?:tel|telf|tlf|telefono|cel|celular|movil|phone|fax|ruc|dni|cod|codigo)\.?:?\s*)`;
@@ -218,22 +232,35 @@ function experienceSections(lines: Line[]): Array<[number, number]> {
   return sections;
 }
 
-function parseDate(match: RegExpMatchArray, offset: number): { year: number; month: number | null } {
+/**
+ * Año de dos dígitos con pivote en el año de referencia: «19» es 2019 si no
+ * pasa del año de referencia, y del siglo anterior si pasa («98» → 1998).
+ */
+function expandShortYear(twoDigits: string, referenceYear: number): number {
+  const century = Math.floor(referenceYear / 100) * 100;
+  const year = century + Number(twoDigits);
+  return year <= referenceYear ? year : year - 100;
+}
+
+function parseDate(match: RegExpMatchArray, offset: number, referenceYear: number): { year: number; month: number | null } {
   const name = match[offset];
   if (name !== undefined) return { year: Number(match[offset + 1]), month: MONTHS[name]! };
   if (match[offset + 2] !== undefined) return { year: Number(match[offset + 3]), month: Number(match[offset + 2]) };
-  return { year: Number(match[offset + 4]), month: null };
+  if (match[offset + 4] !== undefined) return { year: Number(match[offset + 4]), month: null };
+  const shortName = match[offset + 5];
+  if (shortName !== undefined) return { year: expandShortYear(match[offset + 6]!, referenceYear), month: MONTHS[shortName]! };
+  return { year: expandShortYear(match[offset + 8]!, referenceYear), month: Number(match[offset + 7]) };
 }
 
 /** Periodos válidos de una línea normalizada. */
 export function parsePeriods(normalized: string, referenceDate: Date): Period[] {
-  const reference = monthIndex(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() + 1);
+  const referenceYear = referenceDate.getUTCFullYear();
+  const reference = monthIndex(referenceYear, referenceDate.getUTCMonth() + 1);
   const periods: Period[] = [];
   for (const match of normalized.matchAll(RANGE)) {
-    const from = parseDate(match, 1);
-    // Grupos: 1-5 inicio, 6-10 fin con fecha, 11 fin en curso.
-    const present = match[11] !== undefined;
-    const to = present ? null : parseDate(match, 6);
+    const from = parseDate(match, START_OFFSET, referenceYear);
+    const present = match[PRESENT_GROUP] !== undefined;
+    const to = present ? null : parseDate(match, END_OFFSET, referenceYear);
     if (from.year < MIN_START_YEAR) continue;
 
     const start: Bounds =
@@ -371,7 +398,8 @@ export type ImpossibleRange = { quote: string; start: number; end: number; reaso
  * máximo una vez por línea.
  */
 export function findImpossibleDateRanges(original: string, referenceDate: Date): ImpossibleRange[] {
-  const reference = monthIndex(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() + 1);
+  const referenceYear = referenceDate.getUTCFullYear();
+  const reference = monthIndex(referenceYear, referenceDate.getUTCMonth() + 1);
   const lines = toLines(original);
   const result: ImpossibleRange[] = [];
   for (const [first, last] of experienceSections(lines)) {
@@ -380,15 +408,15 @@ export function findImpossibleDateRanges(original: string, referenceDate: Date):
       let flagged = false;
       for (const match of line.normalized.matchAll(RANGE)) {
         if (flagged) break;
-        const from = parseDate(match, 1);
+        const from = parseDate(match, START_OFFSET, referenceYear);
         if (from.year < MIN_START_YEAR) continue;
         const startEarliest = from.month !== null ? monthIndex(from.year, from.month) : monthIndex(from.year, 1);
         let reason: ImpossibleReason | null = null;
         if (startEarliest > reference) {
           reason = "inicio_futuro";
-        } else if (match[11] === undefined) {
+        } else if (match[PRESENT_GROUP] === undefined) {
           // No está "en curso": hay una fecha de fin que comparar.
-          const to = parseDate(match, 6);
+          const to = parseDate(match, END_OFFSET, referenceYear);
           const endLatest = to.month !== null ? monthIndex(to.year, to.month) : monthIndex(to.year, 12);
           if (endLatest < startEarliest) reason = "fin_antes_inicio";
         }

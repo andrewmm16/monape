@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateExperienceFromDates, parsePeriods } from "@/modules/evaluation/experience-dates";
+import { estimateExperienceFromDates, findImpossibleDateRanges, parsePeriods } from "@/modules/evaluation/experience-dates";
 
 // Fecha de referencia fija: junio de 2026.
 const REF = new Date("2026-06-15T12:00:00Z");
@@ -381,6 +381,54 @@ describe("fechas con día", () => {
   ];
   it.each(cases)("%s", (range, expected) => {
     expect(months(section("Analista con Excel", range), ["Excel"])).toEqual({ min: expected, max: expected });
+  });
+});
+
+describe("años con dos dígitos", () => {
+  // Un año de dos dígitos es 20aa si no pasa del año de la referencia (2026) y 19aa si pasa.
+  const cases: Array<[string, number]> = [
+    ["03/19 - 12/22", 46],
+    ["01/19 – 12/23", 60],
+    ["05-18 - 04-19", 12],
+    ["15/03/19 - 20/12/22", 46],
+    ["03/24 - actualidad", 28],
+    ["03/19 - 12/2022", 46],
+    ["03/2019 - 12/22", 46],
+    ["08/98 - 12/99", 17],
+    ["Ene-19 - Dic-22", 48],
+    ["Ene. 19 – Mar. 20", 15],
+    ["set 18 - dic 19", 16],
+    ["Jan '19 - Dec ’22", 48],
+    ["mar-24 a la fecha", 28],
+    ["Desde 02/21 hasta 04/21", 3],
+  ];
+  it.each(cases)("%s", (range, expected) => {
+    expect(months(section("Analista con Excel", range), ["Excel"])).toEqual({ min: expected, max: expected });
+  });
+
+  it("también lee el mes con nombre seguido de guion y año completo", () => {
+    expect(months(section("Analista con Excel", "ene-2019 - dic-2022"), ["Excel"])).toEqual({ min: 48, max: 48 });
+  });
+
+  it.each([
+    "15/03 - 20/06", // día y mes, sin año
+    "01.19 - 12.23", // con punto puede ser un decimal (3.50 - 4.20)
+    "1/2 - 3/4",
+    "13/19 - 12/22", // no hay mes 13
+    "tel 987-12-19 - 20",
+    "cel: 01-19 al 12-20",
+  ])("no lee «%s» como periodo", (text) => {
+    expect(parsePeriods(text.toLowerCase(), REF)).toEqual([]);
+  });
+
+  it("un año de dos dígitos posterior a la referencia es del siglo pasado y se descarta", () => {
+    // «27» → 1927, anterior al mínimo de 1950.
+    expect(parsePeriods("03/27 - 12/28", REF)).toEqual([]);
+  });
+
+  it("marca como incoherente un rango de dos dígitos con el fin antes del inicio", () => {
+    const ranges = findImpossibleDateRanges(section("Analista con Excel", "12/22 - 03/19"), REF);
+    expect(ranges.map((r) => r.reason)).toEqual(["fin_antes_inicio"]);
   });
 });
 
