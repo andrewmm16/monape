@@ -233,6 +233,17 @@ async function main(): Promise<void> {
   }
 
   imprimirInforme(casillas);
+
+  // Falla si aparece lo grave: acreditar de más o perder un mérito (hoy, 0 y 0).
+  // Sin esto la vara terminaba con éxito aunque el motor empeorara, y la
+  // revisión automática de GitHub no podía frenar una regresión.
+  const graves = casillas.filter(
+    (c) =>
+      !c.gold.revisar &&
+      ((c.motor === "acreditado" && c.gold.assessment !== "acreditado") ||
+        (c.gold.assessment === "acreditado" && (c.motor === "no_cumplido" || c.motor === "sin_evidencia"))),
+  );
+  if (graves.length > 0) exit(1);
 }
 
 main().catch((error: unknown) => {

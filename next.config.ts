@@ -32,7 +32,15 @@ const OCR_RUNTIME_FILES = [
   "./node_modules/@napi-rs/**/*",
 ];
 
-/** Rutas que ejecutan OCR: carga de CV (candidato y lote), evaluación de pendientes, postulación pública y Talent. */
+/**
+ * Rutas que ejecutan OCR: carga de CV (candidato y lote), evaluación de pendientes, postulación pública y Talent.
+ *
+ * Ojo: Next compara estas claves con `contains`, así que también alcanzan a las
+ * subrutas. «/vacantes/[id]/comparar» y «/editar» cargan ~88 MB de OCR sin usarlo
+ * (94 MB en total, lejos del límite de 250 MB de Vercel). Con Turbopack,
+ * `outputFileTracingExcludes` no lo quita: se probó el 19/11/2026 con y sin «./»
+ * en los patrones, en un build de Linux.
+ */
 const OCR_ROUTES = [
   "/candidatos/[id]",
   "/vacantes/[id]",

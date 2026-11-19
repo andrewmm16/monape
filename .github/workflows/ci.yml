@@ -1,0 +1,61 @@
+# Revisión automática en cada push y pull request: tipos, lint, pruebas
+# unitarias y los bancos deterministas del motor de evaluación.
+#
+# Por qué existe: el build de Vercel no revisa tipos (`ignoreBuildErrors` en
+# next.config.ts) y varias sesiones trabajan sobre la misma rama. No usa
+# secretos ni se conecta a nada: las variables son ficticias.
+name: Revisión
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revision-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  revision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      APP_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: valor-ficticio-de-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Dependencias
+        run: npm ci
+
+      # Los tipos de rutas (PageProps, LayoutProps) los genera Next; en una copia limpia no existen.
+      - name: Tipos de rutas de Next
+        run: npx next typegen
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Pruebas unitarias
+        run: npm run test:unit
+
+      # Bancos del motor con los PDF versionados de cv-prueba/ (fallan si hay regresiones).
+      - name: Motor · orden de los candidatos
+        run: npm run medir:motor
+      - name: Motor · banco adversario
+        run: npm run medir:motor:adversario
+      - name: Motor · banco legítimo
+        run: npm run medir:motor:legitimo
+      - name: Motor · vara
+        run: npm run gold:motor

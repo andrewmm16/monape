@@ -236,11 +236,14 @@ describe("extracción aislada en worker", () => {
   });
 
   it("devuelve 'fallida' con 'recursos_agotados' si el worker agota la memoria", async () => {
+    // Solo, el worker se corta en 1-2 s (Node 22 y 24, Windows y Linux). Con toda
+    // la suite en paralelo en Linux llegó a tardar más de 15 s (ensayo del
+    // 19/11/2026): el plazo amplio evita que gane el temporizador por la carga.
     const source = "const hog = []; for (;;) hog.push(new Array(1e6).fill({ x: 1 }));";
-    const result = await extractResume(pdf, "pdf", { timeoutMs: 15_000, testWorkerSource: source });
+    const result = await extractResume(pdf, "pdf", { timeoutMs: 60_000, testWorkerSource: source });
     expect(result.status).toBe("fallida");
     expect(result.errorCode).toBe("recursos_agotados");
-  }, 30_000);
+  }, 90_000);
 
   it("devuelve 'fallida' con 'recursos_agotados' si se agota la pila", async () => {
     const source = "const { parentPort } = require('node:worker_threads'); try { (function f() { f(); })(); } catch (e) { parentPort.postMessage({ ok: false, exhausted: e instanceof RangeError }); }";
