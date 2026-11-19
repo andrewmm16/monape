@@ -1,4 +1,4 @@
-import { conjunctTerms } from "./conjunctions";
+import { conjunctGroups, conjunctTerms } from "./conjunctions";
 import { applyLearnedRules, groupLearnedRules, requirementKey, type LearnedRule } from "./learned";
 import { findExplicitNegations, markExplicitNegation } from "./negation";
 import { coreTerms, relatedListTerms } from "./related";
@@ -196,8 +196,13 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *  - Fechas: el encabezado de experiencia pegado a la primera entrada (Europass a
  *    dos columnas) y, en la lectura del PDF, las fechas alineadas a la derecha que
  *    el PDF guardaba fuera de orden (pdf-reading-order.ts).
+ *
+ * Novedad de reglas-v16 (decisión de Omar del 19/11/2026): un requisito que une
+ * con «y» dos frases con contenido propio, cada una con sus términos («matriz
+ * IPERC e investigación de accidentes»), exige las dos; con una sola queda por
+ * confirmar (ver conjunctGroups). «Planillas y remuneraciones» sigue igual.
  */
-export const RULE_ENGINE_VERSION = "reglas-v15";
+export const RULE_ENGINE_VERSION = "reglas-v16";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -1101,6 +1106,29 @@ export function evaluateRequirement(
         evidence,
         rationale: `${foundText} Pero el puesto pide varios elementos a la vez (${conjuncts.join(" y ")}) y en el CV no aparece: ${faltan.join(", ")}. Verifique si la persona también domina ${faltan.join(", ")}.`,
       };
+    }
+  }
+
+  // reglas-v16: lo mismo con nombres comunes cuando cada parte es una frase propia
+  // y tiene sus términos («matriz IPERC e investigación de accidentes»; ver
+  // conjunctGroups). No en formación (un nombre de carrera lleva «y»), idiomas ni
+  // competencias (siempre se confirman en entrevista). Si el CV trae un término
+  // que no es de ninguna parte, no se sabe a cuál responde: no se exige nada más.
+  if (!isFormationRequirement(requirement) && requirement.category !== "idioma" && requirement.category !== "competencia") {
+    const grupos = conjunctGroups(requirement.description, terms);
+    if (grupos.length >= 2) {
+      const encontrados = new Set(matches.map((m) => m.term));
+      const asignados = new Set(grupos.flat());
+      const faltan = grupos.filter((grupo) => !grupo.some((t) => encontrados.has(t)));
+      if (faltan.length > 0 && [...encontrados].every((t) => asignados.has(t))) {
+        const nombres = (lista: string[][]) => lista.map((grupo) => `«${grupo[0]}»`).join(" y ");
+        return {
+          ...base,
+          assessment: "pendiente_verificacion",
+          evidence,
+          rationale: `${foundText} Pero el puesto pide varias cosas a la vez (${nombres(grupos)}) y en el CV no aparece ${nombres(faltan)}. Verifique si la persona también lo cumple.`,
+        };
+      }
     }
   }
 

@@ -66,11 +66,12 @@ export function RequirementDialog({
   const suggestionsId = useId();
   const description = useWatch({ control: form.control, name: "description" });
   const keywords = useWatch({ control: form.control, name: "keywords" });
+  const category = useWatch({ control: form.control, name: "category" });
   const suggestions = suggestTerms(description ?? "", splitKeywords(keywords ?? ""));
 
   const limitReached = suggestions.length > 0 && appendTerms(keywords ?? "", suggestions).added.length === 0;
   // Si la descripción une términos con «y», se explica cómo los tratará el motor.
-  const compoundHint = requirementCompoundHint(description ?? "", keywords ?? "");
+  const compoundHint = requirementCompoundHint(description ?? "", keywords ?? "", category);
   const compoundList = compoundHint
     ? compoundHint.terminos.map((t) => `«${t}»`).join(", ").replace(/, ([^,]*)$/, " y $1")
     : "";

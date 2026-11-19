@@ -136,6 +136,35 @@ describe("equivalencias de puestos operativos", () => {
   });
 });
 
+describe("requisitos con «y» entre dos frases (reglas-v16)", () => {
+  const IPERC = req({
+    description: "Elaboración de matriz IPERC e investigación de accidentes",
+    keywords: ["IPERC", "investigación de accidentes"],
+  });
+
+  it("con solo una de las dos partes queda por confirmar y dice cuál falta", () => {
+    const item = evaluar("EXPERIENCIA\nPracticante de SST 2023 - 2024\nApoyo en la matriz IPERC del almacén", IPERC);
+    expect(item.assessment).toBe("pendiente_verificacion");
+    expect(item.rationale).toContain("«investigación de accidentes»");
+  });
+
+  it("con las dos, acredita", () => {
+    expect(evaluar("EXPERIENCIA\nSupervisor SST 2020 - 2024\nMatriz IPERC e investigación de accidentes", IPERC).assessment).toBe(
+      "acreditado",
+    );
+  });
+
+  const STOCK = req({ description: "Manejo de inventarios y control de stock", keywords: ["inventario", "control de stock", "kardex"] });
+
+  it("un término que no es de ninguna parte (kardex) no permite saber qué falta: no se exige más", () => {
+    expect(evaluar("EXPERIENCIA\nAlmacenero 2019 - 2024\nCuadre con kardex", STOCK).assessment).toBe("acreditado");
+  });
+
+  it("solo «inventario» no cubre el control de stock", () => {
+    expect(evaluar("EXPERIENCIA\nAyudante 2023\nApoyo en el inventario de fin de año", STOCK).assessment).toBe("pendiente_verificacion");
+  });
+});
+
 describe("negaciones de documentos", () => {
   const LICENCIA = { description: "Licencia de conducir A-IIb vigente", keywords: ["licencia A-IIb", "brevete"] };
 

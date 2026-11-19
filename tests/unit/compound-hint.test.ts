@@ -16,6 +16,23 @@ describe("aviso de requisito compuesto en el formulario", () => {
     });
   });
 
+  it("dos frases con sus términos unidas por «e»: el motor exigirá las dos (reglas-v16)", () => {
+    expect(
+      requirementCompoundHint(
+        "Elaboración de matriz IPERC e investigación de accidentes",
+        "IPERC, investigación de accidentes",
+        "habilidad_tecnica",
+      ),
+    ).toEqual({ tipo: "exige_todos", terminos: ["IPERC", "investigación de accidentes"] });
+  });
+
+  it("en competencias, las frases con «y» siguen sin exigirse a la vez", () => {
+    expect(
+      requirementCompoundHint("Trato cordial con clientes y cumplimiento de horarios", "trato cordial, cumplimiento de horarios", "competencia")
+        ?.tipo,
+    ).not.toBe("exige_todos");
+  });
+
   it("con «o» son alternativas: no avisa", () => {
     expect(requirementCompoundHint("Manejo de WMS o ERP (SAP)", "WMS, SAP")).toBeNull();
   });

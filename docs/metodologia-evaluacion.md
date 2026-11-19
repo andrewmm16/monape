@@ -26,9 +26,9 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v15`; antes `reglas-v14` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v16`; antes `reglas-v15` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
 
-Las novedades de reglas-v6 a reglas-v15 se resumen en «Cambios de reglas-v6 a reglas-v15», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
+Las novedades de reglas-v6 a reglas-v16 se resumen en «Cambios de reglas-v6 a reglas-v16», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
 
 Determinista: con el mismo texto, los mismos criterios y la misma fecha de evaluación, da el mismo resultado. La fecha importa solo para los empleos «a la actualidad» (regla 5). Las evaluaciones anteriores al 28/10/2026 indican `reglas-v1`, que no calculaba años por fechas.
 
@@ -203,7 +203,7 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
 
 **Equivalencias en un solo sentido (reglas-v11).** Un grupo puede tener `implicados`: expresiones que demuestran el concepto pero no al revés. «Contador» demuestra contabilidad, pero quien hace tareas contables no es contador; pedir «contador» no se expande al grupo.
 
-## Cambios de reglas-v6 a reglas-v15
+## Cambios de reglas-v6 a reglas-v16
 
 Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* en lugar de *acreditado*, o *por confirmar* en lugar de *sin evidencia*. Se miden contra la vara de 248 casillas revisadas a mano (`npm run gold:motor`) y los bancos (`npm run verificar:motor`).
 
@@ -238,6 +238,13 @@ Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* e
     En los 110 PDF de los demás bancos el texto no cambió; en el banco 2 cambiaron los 12 CV con fechas flotantes, todos bien.
 
   La vara de 248 casillas sigue en 238/248, y el banco ciego 1 y los demás bancos siguen sin cambios.
+- **v16. Requisitos con «y» entre dos frases** (decisión de Omar del 19/11/2026; `conjunctGroups` en `conjunctions.ts`): si la descripción une dos partes con contenido propio (dos palabras o más cada una) y RRHH puso términos para cada parte, hacen falta las dos. Con una sola el requisito queda *por confirmar* y el motivo dice qué parte falta. Por ejemplo, «Elaboración de matriz IPERC e investigación de accidentes» o «Capacitación en primeros auxilios y uso de extintores».
+  - «Planillas y remuneraciones» o «Contabilidad y finanzas» (una palabra por lado, un mismo dominio) siguen cumpliéndose con una.
+  - No aplica en formación (un nombre de carrera lleva «y»), idiomas ni competencias.
+  - Si el CV trae un término que no es de ninguna parte («kardex» para «inventarios y control de stock»), no se exige nada más.
+  - El formulario lo avisa al configurar el requisito.
+
+  En el banco ciego 2, motor + IA pasó de 95,8 % a 97,2 % y los «de más» de 5 a 1. A cambio, 3 casillas que la vara da por cumplidas quedan por confirmar, porque las dos partes son casi lo mismo («control de stock» para «inventarios y control de stock»). Se aceptó: un «cumple» equivocado no se revisa en la entrevista; un «por confirmar» de más es una pregunta. Los demás bancos no cambian.
 
 **Límite conocido.** El motor no entiende paráfrasis sin palabras clave («atendí llamadas y resolví quejas» para atención al cliente): queda *sin evidencia*. Es uno de los casos previstos para la segunda opinión con IA.
 
@@ -291,12 +298,14 @@ El primer banco ciego ya era un examen conocido. Para comprobar si su 97 % se ma
 
 Resultados, con la misma vara y la IA corrida de nuevo con las notas de cada versión (143 casillas firmes, contando *pendiente* = *sin evidencia*):
 
-| | reglas-v14 | **reglas-v15** |
-|---|---:|---:|
-| Motor solo | 72,0 % · 9 de más · 7 méritos perdidos | **90,2 % · 5 · 1** |
-| Vigente (motor + IA) | 80,4 % · 10 · 4 | **95,8 % · 5 · 0** |
-| Haiku solo (en los CV que recibe) | 91,9 % | 97,6 % |
-| Candidatos fuera de orden (25 pares), vigente | 3 | 1 |
+| | reglas-v14 | reglas-v15 | **reglas-v16** |
+|---|---:|---:|---:|
+| Motor solo | 72,0 % · 9 de más · 7 méritos perdidos | 90,2 % · 5 · 1 | **90,9 % · 1 · 1** |
+| Vigente (motor + IA) | 80,4 % · 10 · 4 | 95,8 % · 5 · 0 | **97,2 % · 1 · 0** |
+| Haiku solo (en los CV que recibe) | 91,9 % | 97,6 % | 97,6 % |
+| Candidatos fuera de orden (25 pares), vigente | 3 | 1 | 1 |
+
+En reglas-v16 la IA es la misma corrida de v15: la regla nueva solo pasa a «por confirmar» lo que antes se acreditaba.
 
 Qué se aprendió:
 
@@ -305,9 +314,9 @@ Qué se aprendió:
   - las fechas alineadas a la derecha, que el PDF guardaba fuera de orden: el motor no podía sumar los años.
 
   Las dos se corrigieron en reglas-v15 sin tocar los demás bancos.
-- **Lo que queda «de más» es casi todo de configuración, no de lectura:**
-  - 3 requisitos que unen dos cosas con «y» («primeros auxilios y uso de extintores»), donde basta una. El formulario ya avisa que conviene separarlos; se mantuvo así.
-  - 2 términos muy amplios puestos por RRHH: «inventario» para «control de stock» y «disponibilidad» para «turnos rotativos».
+- **Lo que quedaba «de más» era casi todo de configuración, no de lectura:**
+  - 3 requisitos que unen dos cosas con «y» («primeros auxilios y uso de extintores»), donde bastaba una. Se resolvió en reglas-v16.
+  - 2 términos muy amplios puestos por RRHH: «inventario» para «control de stock» (también lo resuelve v16) y «disponibilidad» para «turnos rotativos». La auditoría de la vacante avisa ahora de estos términos sueltos (ver «Auditoría de los criterios de una vacante»).
 - **Lo que queda por confirmar y la vara acredita:**
   - una competencia con un logro concreto, que se verifica en entrevista por decisión de RRHH;
   - un estudiante de 8.º ciclo para «últimos ciclos»;
@@ -352,6 +361,8 @@ Al reconstruir una evaluación tras una verificación de RRHH, que no vuelve a l
 - **Nivel de idioma por el código del marco europeo.** Un CV peruano escribe «Inglés A2» mucho más a menudo que «Inglés básico», y antes «Inglés A2» acreditaba un requisito de «Inglés intermedio (B2)»: A2 es elemental, justo lo contrario. Ahora los códigos A1 a C2 se comparan como niveles, con la misma asimetría que la escalera de grados: del requisito se toma el **menor** código que nombra (las vacantes se escriben como rango, «intermedio B1-B2», y lo que importa es el mínimo aceptable) y del CV el **mayor** que declara. Así un B1 no acredita un B2, y un C1 sí. Si el CV no trae código se vuelve a la comparación por palabras: no declarar el nivel no es declararlo bajo. La regla se aplica **solo a requisitos de idioma** (por categoría o porque la descripción nombra un idioma), y por eso «Ventas B2B» no se ve afectado.
 
 ### Decisiones de negocio registradas
+
+- **19/11/2026 · Un requisito con «y» entre dos frases exige las dos** (reglas-v16). Ejemplo: «matriz IPERC e investigación de accidentes». Se prefieren unos pocos «por confirmar» de más a un «cumple» equivocado, que nadie revisaría en la entrevista. Los requisitos legales (licencia, carné SUCAMEC, récord, antecedentes) se verifican siempre con documentos, igual que la colegiatura.
 
 - **19/11/2026 · La colegiatura se verifica siempre con documentos.** Aunque el CV diga «CIP vigente (habilitado)» o «CEP N.º …», el requisito queda *por confirmar*: el CV puede no ser cierto y la habilitación se comprueba en el colegio o con la constancia (decisión de Omar). Para eso el requisito debe estar marcado como legal o esencial: así ni el motor ni la IA lo acreditan por su cuenta (`ai/response.ts`).
 - **05/11/2026 · Un diplomado acredita un requisito de título o bachiller.** La empresa acepta esa equivalencia. El reclutador ve la cita literal («Diplomado en Contabilidad Gerencial, 40 horas») y decide. Técnicamente se sostiene dejando «diplomado» fuera de `DEGREE_LADDER` (`rule-engine.ts`): está en `STUDY_CUES`, así que acredita, pero no tiene rango, así que nunca se compara con el grado que pide la vacante. Si la política cambia, hay que darle rango en la escalera y actualizar el caso correspondiente de `scripts/medir-motor/legitimo.ts`.
