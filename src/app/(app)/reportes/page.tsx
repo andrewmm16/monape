@@ -16,12 +16,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { formatPercent } from "@/lib/format";
-import { APPLICATION_STATUS_LABELS } from "@/lib/labels";
+import { APPLICATION_STATUS_LABELS, CANDIDATE_SOURCE_LABELS } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatHours } from "@/modules/reports/metrics";
+import { LEGACY_STATUSES } from "@/modules/applications/schemas";
+import { computeInsights, computeTrendDelta, formatHours, type Insight } from "@/modules/reports/metrics";
 import { getReport, listReportVacancies, reportParamsSchema } from "@/modules/reports/queries";
 
 export const metadata: Metadata = { title: "Reportes" };
+
+/** Convierte una observación automática (datos crudos) a una frase legible. */
+function insightText(insight: Insight): string {
+  switch (insight.kind) {
+    case "trend":
+      return `Las postulaciones ${insight.direction === "up" ? "subieron" : "bajaron"} ${insight.pct}% respecto al ${insight.granularity} anterior.`;
+    case "funnel-drop":
+      return `La mayor caída del embudo está entre «${APPLICATION_STATUS_LABELS[insight.from]}» y «${APPLICATION_STATUS_LABELS[insight.to]}»: solo avanza el ${formatPercent(insight.conversion * 100)}.`;
+    case "best-source":
+      return `La fuente con mejor conversión a seleccionado es ${CANDIDATE_SOURCE_LABELS[insight.source]} (${formatPercent(insight.selectedShare * 100)}, ${insight.selected} seleccionado${insight.selected === 1 ? "" : "s"}).`;
+  }
+}
 
 export default async function ReportsPage({ searchParams }: PageProps<"/reportes">) {
   const user = await requirePageUser();
@@ -35,11 +48,33 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
   const selected = vacancies.find((v) => v.id === params.vacante);
   const maxSide = Math.max(1, ...report.side.map((s) => s.current));
 
+  const total = report.kpis.total;
+  const pctOf = (count: number) => (total > 0 ? `${formatPercent((count / total) * 100)} del total` : undefined);
+  const trendDelta = computeTrendDelta(report.trend);
+  const insights = computeInsights({
+    funnel: report.funnel,
+    sources: report.sources,
+    trend: report.trend,
+    kpis: report.kpis,
+  });
+
   const tiles: StatTile[] = [
-    { label: "Postulaciones", value: String(report.kpis.total) },
-    { label: "En proceso", value: String(report.kpis.inProcess) },
-    { label: "Seleccionados", value: String(report.kpis.selected) },
-    { label: "Descartados", value: String(report.kpis.discarded) },
+    {
+      label: "Postulaciones",
+      value: String(report.kpis.total),
+      spark: report.trend.points.length >= 2 ? report.trend.points.map((point) => point.count) : undefined,
+      delta: trendDelta
+        ? {
+            text: trendDelta.pct === null ? "nuevo" : `${trendDelta.pct > 0 ? "+" : ""}${Math.round(trendDelta.pct)}%`,
+            direction: trendDelta.direction,
+            tone: trendDelta.direction === "up" ? "positive" : trendDelta.direction === "down" ? "negative" : "neutral",
+          }
+        : undefined,
+      hint: trendDelta ? `vs ${report.trend.granularity} anterior` : undefined,
+    },
+    { label: "En proceso", value: String(report.kpis.inProcess), hint: pctOf(report.kpis.inProcess) },
+    { label: "Seleccionados", value: String(report.kpis.selected), hint: pctOf(report.kpis.selected) },
+    { label: "Descartados", value: String(report.kpis.discarded), hint: pctOf(report.kpis.discarded) },
     {
       label: "Conversión",
       value: report.kpis.conversion === null ? "—" : formatPercent(report.kpis.conversion * 100),
@@ -112,6 +147,27 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
         <div className="space-y-6">
           <StatTiles tiles={tiles} />
 
+          {insights.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">En resumen</CardTitle>
+                <CardDescription>Lecturas automáticas de los datos de arriba, para saber dónde mirar primero.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-1.5 text-sm">
+                  {insights.map((insight, index) => (
+                    <li key={index} className="flex gap-2">
+                      <span aria-hidden className="text-brand">
+                        •
+                      </span>
+                      <span>{insightText(insight)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -134,7 +190,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
               <CardContent className="space-y-6">
                 <FunnelChart steps={report.funnel} />
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table stacked>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Etapa</TableHead>
@@ -147,11 +203,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                       {report.funnel.map((step) => (
                         <TableRow key={step.status}>
                           <TableCell>{APPLICATION_STATUS_LABELS[step.status]}</TableCell>
-                          <TableCell className="text-right tabular-nums">{step.reached}</TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          <TableCell data-label="Llegaron" className="text-right tabular-nums">{step.reached}</TableCell>
+                          <TableCell data-label="Conversión" className="text-right tabular-nums">
                             {step.conversion === null ? "—" : formatPercent(step.conversion * 100)}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">{step.current}</TableCell>
+                          <TableCell data-label="Hoy en esta etapa" className="text-right tabular-nums">{step.current}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -160,9 +216,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                 <div>
                   <h3 className="mb-2 text-sm font-medium">Fuera del recorrido principal (estado actual)</h3>
                   <ul className="space-y-3">
-                    {report.side.map((s) => (
-                      <BarRow key={s.status} label={APPLICATION_STATUS_LABELS[s.status]} value={s.current} max={maxSide} />
-                    ))}
+                    {report.side
+                      .filter((s) => s.current > 0 || !LEGACY_STATUSES.includes(s.status))
+                      .map((s) => (
+                        <BarRow key={s.status} label={APPLICATION_STATUS_LABELS[s.status]} value={s.current} max={maxSide} />
+                      ))}
                   </ul>
                 </div>
               </CardContent>
@@ -190,7 +248,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                   <EmptyState title="Aún no hay cambios de estado para calcular tiempos" />
                 ) : (
                   <div className="overflow-x-auto">
-                    <Table>
+                    <Table stacked>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Tiempo en la etapa</TableHead>
@@ -203,9 +261,9 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                         {report.times.perStage.map((t) => (
                           <TableRow key={t.status}>
                             <TableCell>{APPLICATION_STATUS_LABELS[t.status]}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatHours(t.avgHours)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatHours(t.medianHours)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{t.samples}</TableCell>
+                            <TableCell data-label="Promedio" className="text-right tabular-nums">{formatHours(t.avgHours)}</TableCell>
+                            <TableCell data-label="Mediana" className="text-right tabular-nums">{formatHours(t.medianHours)}</TableCell>
+                            <TableCell data-label="Casos" className="text-right tabular-nums">{t.samples}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

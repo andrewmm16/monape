@@ -298,3 +298,83 @@ export function formatHours(hours: number): string {
   if (hours < 48) return `${hours.toFixed(1)} h`;
   return `${(hours / 24).toFixed(1)} días`;
 }
+
+/** Variación del último periodo de la tendencia respecto al anterior. */
+export type TrendDelta = {
+  current: number;
+  previous: number;
+  /** Variación porcentual; `null` si el periodo anterior fue 0 (no es divisible). */
+  pct: number | null;
+  direction: "up" | "down" | "flat";
+};
+
+export function computeTrendDelta(trend: Trend): TrendDelta | null {
+  const points = trend.points;
+  if (points.length < 2) return null;
+  const current = points[points.length - 1].count;
+  const previous = points[points.length - 2].count;
+  if (current === 0 && previous === 0) return null;
+  const pct = previous === 0 ? null : ((current - previous) / previous) * 100;
+  const direction = current > previous ? "up" : current < previous ? "down" : "flat";
+  return { current, previous, pct, direction };
+}
+
+/**
+ * Observaciones automáticas en datos crudos (sin texto de UI): la capa de
+ * presentación las convierte a frases con las etiquetas correspondientes. Así el
+ * cálculo sigue siendo puro y verificable.
+ */
+export type Insight =
+  | { kind: "trend"; granularity: Trend["granularity"]; direction: "up" | "down"; pct: number }
+  | { kind: "funnel-drop"; from: ApplicationStatus; to: ApplicationStatus; conversion: number }
+  | { kind: "best-source"; source: CandidateSource; selectedShare: number; selected: number };
+
+export function computeInsights(input: {
+  funnel: FunnelStep[];
+  sources: SourceRow[];
+  trend: Trend;
+  kpis: Kpis;
+}): Insight[] {
+  const insights: Insight[] = [];
+
+  // 1) Tendencia reciente (solo si el cambio es relevante, >= 5%).
+  const delta = computeTrendDelta(input.trend);
+  if (delta && delta.pct !== null && Math.abs(delta.pct) >= 5 && delta.direction !== "flat") {
+    insights.push({
+      kind: "trend",
+      granularity: input.trend.granularity,
+      direction: delta.direction,
+      pct: Math.round(Math.abs(delta.pct)),
+    });
+  }
+
+  // 2) Mayor caída del embudo (menor conversión entre etapas con base real).
+  const transitions = input.funnel
+    .map((step, index) => ({ step, prev: index > 0 ? input.funnel[index - 1] : null }))
+    .filter((t): t is { step: FunnelStep; prev: FunnelStep } => t.prev !== null && t.step.conversion !== null);
+  if (transitions.length > 0) {
+    const worst = transitions.reduce((a, b) => (b.step.conversion! < a.step.conversion! ? b : a));
+    if (worst.step.conversion! < 1) {
+      insights.push({
+        kind: "funnel-drop",
+        from: worst.prev.status,
+        to: worst.step.status,
+        conversion: worst.step.conversion!,
+      });
+    }
+  }
+
+  // 3) Fuente con mejor conversión a seleccionado (con al menos 1 seleccionado).
+  const withSelected = input.sources.filter((source) => source.selected > 0);
+  if (withSelected.length > 0) {
+    const best = withSelected.reduce((a, b) => (b.selectedShare > a.selectedShare ? b : a));
+    insights.push({
+      kind: "best-source",
+      source: best.source,
+      selectedShare: best.selectedShare,
+      selected: best.selected,
+    });
+  }
+
+  return insights;
+}
