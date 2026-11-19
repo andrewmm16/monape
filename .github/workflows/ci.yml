@@ -34,6 +34,12 @@ jobs:
           node-version: 24
           cache: npm
 
+      # El OCR y la detección de texto sin contraste dibujan páginas con
+      # @napi-rs/canvas: sin una fuente del sistema, sus pruebas fallan
+      # (comprobado en un Linux mínimo el 19/11/2026).
+      - name: Fuentes del sistema
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends fonts-dejavu-core
+
       - name: Dependencias
         run: npm ci
 
