@@ -54,7 +54,7 @@ Determinista: con el mismo texto, los mismos criterios y la misma fecha de evalu
 
 La búsqueda ignora mayúsculas, tildes y espacios, y respeta límites de palabra («SQL» no coincide en «MySQL»). Solo reconoce los términos configurados y las equivalencias curadas de `src/modules/evaluation/synonyms.ts` (ver «Equivalencias de evidencia (reglas-v5)»); no interpreta otros sinónimos, nivel de dominio ni contexto.
 
-### Asistente de IA (`ia-prompt-v5`, opcional): segunda opinión del motor
+### Asistente de IA (`ia-prompt-v6`, opcional): segunda opinión del motor
 
 El motor es la evaluación principal (la vigente: ranking, listados, verificaciones); la IA es una segunda opinión que se pide sola en los casos dudosos (incluidas las dudas concretas del motor y una muestra de control) y se muestra dentro de la tarjeta del motor, requisito por requisito. Nunca cambia el puntaje: RRHH decide verificando.
 
@@ -244,6 +244,18 @@ Qué se aprendió:
 - Lo que queda son decisiones discutibles de la vara (un conocimiento declarado «básico» y un curso de IGV para «tributación (IGV, renta, PDT 621)»; reclutamiento con un taller y «entrevistas» en habilidades), la colegiatura (el motor la deja siempre para verificar con documentos, la vara la acredita) y una palabra clave en primera persona («Capacité») frente a «Capacitación de 14 asesores».
 
 Ojo: después de afinar el motor con estos 30 CV, también se convirtieron en un examen conocido. La medición que falta es con CV reales.
+
+**Instrucciones de la IA v6 y una regla descartada (19/11/2026).** Se probó que la IA pudiera bajar a *por confirmar* lo que el motor dio por cumplido (aprobado por Omar para medirlo). Con `ia-prompt-v5` empeoraba el banco de 32 CV (Motor + IA de 97,2 % a 94,0 % si todos fueran a la IA): Haiku contradecía criterios de la empresa que el motor sí aplica («intermedio-avanzado» = avanzado, «básico» basta si no se pide nivel). Por eso `ia-prompt-v6` le enseña esos criterios (regla 11). Comparación pareada, con las mismas respuestas de Haiku y la política actual frente a la que baja el «cumple»:
+
+| | v5 | v6 (dos corridas) |
+|---|---:|---:|
+| Banco de 32 · Haiku solo | 89,1 % | 94,8 % · 91,5 % |
+| Banco de 32 · Motor + IA, política actual | 97,2 % | 98,8 % · 98,0 % |
+| Banco de 32 · si la IA bajara el «cumple» | 94,0 % | 98,4 % · 97,2 % |
+| Banco ciego · Motor + IA, política actual (laxo) | 96,5 % | 96,5 % · 97,1 % |
+| Banco ciego · si la IA bajara el «cumple» (laxo) | 97,6 % | 97,6 % · 97,1 % |
+
+Con v6, bajar el «cumple» ya no gana nada en el banco ciego (Haiku coincide con el motor en esos casos al aplicar los criterios de la empresa) y en el de 32 sigue costando 1 o 2 casillas: **se descartó** y el relevo sigue como estaba. Lo que sí queda es v6. Haiku varía de una corrida a otra (91,5-94,8 % solo); las diferencias de 1 o 2 casillas están dentro de esa variación.
 
 ### Notas del CV para la entrevista
 
