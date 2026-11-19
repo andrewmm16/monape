@@ -39,6 +39,29 @@ describe("auditRequirement", () => {
     expect(problemas(req({ keywords: ["experiencia"] }))).toContain("uso corriente");
   });
 
+  describe("términos demasiado amplios (banco ciego 2)", () => {
+    it("«disponibilidad» sola: la trae casi cualquier CV («disponibilidad inmediata»)", () => {
+      const hallazgos = auditRequirement(
+        req({ category: "otro", description: "Disponibilidad para turnos rotativos", keywords: ["turnos rotativos", "disponibilidad"] }),
+      );
+      expect(hallazgos).toHaveLength(1);
+      expect(hallazgos[0]).toMatchObject({ gravedad: "riesgo" });
+      expect(hallazgos[0]!.problema).toContain("«disponibilidad inmediata»");
+    });
+
+    it("«redes» sola coincide con «redes sociales»", () => {
+      expect(problemas(req({ description: "Redes básicas (TCP/IP)", keywords: ["redes", "TCP/IP"] }))).toContain("«redes sociales»");
+    });
+
+    it("la expresión concreta no avisa", () => {
+      expect(auditRequirement(req({ description: "Redes LAN", keywords: ["redes LAN", "normas de seguridad"] }))).toEqual([]);
+    });
+
+    it("en competencias no avisa: el motor nunca las da por cumplidas", () => {
+      expect(auditRequirement(req({ category: "competencia", description: "Comunicación efectiva", keywords: ["comunicación"] }))).toEqual([]);
+    });
+  });
+
   describe("términos cortos", () => {
     it("un término corto sin ningún respaldo largo es un riesgo", () => {
       const hallazgos = auditRequirement(req({ description: "Inglés B2", keywords: ["B2"] }));

@@ -58,6 +58,35 @@ const DEMASIADO_COMUN = new Set([
   "experiencia", "conocimiento", "conocimientos", "manejo", "trabajo", "empresa", "persona", "area", "nivel",
 ]);
 
+/**
+ * Palabras sueltas que muchos CV traen en frases que nada tienen que ver con el
+ * requisito (banco ciego 2, 19/11/2026): como término, el motor las encontraría
+ * ahí y lo daría por cumplido. Cada una lleva la frase típica que lo provoca, para
+ * que el aviso sea concreto. Solo cuentan escritas SOLAS: «normas de seguridad» o
+ * «redes LAN» ya son concretas.
+ */
+const DEMASIADO_AMPLIO: Record<string, string> = {
+  disponibilidad: "«disponibilidad inmediata»",
+  seguridad: "«agente de seguridad», «seguridad ciudadana» o «normas de seguridad»",
+  comunicacion: "«comunicación asertiva» o «ciencias de la comunicación»",
+  responsabilidad: "«responsabilidad y puntualidad»",
+  orden: "«orden y limpieza» u «orden de compra»",
+  seguimiento: "«seguimiento de pedidos»",
+  resultados: "«orientado a resultados»",
+  metas: "«cumplimiento de metas» en el perfil",
+  objetivos: "«objetivo profesional»",
+  reportes: "«reportes diarios»",
+  informes: "«informes de avance»",
+  capacitacion: "«recibí capacitación» o «capacitación interna»",
+  clientes: "«atención a clientes»",
+  equipo: "«trabajo en equipo»",
+  gestion: "«gestión documentaria» o «gestión de pedidos»",
+  control: "«control de asistencia» o «control de calidad»",
+  sistemas: "«Ingeniería de Sistemas» o «sistemas de información»",
+  redes: "«redes sociales»",
+  puntualidad: "«responsable y puntual» en el perfil",
+};
+
 export function auditRequirement(requirement: RequirementInput): Hallazgo[] {
   const hallazgos: Hallazgo[] = [];
   const añadir = (gravedad: Gravedad, problema: string, sugerencia: string) =>
@@ -83,6 +112,20 @@ export function auditRequirement(requirement: RequirementInput): Hallazgo[] {
         "riesgo",
         `«${termino}» es una palabra de uso corriente: aparece en casi cualquier CV y acreditaría el requisito sin que el candidato demuestre nada.`,
         "Use el término concreto que distingue a quien cumple (una herramienta, una certificación, una función).",
+      );
+    }
+  }
+
+  // 2 bis. Palabras sueltas que aparecen en frases ajenas al requisito. No en
+  //    competencias: el motor nunca las da por cumplidas (se confirman en entrevista).
+  if (requirement.category !== "competencia") {
+    for (const termino of terminos) {
+      const frase = DEMASIADO_AMPLIO[normalizeTerm(termino)];
+      if (!frase) continue;
+      añadir(
+        "riesgo",
+        `«${termino}» solo es demasiado amplio: muchos CV lo traen en frases como ${frase}, y el motor daría el requisito por cumplido sin que el CV lo demuestre.`,
+        `Escriba la expresión concreta que usaría quien cumple («${termino} …» con lo que de verdad se pide), o quite este término si los demás ya lo cubren.`,
       );
     }
   }
