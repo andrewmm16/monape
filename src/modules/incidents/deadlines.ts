@@ -94,16 +94,66 @@ function limaCivilDay(value: Date): Date {
 }
 
 /**
- * Suma días hábiles (lunes a viernes) a un día civil.
- * PENDIENTE: no descuenta los feriados de Perú (hoy solo se saltan sábados y domingos).
+ * Feriados nacionales de Perú con fecha fija (mes-día): D. Leg. 713 y las leyes
+ * que añadieron el 7 de junio, el 23 de julio, el 6 de agosto y el 9 de
+ * diciembre. Con Jueves y Viernes Santo suman los 16 feriados de 2026 (lista
+ * contrastada el 19/11/2026 en Canal N, La República y El Comercio; las tres
+ * coinciden). Los «días no laborables» que decreta el Gobierno no cuentan: son
+ * para el sector público y se recuperan. Si una ley cambia la lista, se edita aquí.
  */
+const FIXED_HOLIDAYS = new Set([
+  "01-01", // Año Nuevo
+  "05-01", // Día del Trabajo
+  "06-07", // Batalla de Arica y Día de la Bandera
+  "06-29", // San Pedro y San Pablo
+  "07-23", // Día de la Fuerza Aérea del Perú
+  "07-28", // Fiestas Patrias
+  "07-29", // Fiestas Patrias
+  "08-06", // Batalla de Junín
+  "08-30", // Santa Rosa de Lima
+  "10-08", // Combate de Angamos
+  "11-01", // Todos los Santos
+  "12-08", // Inmaculada Concepción
+  "12-09", // Batalla de Ayacucho
+  "12-25", // Navidad
+]);
+
+/** Domingo de Pascua del calendario gregoriano (algoritmo de Meeus/Jones/Butcher), como fecha UTC a medianoche. */
+export function easterSunday(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const dayOfMonth = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(year, month - 1, dayOfMonth));
+}
+
+/** ¿Es feriado nacional en Perú? Recibe un día civil (fecha UTC a medianoche). */
+export function isPeruHoliday(day: Date): boolean {
+  const key = day.toISOString().slice(5, 10);
+  if (FIXED_HOLIDAYS.has(key)) return true;
+  // Jueves y Viernes Santo: 3 y 2 días antes del Domingo de Pascua.
+  const daysToEaster = Math.round((easterSunday(day.getUTCFullYear()).getTime() - day.getTime()) / DAY_MS);
+  return daysToEaster === 3 || daysToEaster === 2;
+}
+
+/** Suma días hábiles a un día civil: salta sábados, domingos y feriados nacionales de Perú. */
 export function addBusinessDays(day: Date, count: number): Date {
   const result = new Date(day.getTime());
   let left = count;
   while (left > 0) {
     result.setUTCDate(result.getUTCDate() + 1);
     const weekday = result.getUTCDay();
-    if (weekday !== 0 && weekday !== 6) left -= 1;
+    if (weekday !== 0 && weekday !== 6 && !isPeruHoliday(result)) left -= 1;
   }
   return result;
 }

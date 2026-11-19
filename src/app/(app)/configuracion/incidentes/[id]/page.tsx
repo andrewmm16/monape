@@ -246,7 +246,7 @@ export default async function IncidentDetailPage({ params }: PageProps<"/configu
             <CardTitle>Revisión</CardTitle>
             <CardDescription>
               {review.applies
-                ? `Dentro de ${REVIEW_BUSINESS_DAYS} días hábiles desde el cierre (lunes a viernes; aún no se descuentan los feriados). Vence el ${formatDate(review.dueDate)}.`
+                ? `Dentro de ${REVIEW_BUSINESS_DAYS} días hábiles desde el cierre (lunes a viernes, sin contar los feriados nacionales). Vence el ${formatDate(review.dueDate)}.`
                 : "La revisión es obligatoria solo en gravedad media o alta; puede hacerla igual."}
             </CardDescription>
           </CardHeader>

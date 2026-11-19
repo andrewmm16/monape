@@ -4,7 +4,9 @@ import {
   addBusinessDays,
   compareIncidents,
   describeHours,
+  easterSunday,
   incidentSteps,
+  isPeruHoliday,
   notificationDeadline,
   reviewDeadline,
   type DeadlineIncident,
@@ -68,6 +70,32 @@ describe("plazo de la revisión (5 días hábiles)", () => {
     // Viernes 20/11 + 5 = viernes 27/11 (cruza un fin de semana); sábado 21/11 + 1 = lunes 23/11.
     expect(addBusinessDays(new Date("2026-11-20T00:00:00Z"), 5).toISOString().slice(0, 10)).toBe("2026-11-27");
     expect(addBusinessDays(new Date("2026-11-21T00:00:00Z"), 1).toISOString().slice(0, 10)).toBe("2026-11-23");
+  });
+
+  it("salta los feriados nacionales de Perú", () => {
+    // Lunes 27/07/2026: el 28 y el 29 son Fiestas Patrias → 30, 31, 3/8, 4/8 y 5/8.
+    expect(addBusinessDays(new Date("2026-07-27T00:00:00Z"), 5).toISOString().slice(0, 10)).toBe("2026-08-05");
+    // Miércoles 02/12/2026: el 8 y el 9 son feriados → 3, 4, 7, 10 y 11.
+    expect(addBusinessDays(new Date("2026-12-02T00:00:00Z"), 5).toISOString().slice(0, 10)).toBe("2026-12-11");
+    // Miércoles 01/04/2026: Jueves y Viernes Santo (2 y 3 de abril) → lunes 6.
+    expect(addBusinessDays(new Date("2026-04-01T00:00:00Z"), 1).toISOString().slice(0, 10)).toBe("2026-04-06");
+  });
+
+  it("los 16 feriados de 2026, con Semana Santa calculada", () => {
+    const holidays: string[] = [];
+    for (let day = new Date("2026-01-01T00:00:00Z"); day.getUTCFullYear() === 2026; day.setUTCDate(day.getUTCDate() + 1)) {
+      if (isPeruHoliday(day)) holidays.push(day.toISOString().slice(5, 10));
+    }
+    expect(holidays).toEqual([
+      "01-01", "04-02", "04-03", "05-01", "06-07", "06-29", "07-23", "07-28",
+      "07-29", "08-06", "08-30", "10-08", "11-01", "12-08", "12-09", "12-25",
+    ]);
+    // Pascua en otros años (gregoriano): 20/04/2025, 28/03/2027 y 16/04/2028.
+    expect(["2025", "2027", "2028"].map((y) => easterSunday(Number(y)).toISOString().slice(0, 10))).toEqual([
+      "2025-04-20",
+      "2027-03-28",
+      "2028-04-16",
+    ]);
   });
 
   it("cuenta desde el cierre en hora de Lima y solo aplica a gravedad media o alta", () => {
