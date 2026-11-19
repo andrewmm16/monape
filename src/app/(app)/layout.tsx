@@ -27,8 +27,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     logServerError("notifications.layout", error);
     return { items: [], unread: 0 };
   });
-  // Avisos del robot de portales; solo si este servidor lo tiene configurado.
-  const botAlerts = getServerEnv().PORTAL_BOT_SECRET
+  // Avisos técnicos del robot (qué falló y cómo arreglarlo): solo para administración.
+  // El resto del personal ve en el Panel si el robot está encendido, en reparación o apagado.
+  const botAlerts = getServerEnv().PORTAL_BOT_SECRET && can(user.role, "users:manage")
     ? await listBotAlerts(await createSupabaseServerClient()).catch((error: unknown) => {
         logServerError("portals.layout", error);
         return [];

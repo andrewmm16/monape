@@ -4,6 +4,23 @@ import type { BotPortalStatus } from "./queries";
 /** Color del punto del semáforo. */
 export type Tono = "verde" | "amarillo" | "rojo" | "gris";
 
+/**
+ * Estado del robot para quienes usan la app, sin detalles técnicos:
+ * - «encendido»: todos los portales conectados trabajan bien;
+ * - «apagado»: ningún portal da señales (la PC o el robot están detenidos);
+ * - «reparacion»: el robot funciona, pero algún portal falló o dejó de dar señales;
+ * - «sin_datos»: el robot nunca se conectó.
+ */
+export type EstadoRobot = "encendido" | "reparacion" | "apagado" | "sin_datos";
+
+export function estadoGeneralRobot(statuses: BotPortalStatus[]): { estado: EstadoRobot; portalesEnReparacion: string[] } {
+  const conectados = statuses.filter((s) => s.nivel !== "sin_datos");
+  if (conectados.length === 0) return { estado: "sin_datos", portalesEnReparacion: [] };
+  if (conectados.every((s) => s.reason === "sin_senal")) return { estado: "apagado", portalesEnReparacion: [] };
+  const fallan = conectados.filter((s) => s.nivel !== "ok").map((s) => s.portalName);
+  return fallan.length === 0 ? { estado: "encendido", portalesEnReparacion: [] } : { estado: "reparacion", portalesEnReparacion: fallan };
+}
+
 /** Punto de color y frase sin jerga para un portal en el semáforo. */
 export function estadoUi(status: BotPortalStatus): { tono: Tono; etiqueta: string } {
   switch (status.nivel) {

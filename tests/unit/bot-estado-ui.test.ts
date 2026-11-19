@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BotPortalStatus } from "@/modules/portals/queries";
-import { estadoUi, resumenDiarioLinea } from "@/modules/portals/estado-ui";
+import { estadoGeneralRobot, estadoUi, resumenDiarioLinea } from "@/modules/portals/estado-ui";
 
 const status = (over: Partial<BotPortalStatus>): BotPortalStatus => ({
   portalName: "Portal",
@@ -72,5 +72,31 @@ describe("frase del resumen del día", () => {
   it("si ningún portal se ha conectado aún, lo indica", () => {
     const linea = resumenDiarioLinea({ publishedToday: 0, applicantsToday: 0 }, [status({ nivel: "sin_datos" })]);
     expect(linea.toLowerCase()).toContain("no se ha conectado");
+  });
+});
+
+describe("estado general del robot para quienes usan la app", () => {
+  it("todos bien → encendido", () => {
+    expect(estadoGeneralRobot([status({}), status({ portalName: "B" })])).toEqual({ estado: "encendido", portalesEnReparacion: [] });
+  });
+
+  it("ningún portal da señales → apagado", () => {
+    const silencio = { nivel: "atencion" as const, reason: "sin_senal" };
+    expect(estadoGeneralRobot([status(silencio), status({ ...silencio, portalName: "B" })]).estado).toBe("apagado");
+  });
+
+  it("algún portal falló o calla, y otros trabajan → en reparación, con los afectados", () => {
+    expect(
+      estadoGeneralRobot([
+        status({ portalName: "LinkedIn" }),
+        status({ portalName: "Computrabajo", nivel: "error", reason: "selector_roto" }),
+        status({ portalName: "Indeed", nivel: "atencion", reason: "sin_senal" }),
+      ]),
+    ).toEqual({ estado: "reparacion", portalesEnReparacion: ["Computrabajo", "Indeed"] });
+  });
+
+  it("nunca se conectó → sin datos (los portales sin datos no cuentan)", () => {
+    expect(estadoGeneralRobot([status({ nivel: "sin_datos" })]).estado).toBe("sin_datos");
+    expect(estadoGeneralRobot([status({ nivel: "sin_datos" }), status({ portalName: "B" })]).estado).toBe("encendido");
   });
 });

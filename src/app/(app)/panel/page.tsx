@@ -173,7 +173,7 @@ export default async function DashboardPage() {
         />
       </section>
 
-      {botConfigured ? <BotStatusPanel statuses={botStatuses} daily={botDaily} /> : null}
+      {botConfigured ? <BotStatusPanel statuses={botStatuses} daily={botDaily} detail={can(user.role, "users:manage")} /> : null}
 
       {summary.vacancies_pending_criteria > 0 ? (
         <p className="rounded-md border border-warning-foreground/40 bg-warning px-4 py-3 text-sm text-warning-foreground">
