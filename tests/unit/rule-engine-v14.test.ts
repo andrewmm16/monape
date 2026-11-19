@@ -129,6 +129,16 @@ describe("siglas de los colegios profesionales del Perú", () => {
     const item = evaluar(cv, CEP);
     expect(item.assessment).toBe("pendiente_verificacion");
     expect(item.evidence.some((e) => e.quote.includes("CEP"))).toBe(true);
+    // Lo que se le dice a RRHH: es legal, se verifica con documentos (no «puede estar en curso»).
+    expect(item.rationale).toContain("debe verificarse con documentos");
+    expect(item.rationale).not.toContain("puede estar en curso");
+  });
+
+  it("«Colegiatura en trámite» sigue diciendo que puede no estar concluida", () => {
+    const cv = "Lic. Enf. Ana Ficticia\nColegio de Enfermeros: colegiatura en trámite\nExperiencia\nEnfermera de UCI 2022 - actualidad";
+    const item = evaluar(cv, CEP);
+    expect(item.assessment).toBe("pendiente_verificacion");
+    expect(item.rationale).toContain("puede estar en curso");
   });
 
   it("«cep» en minúsculas dentro de otra palabra no cuenta", () => {

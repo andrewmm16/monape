@@ -210,6 +210,50 @@ export function findTermOccurrences(haystack: NormalizedText, term: string, limi
   return matches;
 }
 
+/**
+ * Palabras clave con palabras intercaladas (reglas-v14, banco ciego del
+ * 19/11/2026): «Negociación anual con transportistas y proveedores» contiene
+ * «Negociación con proveedores». En el mismo orden y en la misma frase:
+ *  - tras una palabra con contenido, hasta 2 palabras que la modifican
+ *    («Atención telefónica al cliente», «Gestión integral de planillas»);
+ *  - tras una preposición o un artículo, solo un artículo y una coordinación
+ *    («con transportistas y proveedores», «de cobranzas y planillas», «de la
+ *    obra»): así «Supervisor de seguridad en obra» NO es «Supervisor de obra».
+ * Nunca con una negación o un nivel en medio («experiencia nula en ventas»,
+ * «manejo básico de…»), ni para palabras clave que llevan un nivel («Excel
+ * avanzado»: el nivel lo juzga la escalera) o de una sola palabra. Como mucho
+ * 3 palabras intercaladas en total.
+ */
+const LOOSE_FUNCTION_WORDS = new Set(["de", "del", "la", "el", "los", "las", "al", "a", "en", "con", "para", "por", "y", "e", "o", "u"]);
+const LOOSE_ARTICLE = "(?:el|la|los|las|un|una|su|sus)";
+const LOOSE_BLOCKED = "no|sin|nunca|ni|nul[oa]s?|poc[oa]s?|escas[oa]s?|limitad[oa]s?|basic[oa]s?|nociones|inicial";
+const LOOSE_LEVEL_IN_TERM = /(?<![\p{L}\p{N}])(?:basic[oa]s?|intermedi[oa]s?|avanzad[oa]s?|nociones|experto|experta|nivel|usuario|[abc][12])(?![\p{L}\p{N}])/u;
+const LOOSE_GAP_WORD = `(?!(?:${LOOSE_BLOCKED})(?![\\p{L}\\p{N}]))[\\p{L}\\p{N}]+`;
+const MAX_LOOSE_EXTRA_WORDS = 3;
+
+export function findLooseTermOccurrences(haystack: NormalizedText, term: string, limit = 20): Match[] {
+  const needle = normalizeTerm(term);
+  const words = needle.split(" ").filter(Boolean);
+  if (words.length < 2 || words.filter((w) => w.length >= 3).length < 2) return [];
+  if (LOOSE_LEVEL_IN_TERM.test(needle) || words.some((w) => !/^[\p{L}\p{N}]+$/u.test(w))) return [];
+  let source = `(?<![\\p{L}\\p{N}])${words[0]}`;
+  for (let i = 1; i < words.length; i++) {
+    const gap = LOOSE_FUNCTION_WORDS.has(words[i - 1]!)
+      ? `(?: ${LOOSE_ARTICLE})?(?: ${LOOSE_GAP_WORD},?(?: ${LOOSE_GAP_WORD},?)? (?:y|e|o|u))?`
+      : `(?: ${LOOSE_GAP_WORD}){0,2}`;
+    source += `${gap} ${words[i]}`;
+  }
+  const pattern = new RegExp(`${source}(?![\\p{L}\\p{N}])`, "gu");
+  const matches: Match[] = [];
+  for (const found of haystack.text.matchAll(pattern)) {
+    const extra = found[0].split(" ").length - words.length;
+    if (extra > MAX_LOOSE_EXTRA_WORDS) continue;
+    matches.push({ start: found.index, end: found.index + found[0].length });
+    if (matches.length >= limit) break;
+  }
+  return matches;
+}
+
 /** Devuelve un extracto del texto original alrededor de una coincidencia. */
 export function excerpt(
   original: string,

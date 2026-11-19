@@ -6,6 +6,7 @@ import { collegeEquivalentsFor, equivalentsFor } from "./synonyms";
 import { verbFormsOf } from "./verb-forms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
 import {
+  findLooseTermOccurrences,
   findTermOccurrences,
   isAspirationalMention,
   isCompanyNameMention,
@@ -172,6 +173,11 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    («Capacité», «Dirigí un equipo») también encuentra sus conjugaciones
  *    («capacitó», «dirigía», «capacitando»): verb-forms.ts. No los sustantivos:
  *    «recibí capacitación en Excel» no es capacitar a otros.
+ *  - Palabras clave con palabras intercaladas («Negociación anual con
+ *    transportistas y proveedores» para «Negociación con proveedores»), con
+ *    límites estrictos: ver findLooseTermOccurrences (text.ts).
+ *  - Un requisito legal encontrado fuera de una frase de estudios («CEP N.º …»)
+ *    se explica como legal (verificar con documentos), no como «puede estar en curso».
  */
 export const RULE_ENGINE_VERSION = "reglas-v14";
 
@@ -245,11 +251,14 @@ function collectMatches(
     // Un término corto (≤2) se busca tal cual, con su grafía, para que solo cuente como
     // sigla: las variantes salen en minúsculas y habilitarían «ti» suelto.
     const short = surface.replace(/[^\p{L}\p{N}]/gu, "").length <= 2;
+    const push = (match: { start: number; end: number }) => {
+      const key = `${term}|${match.start}|${match.end}`;
+      if (!found.has(key)) found.set(key, via === undefined ? { ...match, term } : { ...match, term, via });
+    };
     for (const variant of via !== undefined && short ? [surface] : termVariants(surface)) {
-      for (const match of findTermOccurrences(haystack, variant)) {
-        const key = `${term}|${match.start}|${match.end}`;
-        if (!found.has(key)) found.set(key, via === undefined ? { ...match, term } : { ...match, term, via });
-      }
+      for (const match of findTermOccurrences(haystack, variant)) push(match);
+      // reglas-v14: con palabras intercaladas, solo para los términos propios del requisito.
+      if (via === undefined) for (const match of findLooseTermOccurrences(haystack, variant)) push(match);
     }
   };
   for (const term of terms) {
@@ -1090,11 +1099,18 @@ export function evaluateRequirement(
       };
     }
     if (studied.length === 0) {
+      // Un requisito legal («CEP N.º 000000») sin señal de trámite se explica como
+      // lo que es: se verifica con documentos (reglas-v14). «Colegiatura en
+      // trámite» sí puede no estar concluida.
+      const enCurso = matches.some((m) => IN_PROGRESS.test(formationViews(original, haystack, m).linea));
       return {
         ...base,
         assessment: "pendiente_verificacion",
         evidence,
-        rationale: `${foundText} Pero no aparece en una frase de estudios concluidos o de título (por ejemplo «bachiller», «titulado»); puede estar en curso. Verifique la formación en el CV.`,
+        rationale:
+          requirement.isEssential && !enCurso
+            ? `${foundText} Al ser un requisito legal o esencial, debe verificarse con documentos antes de considerarlo acreditado.`
+            : `${foundText} Pero no aparece en una frase de estudios concluidos o de título (por ejemplo «bachiller», «titulado»); puede estar en curso. Verifique la formación en el CV.`,
       };
     }
     return {
