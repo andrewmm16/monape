@@ -62,7 +62,21 @@ Ver [respaldo-y-restauracion.md](respaldo-y-restauracion.md) (`scripts/respaldo/
 ```bash
 npm run build
 npm run test:secrets              # con las variables secretas del entorno cargadas
+npm run verificar:despliegue -- https://<dominio> --supabase-url https://<proyecto>.supabase.co --supabase-key <clave PUBLICABLE>
 ```
+
+`verificar:despliegue` (`scripts/verificar-despliegue.ts`) revisa sola, sin sesión ni secretos y sin escribir nada, las comprobaciones que se pueden hacer desde afuera:
+
+- **Sesión:** lo privado redirige a `/ingresar` y las APIs privadas responden 401.
+- **Cabeceras:** CSP con nonce nuevo y sin `'unsafe-eval'`, HSTS y la redirección de http a https.
+- **APIs de máquina:** las tareas programadas de `vercel.json`, el robot, la IA, Talent, el webhook y el portal del candidato responden 404 sin el secreto y con uno falso.
+- **Parte pública:** responde sin cookies; el sitemap y robots.txt apuntan al dominio correcto; la página de una vacante trae `JobPosting`.
+- **Supabase:**
+  - el registro público está cerrado;
+  - el rol anónimo no ve ni lee ninguna tabla y no ejecuta funciones internas;
+  - el bucket de CV no es público.
+
+Sale con código 1 si algo falla. Al final lista lo que queda por comprobar a mano. Probado el 19/11/2026 contra la demo local: pasa sin fallas. Contra un servidor hecho a propósito con esos errores, los detecta todos.
 
 - [ ] `/panel` sin sesión redirige a `/ingresar`.
 - [ ] Cabeceras: `Content-Security-Policy` con nonce, `X-Frame-Options: DENY`, `Strict-Transport-Security`.
