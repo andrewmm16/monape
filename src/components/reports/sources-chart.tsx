@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { formatPercent } from "@/lib/format";
 import { CANDIDATE_SOURCE_LABELS } from "@/lib/labels";
+import { isSameDetail, type ReportDetail } from "@/modules/reports/detail";
 import type { SourceRow } from "@/modules/reports/metrics";
 import type { Enums } from "@/types/database";
 
@@ -18,7 +20,15 @@ const SOURCE_COLOR: Record<Enums<"candidate_source">, string> = {
  * una leyenda que da la identidad por texto —no solo por color— con el volumen y
  * cuántos llegaron a «seleccionado» (calidad de la fuente, no solo cantidad).
  */
-export function SourcesChart({ sources }: { sources: SourceRow[] }) {
+export function SourcesChart({
+  sources,
+  hrefFor,
+  current,
+}: {
+  sources: SourceRow[];
+  hrefFor: (detail: ReportDetail) => string;
+  current?: ReportDetail;
+}) {
   const rows = sources.filter((source) => source.candidates > 0);
   const total = rows.reduce((sum, source) => sum + source.candidates, 0);
   const size = 180;
@@ -71,18 +81,30 @@ export function SourcesChart({ sources }: { sources: SourceRow[] }) {
       </svg>
 
       <ul className="w-full space-y-2 text-sm">
-        {rows.map((source) => (
-          <li key={source.source} className="flex items-center gap-2">
-            <span className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: SOURCE_COLOR[source.source] }} aria-hidden />
-            <span className="min-w-0 flex-1 leading-tight">{CANDIDATE_SOURCE_LABELS[source.source]}</span>
-            <span className="tabular-nums text-muted-foreground">
-              {source.candidates} · {formatPercent(source.share * 100)}
-            </span>
-            <span className="w-32 text-right text-xs tabular-nums text-muted-foreground">
-              {source.selected} a seleccionado
-            </span>
-          </li>
-        ))}
+        {rows.map((source) => {
+          const detail: ReportDetail = { kind: "fuente", value: source.source };
+          const selected = isSameDetail(current, detail);
+          return (
+            <li key={source.source}>
+              <Link
+                href={hrefFor(detail)}
+                aria-current={selected ? "true" : undefined}
+                className={`flex items-center gap-2 rounded-md px-1 py-1 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring ${
+                  selected ? "bg-muted ring-1 ring-border" : ""
+                }`}
+              >
+                <span className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: SOURCE_COLOR[source.source] }} aria-hidden />
+                <span className="min-w-0 flex-1 leading-tight">{CANDIDATE_SOURCE_LABELS[source.source]}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {source.candidates} · {formatPercent(source.share * 100)}
+                </span>
+                <span className="w-32 text-right text-xs tabular-nums text-muted-foreground">
+                  {source.selected} a seleccionado
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

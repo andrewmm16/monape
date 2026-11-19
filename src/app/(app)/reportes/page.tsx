@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DownloadIcon } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { BarRow } from "@/components/reports/bar-row";
+import { DetailCard } from "@/components/reports/detail-card";
 import { FunnelChart } from "@/components/reports/funnel-chart";
 import { SourcesChart } from "@/components/reports/sources-chart";
 import { StatTiles, type StatTile } from "@/components/reports/stat-tiles";
@@ -20,7 +22,8 @@ import { APPLICATION_STATUS_LABELS, CANDIDATE_SOURCE_LABELS } from "@/lib/labels
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LEGACY_STATUSES } from "@/modules/applications/schemas";
 import { computeInsights, computeTrendDelta, formatHours, type Insight } from "@/modules/reports/metrics";
-import { getReport, listReportVacancies, reportParamsSchema } from "@/modules/reports/queries";
+import { buildReportHref, isSameDetail, portalRobotLabel, type ReportDetail } from "@/modules/reports/detail";
+import { getPortalRobotData, getReport, getReportDetail, listReportVacancies, reportParamsSchema } from "@/modules/reports/queries";
 
 export const metadata: Metadata = { title: "Reportes" };
 
@@ -43,7 +46,17 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
 
   const params = reportParamsSchema.parse(await searchParams);
   const supabase = await createSupabaseServerClient();
-  const [vacancies, report] = await Promise.all([listReportVacancies(supabase), getReport(supabase, params)]);
+  const detail = params.detalle;
+  const [vacancies, report, robot, detailData] = await Promise.all([
+    listReportVacancies(supabase),
+    getReport(supabase, params),
+    getPortalRobotData(supabase, params),
+    detail ? getReportDetail(supabase, params, detail) : Promise.resolve(null),
+  ]);
+  const hrefFor = (target: ReportDetail) => buildReportHref(params, target);
+  const closeHref = buildReportHref(params);
+  const detailCard =
+    detail && detailData ? <DetailCard detail={detail} rows={detailData.rows} hasMore={detailData.hasMore} closeHref={closeHref} /> : null;
 
   const selected = vacancies.find((v) => v.id === params.vacante);
   const maxSide = Math.max(1, ...report.side.map((s) => s.current));
@@ -188,7 +201,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <FunnelChart steps={report.funnel} />
+                <FunnelChart steps={report.funnel} hrefFor={hrefFor} current={detail} />
+                {detail?.kind === "etapa" ? detailCard : null}
                 <div className="overflow-x-auto">
                   <Table stacked>
                     <TableHeader>
@@ -226,13 +240,14 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={detail && detail.kind !== "etapa" ? "lg:col-span-2" : undefined}>
               <CardHeader>
                 <CardTitle>Fuentes de candidatos</CardTitle>
                 <CardDescription>Candidatos distintos por fuente y cuántos llegaron a seleccionado (calidad de la fuente).</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <SourcesChart sources={report.sources} />
+                <SourcesChart sources={report.sources} hrefFor={hrefFor} current={detail} />
+                {detail?.kind === "fuente" ? detailCard : null}
                 {report.portals.length > 0 ? (
                   <div>
                     <h3 className="mb-2 text-sm font-medium">Por portal</h3>
@@ -242,20 +257,44 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                           <TableHead>Portal</TableHead>
                           <TableHead className="text-right">Postulaciones</TableHead>
                           <TableHead className="text-right">A seleccionado</TableHead>
+                          {robot.published ? <TableHead className="text-right">Publicadas por el robot</TableHead> : null}
+                          {robot.statuses ? <TableHead>Robot</TableHead> : null}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {report.portals.map((portal) => (
-                          <TableRow key={portal.portal}>
-                            <TableCell>{portal.portal}</TableCell>
-                            <TableCell data-label="Postulaciones" className="text-right tabular-nums">{portal.applications}</TableCell>
-                            <TableCell data-label="A seleccionado" className="text-right tabular-nums">{portal.selected}</TableCell>
-                          </TableRow>
-                        ))}
+                        {report.portals.map((portal) => {
+                          const target: ReportDetail = { kind: "portal", value: portal.portal };
+                          const selectedPortal = isSameDetail(detail, target);
+                          const robotLabel = portalRobotLabel(robot.statuses?.get(portal.portal));
+                          return (
+                            <TableRow key={portal.portal} data-state={selectedPortal ? "selected" : undefined}>
+                              <TableCell className="whitespace-normal">
+                                <Link
+                                  href={hrefFor(target)}
+                                  aria-current={selectedPortal ? "true" : undefined}
+                                  className="rounded-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                  {portal.portal}
+                                </Link>
+                              </TableCell>
+                              <TableCell data-label="Postulaciones" className="text-right tabular-nums">{portal.applications}</TableCell>
+                              <TableCell data-label="A seleccionado" className="text-right tabular-nums">{portal.selected}</TableCell>
+                              {robot.published ? (
+                                <TableCell data-label="Vacantes publicadas por el robot" className="text-right tabular-nums">
+                                  {robot.published.get(portal.portal) ?? 0}
+                                </TableCell>
+                              ) : null}
+                              {robot.statuses ? (
+                                <TableCell data-label="Robot">{robotLabel ? robotLabel.label : "—"}</TableCell>
+                              ) : null}
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
                 ) : null}
+                {detail?.kind === "portal" ? detailCard : null}
               </CardContent>
             </Card>
 

@@ -14,6 +14,9 @@ import {
   type ReportStatusEvent,
 } from "./metrics";
 import type { ExportRow } from "./csv";
+import { DETAIL_LIMIT, detailParamSchema, type ReportDetail } from "./detail";
+import { listBotPortalStatuses, type BotPortalStatus } from "@/modules/portals/queries";
+import type { Enums } from "@/types/database";
 
 /** Todas las consultas usan el cliente del usuario: la RLS define su ámbito. */
 
@@ -30,6 +33,7 @@ export const reportParamsSchema = z.object({
   vacante: z.uuid().optional().catch(undefined),
   desde: dateString.optional().catch(undefined),
   hasta: dateString.optional().catch(undefined),
+  detalle: detailParamSchema,
 });
 export type ReportParams = z.infer<typeof reportParamsSchema>;
 
@@ -135,6 +139,120 @@ export async function getReport(supabase: AppSupabaseClient, params: ReportParam
     times: computeTimes(apps, events),
     truncated: appsResult.truncated || eventsResult.truncated,
   };
+}
+
+export type DetailRow = {
+  id: string;
+  candidateName: string | null;
+  vacancyTitle: string | null;
+  appliedAt: string | null;
+  level: Enums<"compatibility_level"> | null;
+  status: Enums<"application_status"> | null;
+};
+
+/**
+ * Postulaciones detrás de una etapa, una fuente o un portal, con los mismos
+ * filtros del reporte. Para la etapa es «hoy en esta etapa» (estado actual).
+ * Devuelve a lo sumo `DETAIL_LIMIT` filas y avisa si había más.
+ */
+export async function getReportDetail(
+  supabase: AppSupabaseClient,
+  params: ReportParams,
+  detail: ReportDetail,
+): Promise<{ rows: DetailRow[]; hasMore: boolean }> {
+  const fromDate = params.desde ? `${params.desde}T00:00:00.000Z` : null;
+  const toDate = params.hasta ? `${params.hasta}T23:59:59.999Z` : null;
+
+  // La fuente vive en `candidates`, que la vista no trae: primero se eligen las postulaciones.
+  let sourceIds: string[] | null = null;
+  let sourceHasMore = false;
+  if (detail.kind === "fuente") {
+    let query = supabase
+      .from("applications")
+      .select("id, candidates!inner(source)")
+      .eq("candidates.source", detail.value)
+      .order("applied_at", { ascending: false })
+      .order("id")
+      .limit(DETAIL_LIMIT + 1);
+    if (params.vacante) query = query.eq("vacancy_id", params.vacante);
+    if (fromDate) query = query.gte("applied_at", fromDate);
+    if (toDate) query = query.lte("applied_at", toDate);
+    const { data, error } = await query;
+    if (error) throw toAppError(error);
+    sourceHasMore = data.length > DETAIL_LIMIT;
+    sourceIds = data.slice(0, DETAIL_LIMIT).map((row) => row.id);
+    if (sourceIds.length === 0) return { rows: [], hasMore: false };
+  }
+
+  let query = supabase
+    .from("application_overview")
+    .select("id, candidate_name, vacancy_title, applied_at, level, status")
+    .order("applied_at", { ascending: false })
+    .order("id")
+    .limit(DETAIL_LIMIT + 1);
+  if (sourceIds) query = query.in("id", sourceIds);
+  if (detail.kind === "etapa") query = query.eq("status", detail.value);
+  if (detail.kind === "portal") query = query.eq("portal_name", detail.value);
+  if (params.vacante) query = query.eq("vacancy_id", params.vacante);
+  if (fromDate) query = query.gte("applied_at", fromDate);
+  if (toDate) query = query.lte("applied_at", toDate);
+  const { data, error } = await query;
+  if (error) throw toAppError(error);
+
+  const rows = data.slice(0, DETAIL_LIMIT).flatMap((row) =>
+    row.id
+      ? [
+          {
+            id: row.id,
+            candidateName: row.candidate_name,
+            vacancyTitle: row.vacancy_title,
+            appliedAt: row.applied_at,
+            level: row.level,
+            status: row.status,
+          },
+        ]
+      : [],
+  );
+  return { rows, hasMore: sourceHasMore || data.length > DETAIL_LIMIT };
+}
+
+export type PortalRobotData = {
+  /** Vacantes distintas publicadas por el robot, por nombre de portal; `null` si no se pudo leer. */
+  published: Map<string, number> | null;
+  /** Estado del robot por portal; `null` si la persona no puede verlo (RLS) o falló la lectura. */
+  statuses: Map<string, BotPortalStatus> | null;
+};
+
+/** Datos del robot para la tabla «Por portal». Si algo falla o no es visible, esa parte queda en `null` sin romper el reporte. */
+export async function getPortalRobotData(supabase: AppSupabaseClient, params: ReportParams): Promise<PortalRobotData> {
+  const [publications, statuses] = await Promise.all([
+    fetchAll((from, to) => {
+      let query = supabase
+        .from("portal_publications")
+        .select("id, vacancy_id, job_portals!inner(name)")
+        .eq("manual", false)
+        .eq("status", "publicada")
+        .order("id")
+        .range(from, to);
+      if (params.vacante) query = query.eq("vacancy_id", params.vacante);
+      return query;
+    }).catch(() => null),
+    listBotPortalStatuses(supabase).catch(() => null),
+  ]);
+
+  let published: PortalRobotData["published"] = null;
+  if (publications) {
+    const vacanciesByPortal = new Map<string, Set<string>>();
+    for (const row of publications.rows) {
+      const name = row.job_portals.name;
+      const set = vacanciesByPortal.get(name) ?? new Set<string>();
+      set.add(row.vacancy_id);
+      vacanciesByPortal.set(name, set);
+    }
+    published = new Map([...vacanciesByPortal].map(([name, set]) => [name, set.size]));
+  }
+  // Sin filas visibles (la RLS no deja ver el estado) o con error, la columna se oculta.
+  return { published, statuses: statuses && statuses.length > 0 ? new Map(statuses.map((s) => [s.portalName, s])) : null };
 }
 
 /** Filas del CSV de una vacante (ámbito RLS). Devuelve null si la vacante no es visible. */
