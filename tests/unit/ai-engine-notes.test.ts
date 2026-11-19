@@ -152,6 +152,19 @@ describe("¿cuándo pide el motor la segunda opinión?", () => {
     expect(doubtReasons(claro, [], { suspiciousText: true })).toEqual(["posible_relleno"]);
   });
 
+  it("copiar frases del aviso de la vacante también pide segunda opinión", () => {
+    expect(doubtReasons(claro, [], { copiedFromAd: true })).toEqual(["copia_del_aviso"]);
+    expect(isDoubtful(claro, [], { copiedFromAd: false })).toBe(false);
+  });
+
+  it("la pista de copia del aviso llega a la IA en las notas generales", () => {
+    const aviso = "Elaborar y controlar la planilla de remuneraciones, CTS y gratificaciones conforme a la normativa laboral vigente.";
+    const cv = `Experiencia laboral\nAsistente de RRHH 2021 - actualidad\n${aviso}`;
+    const notes = engineNotesForText(cv, [OBRA], new Date("2026-11-18T00:00:00Z"), [], aviso);
+    expect(notes.general.some((n) => n.startsWith("El CV repite frases textuales del aviso de la vacante"))).toBe(true);
+    expect(engineNotesForText(cv, [OBRA], new Date("2026-11-18T00:00:00Z")).general).toEqual([]);
+  });
+
   it("la muestra de control es determinista y respeta el porcentaje", () => {
     const ids = Array.from({ length: 2000 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
     const elegidos = ids.filter((id) => inControlSample(id, 10)).length;

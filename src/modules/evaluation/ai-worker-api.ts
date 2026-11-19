@@ -26,7 +26,7 @@ import {
   ResumeTextUnavailableError,
   type EvaluationContext,
 } from "./context";
-import { detectDateSignalNotes } from "./date-consistency";
+import { detectEvaluationSignalNotes } from "./signal-notes";
 import { loadActiveLearnedRules, recordEquivalenceVotes } from "./learning";
 import { evaluateWithRules, RULE_ENGINE_VERSION } from "./rule-engine";
 import { listVerifications, recordAssembledEvaluation } from "./service";
@@ -290,7 +290,7 @@ async function inputFor(admin: AdminClient, context: EvaluationContext, maxChars
     requirements: context.requirements,
     fullText: context.fullText,
     maxChars,
-    engineNotes: engineNotesForText(context.fullText, context.requirements, new Date(), learned),
+    engineNotes: engineNotesForText(context.fullText, context.requirements, new Date(), learned, context.vacancyText),
   });
 }
 
@@ -393,7 +393,7 @@ async function learnAndRelay(
       items: applyVerifications(relayed, await listVerifications(admin, context.applicationId)),
       textWasCorrected: context.textWasCorrected,
       textTruncated: false,
-      signalNotes: detectDateSignalNotes(context.fullText, referenceDate),
+      signalNotes: detectEvaluationSignalNotes(context.fullText, context.vacancyText, referenceDate),
     });
     await recordAssembledEvaluation(admin, {
       applicationId: context.applicationId,
@@ -547,7 +547,7 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
       items,
       textWasCorrected: context.textWasCorrected,
       textTruncated: input.textTruncated,
-      signalNotes: detectDateSignalNotes(context.fullText, new Date()),
+      signalNotes: detectEvaluationSignalNotes(context.fullText, context.vacancyText, new Date()),
     });
 
     const { data: evaluationId, error: completeError } = await admin.rpc("ai_complete_job", {

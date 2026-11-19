@@ -218,6 +218,15 @@ Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* e
 
 **Límite conocido.** El motor no entiende paráfrasis sin palabras clave («atendí llamadas y resolví quejas» para atención al cliente): queda *sin evidencia*. Es uno de los casos previstos para la segunda opinión con IA.
 
+### Notas del CV para la entrevista
+
+Además de valorar los requisitos, cada evaluación guarda al final de sus limitaciones unas notas neutras sobre el CV en su conjunto (`signal-notes.ts`). Ninguna cambia el puntaje ni descarta a nadie; sirven para preguntar en la entrevista y, cuando corresponde, para pedir la segunda opinión de la IA.
+
+- **Fechas** (`date-consistency.ts`): periodos superpuestos, fechas imposibles (fin antes del inicio, inicio futuro) y varios empleos cortos seguidos.
+- **Copia del aviso de la vacante** (`vacancy-copy.ts`, desde el 19/11/2026): tramos de 10 palabras seguidas o más idénticos a la descripción o las funciones del aviso (sin importar mayúsculas, tildes ni signos). Avisa con 2 tramos o con uno de 15 palabras o más; la nota cita el más largo. Adaptar el CV a la vacante es legítimo y no se marca: se compara con la descripción y las funciones, no con los requisitos, y las frases cortas del rubro («planilla de remuneraciones, CTS y gratificaciones») no llegan al umbral. En los 73 CV legítimos de la base local el tramo común más largo con su aviso fue de 5 palabras y no saltó ningún aviso. La IA recibe la misma pista: lo copiado no acredita sin respaldo propio.
+
+Al reconstruir una evaluación tras una verificación de RRHH, que no vuelve a leer el CV, estas notas se conservan (antes del 19/11/2026 se perdían).
+
 ## Cambios de reglas-v4
 
 - **La colegiatura acredita la formación.** «Contadora Pública Colegiada» o «colegiatura vigente» ahora acreditan un requisito de título: en el Perú no se puede estar colegiado sin haber concluido la carrera, de modo que reglas-v3 rechazaba una evidencia más fuerte que las que aceptaba. «Colegio» a secas sigue sin acreditar nada, porque en el Perú designa la educación secundaria.

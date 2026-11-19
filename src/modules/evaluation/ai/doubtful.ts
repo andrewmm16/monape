@@ -2,13 +2,15 @@ import { createHash } from "node:crypto";
 import type { EvaluationResult, ItemAssessment, RequirementInput } from "../types";
 
 /** Por qué una evaluación del motor pide segunda opinión (para medir y explicar, no se persiste). */
-export type DoubtReason = "duda_del_motor" | "posible_relleno" | "obligatorio_no_cumplido";
+export type DoubtReason = "duda_del_motor" | "posible_relleno" | "copia_del_aviso" | "obligatorio_no_cumplido";
 
 export type DoubtExtras = {
   /** Valoraciones del motor CON sus marcas de duda (`signal`), que el resultado ensamblado no conserva. */
   engineItems?: Pick<ItemAssessment, "signal" | "cvAssessment">[];
   /** El CV tiene el aviso de relleno de palabras clave. */
   suspiciousText?: boolean;
+  /** El CV copia frases textuales del aviso de la vacante (`vacancy-copy.ts`). */
+  copiedFromAd?: boolean;
 };
 
 /**
@@ -18,6 +20,7 @@ export type DoubtExtras = {
  *    relacionado, mención dudosa, negación explícita, nivel, fechas, errata…: ver
  *    EngineSignal);
  *  - el CV tiene señales de relleno de palabras clave;
+ *  - el CV copia frases textuales del aviso de la vacante;
  *  - un requisito obligatorio «no cumplido» (un descarte que conviene confirmar).
  * Hasta el 18/11/2026 también contaban el nivel «pendiente»/«parcial», estar cerca
  * de un corte y tener mucho por confirmar: mandaban el 75 % de los CV del banco a
@@ -36,6 +39,7 @@ export function doubtReasons(
   }
   if (extras.engineItems?.some((item) => item.signal && !item.cvAssessment)) reasons.push("duda_del_motor");
   if (extras.suspiciousText) reasons.push("posible_relleno");
+  if (extras.copiedFromAd) reasons.push("copia_del_aviso");
   return reasons;
 }
 

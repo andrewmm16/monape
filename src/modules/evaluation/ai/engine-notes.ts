@@ -1,4 +1,5 @@
 import { detectKeywordStuffing, summarizeStuffing } from "@/modules/resumes/keyword-stuffing";
+import { findCopiedVacancyPhrases, vacancyCopyHint } from "../vacancy-copy";
 import type { LearnedRule } from "../learned";
 import { evaluateWithRules } from "../rule-engine";
 import type { EngineSignal, ItemAssessment, RequirementInput } from "../types";
@@ -67,7 +68,7 @@ export function hasEngineDoubt(item: Pick<ItemAssessment, "assessment" | "signal
  */
 export function buildEngineNotes(
   items: ItemAssessment[],
-  options: { stuffingWarning?: string | null; learned?: LearnedRule[] } = {},
+  options: { stuffingWarning?: string | null; vacancyCopyHint?: string | null; learned?: LearnedRule[] } = {},
 ): EngineNotes {
   const perRequirement: Record<string, string> = {};
   const rules = new Map((options.learned ?? []).map((rule) => [rule.id, rule]));
@@ -107,6 +108,7 @@ export function buildEngineNotes(
       ),
     );
   }
+  if (options.vacancyCopyHint) general.push(redactContactData(options.vacancyCopyHint));
   return { perRequirement, general };
 }
 
@@ -119,7 +121,13 @@ export function engineNotesForText(
   requirements: RequirementInput[],
   referenceDate: Date = new Date(),
   learned: LearnedRule[] = [],
+  /** Descripción y funciones del aviso, para la pista de copia (`vacancy-copy.ts`). */
+  vacancyText = "",
 ): EngineNotes {
   const items = evaluateWithRules(fullText, requirements, { referenceDate, learned });
-  return buildEngineNotes(items, { stuffingWarning: summarizeStuffing(detectKeywordStuffing(fullText)), learned });
+  return buildEngineNotes(items, {
+    stuffingWarning: summarizeStuffing(detectKeywordStuffing(fullText)),
+    vacancyCopyHint: vacancyCopyHint(findCopiedVacancyPhrases(fullText, vacancyText)),
+    learned,
+  });
 }

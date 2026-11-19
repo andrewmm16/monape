@@ -4,6 +4,7 @@ import { AppError, toAppError } from "@/lib/errors";
 import type { AppSupabaseClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import type { RequirementInput } from "./types";
+import { vacancyAdText } from "./vacancy-copy";
 
 const MIN_TEXT_LENGTH = 50;
 
@@ -28,6 +29,8 @@ export type EvaluationContext = {
   /** Para contar CV distintos al aprender de la IA (learned_equivalence_votes). */
   candidateId: string;
   vacancyTitle: string;
+  /** Descripción y funciones del aviso, para detectar un CV que lo copia (`vacancy-copy.ts`). */
+  vacancyText: string;
   criteriaVersion: number;
   requirements: RequirementInput[];
   resumeId: string;
@@ -47,7 +50,7 @@ export async function loadEvaluationContext(
 ): Promise<EvaluationContext> {
   const { data: application, error } = await supabase
     .from("applications")
-    .select("id, candidate_id, resume_id, vacancies(id, title, criteria_version, criteria_approved_at)")
+    .select("id, candidate_id, resume_id, vacancies(id, title, description, responsibilities, criteria_version, criteria_approved_at)")
     .eq("id", applicationId)
     .maybeSingle();
   if (error) throw toAppError(error);
@@ -102,6 +105,7 @@ export async function loadEvaluationContext(
     applicationId: application.id,
     candidateId: application.candidate_id,
     vacancyTitle: vacancy.title,
+    vacancyText: vacancyAdText(vacancy),
     criteriaVersion: vacancy.criteria_version,
     requirements,
     resumeId: resume.id,

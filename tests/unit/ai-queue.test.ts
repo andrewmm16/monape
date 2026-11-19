@@ -76,6 +76,7 @@ const context = () => ({
   applicationId: APP,
   candidateId: "cand-1",
   vacancyTitle: "Analista de datos",
+  vacancyText: "Analizar datos de ventas y preparar reportes para la gerencia comercial.",
   criteriaVersion: 2,
   requirements,
   resumeId: "res-1",

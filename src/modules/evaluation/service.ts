@@ -11,7 +11,8 @@ import { assembleEvaluation } from "./assemble";
 import { loadEvaluationContext, type EvaluationContext } from "./context";
 import { hasRelayedItems, relayToAi } from "./ai/relay";
 import { loadActiveLearnedRules } from "./learning";
-import { detectDateSignalNotes } from "./date-consistency";
+import { detectEvaluationSignalNotes } from "./signal-notes";
+import { findCopiedVacancyPhrases, isVacancyCopy } from "./vacancy-copy";
 import { requestAnthropicAssessment } from "./ai/anthropic";
 import { getAiAvailability } from "./ai/availability";
 import { engineNotesForText } from "./ai/engine-notes";
@@ -136,9 +137,9 @@ export async function evaluateApplication(
   const { requirements, fullText, textWasCorrected } = context;
 
   const referenceDate = new Date();
-  // Señales deterministas sobre las fechas del CV, independientes del método:
-  // solapamientos e incoherencias (notas para verificar en entrevista, no descartan).
-  const signalNotes = detectDateSignalNotes(fullText, referenceDate);
+  // Señales deterministas del CV, independientes del método: fechas (solapamientos,
+  // incoherencias, rotación) y copia del aviso. Notas para la entrevista, no descartan.
+  const signalNotes = detectEvaluationSignalNotes(fullText, context.vacancyText, referenceDate);
 
   let items: ItemAssessment[];
   let methodVersion: string;
@@ -182,7 +183,7 @@ export async function evaluateApplication(
       requirements,
       fullText,
       maxChars: env.AI_MAX_INPUT_CHARS,
-      engineNotes: engineNotesForText(fullText, requirements, referenceDate, learned),
+      engineNotes: engineNotesForText(fullText, requirements, referenceDate, learned, context.vacancyText),
     });
     evaluatedText = input.evaluatedText;
     textTruncated = input.textTruncated;
@@ -237,6 +238,7 @@ export async function evaluateApplication(
       requirements,
       engineItems,
       suspiciousText: summarizeStuffing(detectKeywordStuffing(fullText)) !== null,
+      copiedFromAd: isVacancyCopy(findCopiedVacancyPhrases(fullText, context.vacancyText)),
       system: options.system,
     });
   }

@@ -60,6 +60,8 @@ export async function autoEnqueueAfterRules(
     engineItems?: DoubtExtras["engineItems"];
     /** El CV tiene señales de relleno de palabras clave. */
     suspiciousText?: boolean;
+    /** El CV copia frases textuales del aviso de la vacante. */
+    copiedFromAd?: boolean;
     system?: boolean;
   },
 ): Promise<void> {
@@ -69,7 +71,11 @@ export async function autoEnqueueAfterRules(
     if (!availability.available || !availability.queued || env.AI_AUTO_ENQUEUE === "off") return;
     if (
       env.AI_AUTO_ENQUEUE === "dudosos" &&
-      !isDoubtful(input.result, input.requirements, { engineItems: input.engineItems, suspiciousText: input.suspiciousText }) &&
+      !isDoubtful(input.result, input.requirements, {
+        engineItems: input.engineItems,
+        suspiciousText: input.suspiciousText,
+        copiedFromAd: input.copiedFromAd,
+      }) &&
       !inControlSample(input.applicationId, env.AI_CONTROL_SAMPLE_PERCENT)
     ) {
       return;

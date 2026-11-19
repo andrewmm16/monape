@@ -10,6 +10,7 @@ import {
   ResumeTextUnavailableError,
 } from "./service";
 import { toEngineSignal, type Evidence, type RequirementInput } from "./types";
+import { storedSignalNotes } from "./signal-notes";
 import { rebuildItems, type StoredEvaluationItem } from "./verifications";
 
 export type ReevaluationOutcome = { reevaluated: boolean; notice: string | null };
@@ -102,6 +103,8 @@ async function rebuildCurrentEvaluation(supabase: AppSupabaseClient, application
     items: rebuildItems(stored, await listVerifications(supabase, application.id)),
     textWasCorrected: evaluation.limitations.some((text) => text.startsWith("Se evaluó el texto del CV corregido")),
     textTruncated: evaluation.limitations.some((text) => text.startsWith("El CV es extenso")),
+    // No se vuelve a leer el CV: se conservan las notas de fechas y de copia del aviso.
+    signalNotes: storedSignalNotes(evaluation.limitations),
   });
   await recordAssembledEvaluation(supabase, {
     applicationId: application.id,
