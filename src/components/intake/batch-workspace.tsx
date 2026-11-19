@@ -308,7 +308,7 @@ export function BatchWorkspace({
           }`}
         >
           <UploadIcon className="size-6 text-muted-foreground" aria-hidden />
-          <span className="font-medium">Arrastre los CV aquí o haga clic para seleccionarlos</span>
+          <span className="font-medium">Arrastre los CV aquí o selecciónelos desde su equipo</span>
           <span className="text-xs text-muted-foreground">PDF o DOCX, máximo 4 MB cada uno</span>
           <input
             ref={inputRef}

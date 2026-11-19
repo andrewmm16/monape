@@ -37,7 +37,7 @@ export default async function EmailTemplatesPage() {
       <PageHeader
         eyebrow="Configuración"
         title="Plantillas de correo"
-        description="Edita el texto de los correos que se envían a las personas candidatas: los avisos de cambio de estado y las invitaciones desde la base de talentos. Los avisos de estado siguen siendo opcionales (lo decide RRHH al cambiar el estado) y nunca incluyen el motivo ni las observaciones internas. Si no personalizas una plantilla, se usa el texto por defecto."
+        description="Edite el texto de los correos que se envían a las personas candidatas: los avisos de cambio de estado y las invitaciones desde la base de talentos. Los avisos de estado siguen siendo opcionales (lo decide RRHH al cambiar el estado) y nunca incluyen el motivo ni las observaciones internas. Si no personaliza una plantilla, se usa el texto por defecto."
       />
       <div className="space-y-6">
         <ReplyToForm current={replyTo} />

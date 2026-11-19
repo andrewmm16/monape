@@ -111,7 +111,7 @@ test("una entrevista realizada se evalúa en equipo; el candidato cerrado se eti
   await schedule.getByLabel("Enlace de la reunión").fill("https://meet.ejemplo.test/sala");
   await schedule.getByRole("button", { name: "Programar", exact: true }).click();
   await expect(page.getByText(/Entrevista programada\. La postulación quedó/)).toBeVisible();
-  await expect(page.getByText("La evaluación del equipo se habilita cuando registres el resultado de esta entrevista.")).toBeVisible();
+  await expect(page.getByText("La evaluación del equipo se habilita cuando registre el resultado de esta entrevista.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Evaluar", exact: true })).toHaveCount(0);
 
   // --- 3. Resultado «No pasó»: la postulación se cierra y el candidato queda disponible.
@@ -181,7 +181,7 @@ test("una entrevista realizada se evalúa en equipo; el candidato cerrado se eti
   }
   const targetUrl = await createVacancy(page, target, skill, false);
   await page.goto(`${targetUrl}?tab=candidatos`);
-  const suggestions = page.locator("[data-slot='card']").filter({ hasText: "Candidatos de tu base que encajan" });
+  const suggestions = page.locator("[data-slot='card']").filter({ hasText: "Candidatos de la base de talentos que encajan" });
   const suggestion = suggestions.getByRole("row").filter({ hasText: candidateName });
   await expect(suggestion).toBeVisible();
   await expect(suggestion).toContainText("kestrel");

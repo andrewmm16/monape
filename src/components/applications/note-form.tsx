@@ -53,7 +53,7 @@ export function NoteForm({ applicationId, suggestion }: { applicationId: string;
         <FieldError errors={[form.formState.errors.note]} />
       </Field>
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={pending}>
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
           {pending ? "Guardando…" : "Registrar observación"}
         </Button>
         {suggestion ? (

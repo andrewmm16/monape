@@ -39,7 +39,7 @@ export default async function UsersPage() {
         <CardHeader>
           <CardTitle>Invitar usuario</CardTitle>
           <CardDescription>
-            La persona recibirá un correo de Supabase Auth con un enlace temporal para definir su contraseña.
+            La persona recibirá un correo con un enlace temporal para definir su contraseña.
           </CardDescription>
         </CardHeader>
         <CardContent>

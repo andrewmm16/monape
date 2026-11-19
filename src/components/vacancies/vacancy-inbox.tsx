@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CheckIcon, XIcon } from "lucide-react";
 import { VerifyRequirementDialog } from "@/components/applications/verification-dialog";
 import { ApplicationStatusBadge, AssessmentBadge } from "@/components/common/badges";
 import { Badge } from "@/components/ui/badge";
@@ -110,7 +111,7 @@ export function VacancyInbox({ inbox, canVerify }: { inbox: Inbox; canVerify: bo
                               initialValues={{ result: "acreditado", source: "entrevista", note: "" }}
                               trigger={
                                 <Button size="sm" variant="outline">
-                                  Cumple
+                                  <CheckIcon aria-hidden /> Cumple
                                 </Button>
                               }
                             />
@@ -120,8 +121,8 @@ export function VacancyInbox({ inbox, canVerify }: { inbox: Inbox; canVerify: bo
                               requirementDescription={q.description}
                               initialValues={{ result: "no_cumplido", source: "entrevista", note: "" }}
                               trigger={
-                                <Button size="sm" variant="outline">
-                                  No cumple
+                                <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                                  <XIcon aria-hidden /> No cumple
                                 </Button>
                               }
                             />

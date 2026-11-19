@@ -8,13 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePageUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
-import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, SYSTEM_ACTOR_LABEL } from "@/lib/labels";
+import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, INTERVIEW_MODALITY_LABELS, SYSTEM_ACTOR_LABEL } from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InterviewOutcomeBadge, LocationText } from "@/components/interviews/interview-item";
 import { can } from "@/lib/auth/permissions";
 import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/errors";
-import { dayLabel, formatInterviewDateTime } from "@/modules/interviews/datetime";
+import { dayLabel, isoToLima } from "@/modules/interviews/datetime";
 import { listUpcomingInterviews } from "@/modules/interviews/queries";
 import { getBotDailySummary } from "@/modules/portals/daily-summary";
 import { listBotPortalStatuses } from "@/modules/portals/queries";
@@ -91,8 +91,6 @@ export default async function DashboardPage() {
         description="Indicadores calculados con los datos registrados en la plataforma."
       />
 
-      {botConfigured ? <BotStatusPanel statuses={botStatuses} daily={botDaily} /> : null}
-
       {aiWorker.notice ? (
         <p
           role="status"
@@ -146,6 +144,8 @@ export default async function DashboardPage() {
         />
       </section>
 
+      {botConfigured ? <BotStatusPanel statuses={botStatuses} daily={botDaily} /> : null}
+
       {summary.vacancies_pending_criteria > 0 ? (
         <p className="rounded-md border border-warning-foreground/40 bg-warning px-4 py-3 text-sm text-warning-foreground">
           {summary.vacancies_pending_criteria === 1
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card>
           <CardHeader>
             <CardTitle>Candidatos por etapa</CardTitle>
@@ -258,8 +258,8 @@ export default async function DashboardPage() {
                   {upcomingInterviews.map((interview) => (
                     <li key={interview.id} className="space-y-0.5 py-2">
                       <div className="flex flex-wrap items-center gap-2 font-medium">
-                        <span>{dayLabel(interview.scheduled_at)}</span>
-                        <span className="font-normal text-muted-foreground">{formatInterviewDateTime(interview.scheduled_at)}</span>
+                        <span className="first-letter:uppercase">{dayLabel(interview.scheduled_at)}</span>
+                        <span className="font-normal text-muted-foreground">· {isoToLima(interview.scheduled_at).time}</span>
                         <InterviewOutcomeBadge status={interview.status} result={interview.result} />
                       </div>
                       <div>
@@ -270,7 +270,7 @@ export default async function DashboardPage() {
                       </div>
                       {interview.location ? (
                         <div className="text-xs text-muted-foreground">
-                          <LocationText location={interview.location} />
+                          {INTERVIEW_MODALITY_LABELS[interview.modality]} · <LocationText location={interview.location} />
                         </div>
                       ) : null}
                     </li>

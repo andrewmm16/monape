@@ -198,9 +198,9 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
       suggestedCandidates === null ? null : (
         <Card>
           <CardHeader>
-            <CardTitle>Candidatos de tu base que encajan</CardTitle>
+            <CardTitle>Candidatos de la base de talentos que encajan</CardTitle>
             <CardDescription>
-              Perfiles de tu histórico que coinciden con los requisitos y están disponibles para reactivar.
+              Perfiles del histórico que coinciden con los requisitos y están disponibles para reactivar.
             </CardDescription>
           </CardHeader>
           <CardContent>

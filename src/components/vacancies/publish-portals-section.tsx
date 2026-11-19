@@ -70,7 +70,7 @@ export function PublishPortalsSection({
           {confidential
             ? "La vacante es confidencial: se gestiona de forma interna y no aparece en la página pública ni en los buscadores de empleo."
             : "Al publicar, la vacante aparecerá en la página pública, en Google y en los buscadores de empleo."}{" "}
-          Marca abajo los portales de empleo donde el robot debe publicarla; se enviarán al publicar (puedes cambiarlos luego).
+          Marque abajo los portales de empleo donde el robot debe publicarla; se enviarán al publicar (puede cambiarlos luego).
         </p>
 
         {blocked ? (

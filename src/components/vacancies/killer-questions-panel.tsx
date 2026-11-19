@@ -80,7 +80,7 @@ export function KillerQuestionsPanel({
                     {conditionLabel(question)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex justify-end gap-1 max-sm:gap-3">
                       <KillerQuestionDialog
                         vacancyId={vacancyId}
                         questionId={question.id}
@@ -104,6 +104,7 @@ export function KillerQuestionsPanel({
                       <ActionButton
                         variant="ghost"
                         size="icon-sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         action={deleteKillerQuestion.bind(null, vacancyId, question.id)}
                         confirm={{
                           title: "¿Eliminar pregunta?",

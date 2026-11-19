@@ -7,7 +7,7 @@ import type { Enums } from "@/types/database";
 // «publicada» no está aquí: se publica desde la sección visible de la pestaña
 // Portales (grilla de portales + botón Publicar), no desde el encabezado.
 const LABELS: Record<Exclude<Enums<"vacancy_status">, "publicada">, { label: string; description: string }> = {
-  cerrada: { label: "Cerrar", description: "No se podrán registrar nuevas postulaciones. Podrá reabrirla." },
+  cerrada: { label: "Cerrar vacante", description: "No se podrán registrar nuevas postulaciones. Podrá reabrirla." },
   archivada: {
     label: "Archivar",
     description: "La vacante dejará de mostrarse en los listados. Esta acción no puede deshacerse desde la aplicación.",
@@ -32,7 +32,8 @@ export function VacancyStatusActions({
         next === "publicada" ? null : (
           <ActionButton
             key={next}
-            variant="outline"
+            // Cerrar y archivar cortan la convocatoria: se distinguen de «Editar» (en rojo y con confirmación).
+            variant={next === "borrador" ? "outline" : "destructive"}
             action={changeVacancyStatus.bind(null, vacancyId, next)}
             confirm={{ title: `¿${LABELS[next].label}?`, description: LABELS[next].description, confirmLabel: LABELS[next].label }}
           >

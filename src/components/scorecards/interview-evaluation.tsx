@@ -64,7 +64,7 @@ export function InterviewEvaluation({
     if (interviewStatus === "programada" && canEvaluate) {
       return (
         <p className="rounded-md border border-dashed bg-muted/20 p-2 text-xs text-muted-foreground">
-          La evaluación del equipo se habilita cuando registres el resultado de esta entrevista.
+          La evaluación del equipo se habilita cuando registre el resultado de esta entrevista.
         </p>
       );
     }
@@ -148,8 +148,8 @@ export function InterviewEvaluation({
               variant="outline"
               action={deleteScorecard.bind(null, interviewId)}
               confirm={{
-                title: "¿Eliminar tu evaluación?",
-                description: "Se quitará tu tarjeta de esta entrevista. Puedes volver a evaluar después.",
+                title: "¿Eliminar su evaluación?",
+                description: "Se quitará su tarjeta de esta entrevista. Puede volver a evaluar después.",
                 confirmLabel: "Eliminar",
               }}
             >

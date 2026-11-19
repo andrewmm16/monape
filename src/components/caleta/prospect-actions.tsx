@@ -89,7 +89,7 @@ export function ProspectActions({
             copied
               ? "Mensaje copiado. En el perfil pulsa «Mensaje» y pégalo."
               : "No se pudo copiar el mensaje; ábrelo desde el perfil y escríbelo."
-          } Mira también «Información de contacto»: ahora que es tu contacto puede mostrar su celular o correo; guárdalos aquí.`,
+          } Mire también «Información de contacto»: ahora que es su contacto puede mostrar su celular o correo; guárdelos aquí.`,
         );
         router.refresh();
       } else {

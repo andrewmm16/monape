@@ -59,7 +59,7 @@ export function VacancySuggestions({
   if (candidates.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No encontramos candidatos de tu base que encajen con los requisitos de esta vacante.
+        No hay candidatos de la base de talentos que encajen con los requisitos de esta vacante.
       </p>
     );
   }
@@ -136,7 +136,7 @@ export function VacancySuggestions({
           Añadir al proceso
         </Button>
         <span className="text-sm text-muted-foreground">
-          {count === 0 ? "Selecciona candidatos para actuar en lote." : `${count} seleccionados`}
+          {count === 0 ? "Seleccione candidatos para actuar en lote." : `${count} seleccionados`}
         </span>
       </div>
 

@@ -74,7 +74,7 @@ export function SourcesChart({ sources }: { sources: SourceRow[] }) {
         {rows.map((source) => (
           <li key={source.source} className="flex items-center gap-2">
             <span className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: SOURCE_COLOR[source.source] }} aria-hidden />
-            <span className="min-w-0 flex-1 truncate">{CANDIDATE_SOURCE_LABELS[source.source]}</span>
+            <span className="min-w-0 flex-1 leading-tight">{CANDIDATE_SOURCE_LABELS[source.source]}</span>
             <span className="tabular-nums text-muted-foreground">
               {source.candidates} · {formatPercent(source.share * 100)}
             </span>

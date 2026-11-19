@@ -22,13 +22,16 @@ export function FunnelChart({ steps }: { steps: FunnelStep[] }) {
             ) : null}
             <div className="text-center text-sm">
               <span className="font-medium">{APPLICATION_STATUS_LABELS[step.status]}</span>{" "}
-              <span className="tabular-nums text-muted-foreground">· {step.reached} llegaron</span>
+              <span className="tabular-nums text-muted-foreground">
+                · {step.reached} {step.reached === 1 ? "llegó" : "llegaron"}
+              </span>
             </div>
             <div className="flex justify-center">
+              {/* Con 0, la barra queda vacía (solo el borde): no debe verse igual que una etapa con 1. */}
               <div
-                className="h-6 rounded-md bg-brand"
+                className={step.reached === 0 ? "h-6 rounded-md border border-dashed border-muted-foreground/50" : "h-6 rounded-md bg-brand"}
                 style={{ width: `${width}%` }}
-                title={`${APPLICATION_STATUS_LABELS[step.status]}: ${step.reached} llegaron a esta etapa o a una posterior · ${step.current} hoy en esta etapa`}
+                title={`${APPLICATION_STATUS_LABELS[step.status]}: ${step.reached} ${step.reached === 1 ? "llegó" : "llegaron"} a esta etapa o a una posterior · ${step.current} hoy en esta etapa`}
               />
             </div>
           </div>

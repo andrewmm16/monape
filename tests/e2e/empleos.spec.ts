@@ -130,8 +130,8 @@ test("publicar, ocultar una confidencial y cerrar: página, JSON-LD, listado y f
 
   // Al cerrarla sale del listado y del feed; su página avisa y no se indexa.
   await page.goto(vacancyUrl);
-  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.getByRole("button", { name: "Cerrar vacante", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cerrar vacante", exact: true }).click();
   await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();
 
   await page.goto("/empleos");

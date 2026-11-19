@@ -282,8 +282,8 @@ test("postulación pública: envío sin sesión, bandeja, repetición con el mis
 
   // Convocatoria cerrada: no ofrece el formulario.
   await page.goto(vacancyUrl);
-  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.getByRole("button", { name: "Cerrar vacante", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cerrar vacante", exact: true }).click();
   await expect(page.getByText("Estado de la vacante actualizado.")).toBeVisible();
   const closedVisitor = await publicContext(browser);
   const closedPage = await closedVisitor.newPage();

@@ -71,19 +71,19 @@ export default async function EngineLearningPage() {
               ) : null}
             </CardTitle>
             <CardDescription>
-              Cada semana el worker mide a la IA de los CV contra los CV de prueba con respuesta conocida. Si motor + IA baja de{" "}
-              {pct(QUALITY_THRESHOLDS.relayLenientMin)} o la IA acredita de más más de {QUALITY_THRESHOLDS.overAccreditedMax} requisitos, se avisa
-              por correo a administración (por ejemplo, si Anthropic cambia el modelo).
+              Cada semana se mide a la IA con un grupo de CV de prueba cuya respuesta ya se conoce. Si motor + IA baja de{" "}
+              {pct(QUALITY_THRESHOLDS.relayLenientMin)} o la IA da por cumplidos de más en más de {QUALITY_THRESHOLDS.overAccreditedMax} requisitos,
+              se avisa por correo a administración (por ejemplo, si el proveedor cambia el modelo de IA).
             </CardDescription>
           </CardHeader>
           <CardContent>
             {checks.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Aún no hay revisiones. Se programan en la máquina del worker con «scripts\vigilancia-ia.cmd instalar» (o se corre a mano con «npm
+                Aún no hay revisiones. Se programan en la computadora que atiende la cola de IA con «scripts\vigilancia-ia.cmd instalar» (o se corre a mano con «npm
                 run vigilar:ia»).
               </p>
             ) : (
-              <Table>
+              <Table stacked>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Fecha</TableHead>
@@ -97,15 +97,21 @@ export default async function EngineLearningPage() {
                 <TableBody>
                   {checks.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell>{formatDateTime(c.checked_at)}</TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="font-medium">{formatDateTime(c.checked_at)}</TableCell>
+                      <TableCell data-label="Modelo" className="text-xs whitespace-normal">
                         {c.model} · {c.prompt_version}
                         {c.failures > 0 ? ` · ${c.failures} de ${c.cv_count} CV fallaron` : ""}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{pct(c.accuracy_relay_lenient === null ? null : Number(c.accuracy_relay_lenient))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{pct(c.accuracy_ai === null ? null : Number(c.accuracy_ai))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{c.ai_over_accredited}</TableCell>
-                      <TableCell>
+                      <TableCell data-label="Motor + IA" className="text-right tabular-nums">
+                        {pct(c.accuracy_relay_lenient === null ? null : Number(c.accuracy_relay_lenient))}
+                      </TableCell>
+                      <TableCell data-label="IA sola" className="text-right tabular-nums">
+                        {pct(c.accuracy_ai === null ? null : Number(c.accuracy_ai))}
+                      </TableCell>
+                      <TableCell data-label="Acreditó de más" className="text-right tabular-nums">
+                        {c.ai_over_accredited}
+                      </TableCell>
+                      <TableCell data-label="Estado" className="whitespace-normal">
                         {c.status === "ok" ? "Todo bien" : <span className="text-destructive">Alerta: {c.reasons.join(" ")}</span>}
                       </TableCell>
                     </TableRow>
@@ -126,25 +132,29 @@ export default async function EngineLearningPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
+            <Table stacked>
               <TableHeader>
                 <TableRow>
                   <TableHead>Semana desde</TableHead>
                   <TableHead className="text-right">Evaluaciones del motor</TableHead>
                   <TableHead className="text-right">Enviadas a la IA</TableHead>
-                  <TableHead className="text-right">Requisitos resueltos con reglas aprendidas</TableHead>
+                  <TableHead className="text-right whitespace-normal">Requisitos resueltos con reglas aprendidas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {weeks.map((w) => (
                   <TableRow key={w.from}>
-                    <TableCell>{formatDate(w.from)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{w.engineEvaluations}</TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="font-medium">Semana del {formatDate(w.from)}</TableCell>
+                    <TableCell data-label="Evaluaciones del motor" className="text-right tabular-nums">
+                      {w.engineEvaluations}
+                    </TableCell>
+                    <TableCell data-label="Enviadas a la IA" className="text-right tabular-nums">
                       {w.sentToAi}
                       {w.engineEvaluations > 0 ? ` (${Math.round((100 * w.sentToAi) / w.engineEvaluations)} %)` : ""}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{w.resolvedByRules}</TableCell>
+                    <TableCell data-label="Requisitos resueltos con reglas aprendidas" className="text-right tabular-nums">
+                      {w.resolvedByRules}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -164,7 +174,7 @@ export default async function EngineLearningPage() {
                 description="Cuando la IA resuelva la misma duda del motor en varios CV distintos, aparecerán aquí."
               />
             ) : (
-              <Table>
+              <Table stacked>
                 <TableHeader>
                   <TableRow>
                     <TableHead>En el CV dice</TableHead>
@@ -177,14 +187,14 @@ export default async function EngineLearningPage() {
                 <TableBody>
                   {active.map((rule) => (
                     <TableRow key={rule.id}>
-                      <TableCell className="font-medium">«{rule.cv_term_display}»</TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium whitespace-normal">«{rule.cv_term_display}»</TableCell>
+                      <TableCell data-label="Requisito" className="whitespace-normal">
                         <Requirement rule={rule} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Lo que aprendió" className="whitespace-normal">
                         <Verdict rule={rule} />
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell data-label="Evidencia" className="min-w-64 text-xs whitespace-normal text-muted-foreground">
                         Decidió el juez ({rule.judge_model ?? "—"}){rule.judge_reason ? `: ${rule.judge_reason}` : "."}
                         {rule.activated_at ? ` Activa desde ${formatDate(rule.activated_at)}.` : ""}
                         {(() => {
@@ -227,7 +237,7 @@ export default async function EngineLearningPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
+              <Table stacked>
                 <TableHeader>
                   <TableRow>
                     <TableHead>En el CV dice</TableHead>
@@ -239,14 +249,14 @@ export default async function EngineLearningPage() {
                 <TableBody>
                   {learning.map((rule) => (
                     <TableRow key={rule.id}>
-                      <TableCell className="font-medium">«{rule.cv_term_display}»</TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium whitespace-normal">«{rule.cv_term_display}»</TableCell>
+                      <TableCell data-label="Requisito" className="whitespace-normal">
                         <Requirement rule={rule} />
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell data-label="Cuenta / no cuenta" className="text-right tabular-nums">
                         {rule.votes_yes} / {rule.votes_no}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Estado">
                         <Badge variant="outline">{STATUS_LABELS[rule.status] ?? rule.status}</Badge>
                       </TableCell>
                     </TableRow>
@@ -264,7 +274,7 @@ export default async function EngineLearningPage() {
               <CardDescription>El motor no las aplica. Puede reactivarlas si está seguro de que son correctas.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
+              <Table stacked>
                 <TableHeader>
                   <TableRow>
                     <TableHead>En el CV dice</TableHead>
@@ -277,14 +287,14 @@ export default async function EngineLearningPage() {
                 <TableBody>
                   {stopped.map((rule) => (
                     <TableRow key={rule.id}>
-                      <TableCell className="font-medium">«{rule.cv_term_display}»</TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium whitespace-normal">«{rule.cv_term_display}»</TableCell>
+                      <TableCell data-label="Requisito" className="whitespace-normal">
                         <Requirement rule={rule} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Lo que había aprendido" className="whitespace-normal">
                         <Verdict rule={rule} />
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell data-label="Motivo" className="min-w-64 text-xs whitespace-normal text-muted-foreground">
                         <Badge variant="outline">{STATUS_LABELS[rule.status] ?? rule.status}</Badge>{" "}
                         {rule.status_reason ?? ""} {formatDateTime(rule.status_changed_at)}
                         {rule.judge_reason ? ` · Juez: ${rule.judge_reason}` : ""}

@@ -301,7 +301,7 @@ export default async function CaletaPage({
         Invitaciones de LinkedIn en los últimos 7 días: <strong className="tabular-nums">{invitesThisWeek}</strong> de{" "}
         <strong className="tabular-nums">{LINKEDIN_WEEKLY_SAFE_LIMIT}</strong> recomendadas.{" "}
         {remainingLinkedIn === 0
-          ? "Llegaste al tope seguro de la semana: espera unos días para no arriesgar tu cuenta."
+          ? "Llegó al tope seguro de la semana: espere unos días para no arriesgar la cuenta."
           : `Te quedan ${remainingLinkedIn}. Empieza por los de mayor puntaje (la lista ya está ordenada así).`}
         <br />
         Cómo: «Conectar en LinkedIn» abre el perfil → pulsa Conectar (o Más → Conectar) → Enviar sin nota. Cuando
@@ -313,7 +313,7 @@ export default async function CaletaPage({
       {prospects.length === 0 ? (
         <EmptyState
           title="Aún no hay prospectos para este puesto"
-          description="Agrega el primero pegando un perfil arriba."
+          description="Agregue el primero pegando un perfil arriba."
         />
       ) : (
         <div className="flex flex-col gap-6">

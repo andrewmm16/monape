@@ -28,7 +28,7 @@ export const metadata: Metadata = { title: "Reportes" };
 function insightText(insight: Insight): string {
   switch (insight.kind) {
     case "trend":
-      return `Las postulaciones ${insight.direction === "up" ? "subieron" : "bajaron"} ${insight.pct}% respecto al ${insight.granularity} anterior.`;
+      return `Las postulaciones ${insight.direction === "up" ? "subieron" : "bajaron"} ${insight.pct} % respecto ${insight.granularity === "semana" ? "a la semana" : "al mes"} anterior.`;
     case "funnel-drop":
       return `La mayor caída del embudo está entre «${APPLICATION_STATUS_LABELS[insight.from]}» y «${APPLICATION_STATUS_LABELS[insight.to]}»: solo avanza el ${formatPercent(insight.conversion * 100)}.`;
     case "best-source":

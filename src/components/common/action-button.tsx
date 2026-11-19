@@ -22,12 +22,13 @@ type Props = {
   confirm?: { title: string; description: string; confirmLabel?: string };
   variant?: ComponentProps<typeof Button>["variant"];
   size?: ComponentProps<typeof Button>["size"];
+  className?: string;
   disabled?: boolean;
   pendingLabel?: string;
 };
 
 /** Botón que ejecuta una Server Action y muestra el resultado real. */
-export function ActionButton({ action, children, confirm, variant, size, disabled, pendingLabel }: Props) {
+export function ActionButton({ action, children, confirm, variant, size, className, disabled, pendingLabel }: Props) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -49,6 +50,7 @@ export function ActionButton({ action, children, confirm, variant, size, disable
       type="button"
       variant={variant}
       size={size}
+      className={className}
       disabled={disabled || pending}
       onClick={confirm ? () => setOpen(true) : run}
     >

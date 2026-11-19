@@ -160,7 +160,9 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
                     <div className="mt-1 flex flex-wrap gap-1">
                       {requirement.is_essential ? <Badge variant="outline">Legal o esencial</Badge> : null}
                       {requirement.min_years !== null ? (
-                        <Badge variant="outline">Mínimo {requirement.min_years} años</Badge>
+                        <Badge variant="outline">
+                          Mínimo {requirement.min_years} {Number(requirement.min_years) === 1 ? "año" : "años"}
+                        </Badge>
                       ) : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
@@ -179,7 +181,7 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
                   </TableCell>
                   {canManage ? (
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-1 max-sm:gap-3">
                         <RequirementDialog
                           vacancyId={vacancy.id}
                           requirementId={requirement.id}
@@ -201,6 +203,7 @@ export function RequirementsPanel({ vacancy, requirements, canManage }: Props) {
                         <ActionButton
                           variant="ghost"
                           size="icon-sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           action={deleteRequirement.bind(null, vacancy.id, requirement.id)}
                           confirm={{
                             title: "¿Eliminar requisito?",

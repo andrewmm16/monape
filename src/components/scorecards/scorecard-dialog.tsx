@@ -101,7 +101,7 @@ export function ScorecardDialog({
         <DialogHeader>
           <DialogTitle>{existing ? "Editar mi evaluación" : "Evaluar al candidato"}</DialogTitle>
           <DialogDescription>
-            Puntúa cada competencia del 1 al 5 y da tu recomendación. Es tu valoración; no cambia el estado del proceso.
+            Puntúe cada competencia del 1 al 5 y dé su recomendación. Es su valoración; no cambia el estado del proceso.
           </DialogDescription>
         </DialogHeader>
 

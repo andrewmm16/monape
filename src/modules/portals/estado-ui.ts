@@ -30,28 +30,32 @@ function etiquetaAtencion(reason: string | null): string {
     case "portal_no_disponible":
       return "El portal no responde; el robot reintenta solo";
     default:
-      return "Necesita tu atención";
+      return "Necesita su atención";
   }
 }
 
 /** La frase de una línea del resumen del día, para el panel y para WhatsApp. */
+/** Solo lo que hizo hoy (sin el estado de los portales), para la línea resumida del panel. */
+export function resumenActividadHoy(daily: BotDailySummary): string {
+  const { publishedToday: pub, applicantsToday: app } = daily;
+  return pub === 0 && app === 0
+    ? "Hoy el robot no publicó nada nuevo ni llegaron postulantes."
+    : `Hoy: ${pub} ${pub === 1 ? "vacante" : "vacantes"} publicada${pub === 1 ? "" : "s"} y ${app} ${
+        app === 1 ? "postulante" : "postulantes"
+      } recibido${app === 1 ? "" : "s"}.`;
+}
+
 export function resumenDiarioLinea(daily: BotDailySummary, statuses: BotPortalStatus[]): string {
   const conectados = statuses.filter((s) => s.nivel !== "sin_datos");
   if (conectados.length === 0) return "Hoy el robot aún no se ha conectado a ningún portal.";
 
-  const { publishedToday: pub, applicantsToday: app } = daily;
-  const actividad =
-    pub === 0 && app === 0
-      ? "Hoy el robot no publicó nada nuevo ni llegaron postulantes."
-      : `Hoy: ${pub} ${pub === 1 ? "vacante" : "vacantes"} publicada${pub === 1 ? "" : "s"} y ${app} ${
-          app === 1 ? "postulante" : "postulantes"
-        } recibido${app === 1 ? "" : "s"}.`;
+  const actividad = resumenActividadHoy(daily);
 
   const necesitan = conectados.filter((s) => s.nivel === "atencion" || s.nivel === "error").length;
   const estado =
     necesitan === 0
       ? " ✅ Todos los portales están bien."
-      : ` ⚠️ ${necesitan} ${necesitan === 1 ? "portal necesita" : "portales necesitan"} tu atención.`;
+      : ` ⚠️ ${necesitan} ${necesitan === 1 ? "portal necesita" : "portales necesitan"} su atención.`;
 
   return actividad + estado;
 }

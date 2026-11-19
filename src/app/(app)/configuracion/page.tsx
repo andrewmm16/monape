@@ -17,7 +17,7 @@ export default async function ConfigIndexPage() {
     options.push({
       href: "/configuracion/plantillas-correo",
       title: "Plantillas de correo",
-      description: "Edita los correos que se envían a las personas candidatas al cambiar su estado.",
+      description: "Edite los correos que se envían a las personas candidatas al cambiar su estado.",
     });
   }
   if (can(user.role, "privacy:manage")) {

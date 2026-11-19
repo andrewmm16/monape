@@ -178,13 +178,16 @@ export function ApplicationsTable({
                 <TableRow key={row.id} className="align-top">
                   <TableCell>
                     {row.id && isComparable(row) ? (
-                      <input
-                        type="checkbox"
-                        name={COMPARE_CHECKBOX_NAME}
-                        value={row.id}
-                        aria-label={`Comparar a ${row.candidate_name}`}
-                        className="size-4 accent-primary"
-                      />
+                      // La etiqueta agranda la zona que se puede tocar en el celular (unos 44 px).
+                      <label className="inline-flex cursor-pointer max-sm:-m-2.5 max-sm:p-2.5">
+                        <input
+                          type="checkbox"
+                          name={COMPARE_CHECKBOX_NAME}
+                          value={row.id}
+                          aria-label={`Comparar a ${row.candidate_name}`}
+                          className="size-4 accent-primary max-sm:size-6"
+                        />
+                      </label>
                     ) : null}
                   </TableCell>
                   <TableCell className="whitespace-normal">
