@@ -1,0 +1,978 @@
+{
+  "Operario de Almacén con Montacargas": {
+    "descripcion": "Buscamos operario de almacén para nuestro centro de distribución en Lima. Será responsable de recibir, ubicar y despachar mercadería, operando montacargas de forma segura. Se ofrece planilla completa y capacitación continua.",
+    "funciones": "Recibir y verificar mercadería contra guías de remisión\nUbicar y reubicar pallets con montacargas según el plano del almacén\nPreparar pedidos (picking) y apoyar el despacho a transportistas\nParticipar en inventarios cíclicos\nMantener orden y limpieza en las zonas de trabajo\nReportar incidentes y daños de mercadería",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Secundaria completa",
+        "keywords": [
+          "secundaria completa",
+          "educación secundaria"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 2 años como operario de almacén o centro de distribución",
+        "keywords": [
+          "operario de almacén",
+          "almacenero",
+          "centro de distribución",
+          "picking"
+        ],
+        "weight": 9,
+        "minYears": 2,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "certificacion",
+        "priority": "obligatorio",
+        "description": "Certificado vigente de operador de montacargas",
+        "keywords": [
+          "operador de montacargas",
+          "montacargas",
+          "autoelevador"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Manejo de inventarios y control de stock",
+        "keywords": [
+          "inventario",
+          "control de stock",
+          "kardex"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Uso de pistola lectora de códigos de barras o sistema WMS",
+        "keywords": [
+          "WMS",
+          "código de barras",
+          "pistola lectora"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Trabajo en equipo y cumplimiento de normas de seguridad",
+        "keywords": [
+          "trabajo en equipo",
+          "seguridad"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Conductor Repartidor": {
+    "descripcion": "Se requiere conductor repartidor para la distribución de productos a bodegas, minimarkets y tiendas en Lima y Callao. Debe contar con licencia profesional vigente y conocer bien las rutas urbanas.",
+    "funciones": "Cargar y descargar la unidad junto con el ayudante\nEntregar pedidos a clientes según hoja de ruta\nRecoger cobranzas y devolver documentos firmados\nRealizar la inspección diaria del vehículo\nReportar incidencias de tránsito y entregas no efectuadas",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "certificacion",
+        "priority": "obligatorio",
+        "description": "Licencia de conducir categoría A-IIb o superior vigente",
+        "keywords": [
+          "licencia A-IIb",
+          "licencia A-IIa",
+          "licencia profesional",
+          "brevete"
+        ],
+        "weight": 10,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 3 años como conductor de reparto o distribución",
+        "keywords": [
+          "conductor",
+          "reparto",
+          "distribución",
+          "chofer"
+        ],
+        "weight": 9,
+        "minYears": 3,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "otro",
+        "priority": "obligatorio",
+        "description": "Récord de conductor sin papeletas graves vigentes",
+        "keywords": [
+          "récord de conductor",
+          "papeletas"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Conocimiento de rutas de Lima Metropolitana y Callao",
+        "keywords": [
+          "rutas Lima",
+          "Callao",
+          "GPS"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Trato cordial con clientes y puntualidad",
+        "keywords": [
+          "atención al cliente",
+          "puntualidad"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "formacion",
+        "priority": "deseable",
+        "description": "Secundaria completa",
+        "keywords": [
+          "secundaria completa"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Asesor(a) de Ventas de Tienda": {
+    "descripcion": "Incorporamos asesores de ventas para nuestras tiendas de ferretería y artículos para el hogar. La persona atenderá a clientes en piso de venta, asesorará en productos y cumplirá metas de venta mensuales. Ofrecemos sueldo fijo más comisiones.",
+    "funciones": "Atender y asesorar a los clientes en el piso de venta\nOfrecer productos complementarios y promociones vigentes\nReponer y ordenar la mercadería en góndolas\nEmitir cotizaciones y registrar pedidos en el sistema\nCumplir las metas de venta de la tienda\nApoyar en inventarios de fin de mes",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Secundaria completa; se valora estudios técnicos en ventas o administración",
+        "keywords": [
+          "secundaria completa",
+          "técnico en administración",
+          "ventas"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 1 año en ventas de mostrador o tienda retail",
+        "keywords": [
+          "ventas",
+          "retail",
+          "tienda",
+          "asesor de ventas",
+          "mostrador"
+        ],
+        "weight": 9,
+        "minYears": 1,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "competencia",
+        "priority": "obligatorio",
+        "description": "Orientación al cliente y comunicación efectiva",
+        "keywords": [
+          "orientación al cliente",
+          "comunicación",
+          "atención al cliente"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "competencia",
+        "priority": "obligatorio",
+        "description": "Orientación a resultados y cumplimiento de metas",
+        "keywords": [
+          "metas",
+          "resultados",
+          "cumplimiento de objetivos"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Manejo básico de Excel y sistema de punto de venta",
+        "keywords": [
+          "Excel",
+          "punto de venta",
+          "POS"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Conocimiento de productos de ferretería o artículos del hogar",
+        "keywords": [
+          "ferretería",
+          "artículos del hogar",
+          "construcción"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "otro",
+        "priority": "deseable",
+        "description": "Disponibilidad para turnos rotativos, incluidos fines de semana",
+        "keywords": [
+          "turnos rotativos",
+          "disponibilidad"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Cajero(a)": {
+    "descripcion": "Se necesita cajero(a) para tienda de autoservicio. Responsable del cobro y del cuadre de caja diario.",
+    "funciones": "Registrar ventas y cobrar en efectivo, tarjeta y billeteras digitales\nEmitir boletas y facturas electrónicas\nRealizar apertura y cierre de caja\nReportar diferencias de caja a la jefatura de tienda",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 1 año como cajero(a) en retail, supermercado o similar",
+        "keywords": [
+          "cajero",
+          "caja",
+          "supermercado",
+          "retail"
+        ],
+        "weight": 9,
+        "minYears": 1,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Manejo de dinero y cuadre de caja",
+        "keywords": [
+          "cuadre de caja",
+          "arqueo",
+          "manejo de efectivo"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Uso de sistema de punto de venta y facturación electrónica",
+        "keywords": [
+          "punto de venta",
+          "facturación electrónica",
+          "POS"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Secundaria completa",
+        "keywords": [
+          "secundaria completa"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Honestidad y atención amable al cliente",
+        "keywords": [
+          "atención al cliente",
+          "honestidad"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Técnico Electricista de Mantenimiento": {
+    "descripcion": "La empresa requiere un técnico electricista para el mantenimiento preventivo y correctivo de las instalaciones eléctricas de nuestros almacenes, tiendas y oficinas administrativas. Trabajará bajo la supervisión del jefe de mantenimiento, atendiendo tanto las rutinas programadas como las emergencias. Se valora la iniciativa y el cumplimiento estricto de las normas de seguridad.",
+    "funciones": "Ejecutar el plan de mantenimiento preventivo de tableros, circuitos, iluminación y tomacorrientes\nAtender fallas eléctricas y emergencias en tiendas y almacenes\nRevisar y mantener grupos electrógenos, bombas y equipos de refrigeración en lo eléctrico\nElaborar informes técnicos de cada intervención\nCumplir los procedimientos de bloqueo y etiquetado (LOTO)\nSolicitar materiales y llevar control de herramientas",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Técnico titulado en Electricidad Industrial o Electrotecnia",
+        "keywords": [
+          "técnico en electricidad",
+          "electricidad industrial",
+          "electrotecnia",
+          "Senati",
+          "Tecsup"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 3 años en mantenimiento eléctrico de instalaciones comerciales o industriales",
+        "keywords": [
+          "mantenimiento eléctrico",
+          "electricista",
+          "instalaciones eléctricas",
+          "tableros"
+        ],
+        "weight": 9,
+        "minYears": 3,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Lectura de planos eléctricos y diagramas unifilares",
+        "keywords": [
+          "planos eléctricos",
+          "diagramas unifilares",
+          "unifilar"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Conocimiento del Código Nacional de Electricidad",
+        "keywords": [
+          "Código Nacional de Electricidad",
+          "CNE"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "certificacion",
+        "priority": "obligatorio",
+        "description": "Curso vigente de trabajos en altura y riesgo eléctrico",
+        "keywords": [
+          "trabajo en altura",
+          "riesgo eléctrico",
+          "NFPA 70E"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r6",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Uso de multímetro, pinza amperimétrica y megóhmetro",
+        "keywords": [
+          "multímetro",
+          "pinza amperimétrica",
+          "megóhmetro"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Experiencia con grupos electrógenos y sistemas de refrigeración comercial",
+        "keywords": [
+          "grupo electrógeno",
+          "refrigeración"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Capacidad para trabajar bajo presión y atender emergencias",
+        "keywords": [
+          "trabajo bajo presión",
+          "emergencias"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Supervisor(a) de Seguridad y Salud en el Trabajo": {
+    "descripcion": "Buscamos un(a) supervisor(a) de SST que implemente y haga seguimiento al sistema de gestión de seguridad y salud en el trabajo en nuestras sedes de almacén y tiendas. Reportará a la Gerencia de Operaciones y coordinará con el comité de SST. Se requiere conocimiento sólido de la normativa peruana vigente.",
+    "funciones": "Implementar y actualizar la matriz IPERC y el plan anual de SST\nConducir inspecciones de seguridad, investigaciones de incidentes y accidentes\nDictar capacitaciones e inducciones al personal\nGestionar los registros obligatorios exigidos por la normativa\nCoordinar las actividades del Comité de Seguridad y Salud en el Trabajo\nControlar la entrega y uso de equipos de protección personal (EPP)\nPreparar y participar en simulacros de emergencia",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Bachiller o titulado en Ingeniería Industrial, Seguridad o carreras afines",
+        "keywords": [
+          "ingeniería industrial",
+          "ingeniería de seguridad",
+          "bachiller",
+          "titulado"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 3 años en SST en empresas de comercio, almacenes o industria",
+        "keywords": [
+          "seguridad y salud en el trabajo",
+          "SST",
+          "prevencionista",
+          "almacén"
+        ],
+        "weight": 9,
+        "minYears": 3,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Dominio de la Ley 29783 y su reglamento",
+        "keywords": [
+          "Ley 29783",
+          "ley de seguridad y salud en el trabajo",
+          "DS 005-2012-TR"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Elaboración de matriz IPERC e investigación de accidentes",
+        "keywords": [
+          "IPERC",
+          "investigación de accidentes",
+          "matriz de riesgos"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "certificacion",
+        "priority": "deseable",
+        "description": "Diplomado o curso de especialización en Seguridad y Salud Ocupacional",
+        "keywords": [
+          "diplomado SST",
+          "especialización seguridad",
+          "salud ocupacional"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "certificacion",
+        "priority": "deseable",
+        "description": "Conocimiento o certificación en ISO 45001",
+        "keywords": [
+          "ISO 45001",
+          "auditor interno"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "competencia",
+        "priority": "obligatorio",
+        "description": "Liderazgo y capacidad de capacitar al personal operativo",
+        "keywords": [
+          "liderazgo",
+          "capacitación",
+          "facilitador"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Excel intermedio y elaboración de indicadores de seguridad",
+        "keywords": [
+          "Excel",
+          "indicadores",
+          "índice de frecuencia"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Soporte Técnico de TI (Mesa de Ayuda)": {
+    "descripcion": "Se requiere analista de soporte para la mesa de ayuda de TI. Atenderá a usuarios de oficinas, tiendas y almacenes por teléfono, chat y de forma presencial.",
+    "funciones": "Registrar y resolver tickets de soporte de primer y segundo nivel\nInstalar y configurar equipos, impresoras y software\nAdministrar cuentas de usuario y accesos básicos\nDar soporte a puntos de venta y lectores de códigos de barras\nMantener el inventario de equipos de cómputo",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Técnico o estudiante de últimos ciclos en Computación, Sistemas o afines",
+        "keywords": [
+          "técnico en computación",
+          "ingeniería de sistemas",
+          "ingeniería de software",
+          "informática"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 1 año en soporte técnico o mesa de ayuda",
+        "keywords": [
+          "soporte técnico",
+          "mesa de ayuda",
+          "help desk",
+          "service desk"
+        ],
+        "weight": 9,
+        "minYears": 1,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Windows 10/11 y Microsoft 365",
+        "keywords": [
+          "Windows",
+          "Microsoft 365",
+          "Office 365",
+          "Outlook"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Conocimientos de redes básicas (TCP/IP, WiFi, switches)",
+        "keywords": [
+          "redes",
+          "TCP/IP",
+          "WiFi",
+          "LAN"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Uso de herramientas de ticketing (GLPI, Freshdesk o similar)",
+        "keywords": [
+          "GLPI",
+          "Freshdesk",
+          "tickets",
+          "Jira Service Management"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "certificacion",
+        "priority": "deseable",
+        "description": "Certificación ITIL Foundation o CompTIA A+",
+        "keywords": [
+          "ITIL",
+          "CompTIA A+"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Paciencia y buena comunicación con usuarios no técnicos",
+        "keywords": [
+          "comunicación",
+          "paciencia",
+          "atención al usuario"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Recepcionista Bilingüe": {
+    "descripcion": "Requerimos recepcionista con buen nivel de inglés para nuestra sede administrativa, donde recibimos a proveedores internacionales y clientes corporativos. Además de la atención en recepción, brindará apoyo administrativo a Gerencia.",
+    "funciones": "Recibir y orientar a visitantes, proveedores y clientes\nContestar y derivar llamadas, en español e inglés\nRegistrar el ingreso de visitas\nCoordinar salas de reunión y agendas\nRecibir y despachar correspondencia y courier\nApoyar con redacción de correos en inglés",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Técnico en Secretariado, Administración o carrera afín (mínimo 3 ciclos si es estudiante)",
+        "keywords": [
+          "secretariado",
+          "administración",
+          "técnico",
+          "asistente ejecutiva"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 2 años como recepcionista o asistente administrativo",
+        "keywords": [
+          "recepcionista",
+          "recepción",
+          "asistente administrativo",
+          "secretaria"
+        ],
+        "weight": 8,
+        "minYears": 2,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "idioma",
+        "priority": "obligatorio",
+        "description": "Inglés intermedio-avanzado (B2), hablado y escrito",
+        "keywords": [
+          "inglés",
+          "English",
+          "B2",
+          "bilingüe"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Microsoft Office a nivel usuario (Word, Excel, Outlook)",
+        "keywords": [
+          "Word",
+          "Excel",
+          "Outlook",
+          "Office"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "competencia",
+        "priority": "obligatorio",
+        "description": "Excelente trato, comunicación oral y discreción",
+        "keywords": [
+          "comunicación",
+          "atención al cliente",
+          "discreción"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "certificacion",
+        "priority": "deseable",
+        "description": "Certificado de inglés (TOEFL, Cambridge, ICPNA o similar)",
+        "keywords": [
+          "TOEFL",
+          "Cambridge",
+          "ICPNA",
+          "British Council"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Auxiliar de Compras": {
+    "descripcion": "Para el área de Compras buscamos auxiliar que apoye en la emisión de órdenes de compra, el seguimiento a proveedores y el control de documentos. Es una posición ideal para quien desea desarrollarse en la cadena de abastecimiento.",
+    "funciones": "Emitir órdenes de compra a partir de requerimientos aprobados\nCotizar con proveedores y elaborar cuadros comparativos\nHacer seguimiento a fechas de entrega y regularizar faltantes\nVerificar facturas y guías contra las órdenes de compra\nMantener actualizado el maestro de proveedores\nCoordinar con almacén la recepción de pedidos",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Estudiante de últimos ciclos o egresado de Administración, Logística o Ingeniería Industrial",
+        "keywords": [
+          "administración",
+          "logística",
+          "ingeniería industrial",
+          "egresado"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 1 año en compras, abastecimiento o almacén",
+        "keywords": [
+          "compras",
+          "abastecimiento",
+          "órdenes de compra",
+          "logística"
+        ],
+        "weight": 8,
+        "minYears": 1,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Excel intermedio (tablas dinámicas, BUSCARV)",
+        "keywords": [
+          "Excel",
+          "tablas dinámicas",
+          "BUSCARV",
+          "XLOOKUP"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Experiencia con ERP (SAP Business One, Softland u otro)",
+        "keywords": [
+          "ERP",
+          "SAP",
+          "Softland"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Negociación básica con proveedores y comparación de cotizaciones",
+        "keywords": [
+          "negociación",
+          "cotizaciones",
+          "proveedores"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "competencia",
+        "priority": "obligatorio",
+        "description": "Orden, atención al detalle y seguimiento",
+        "keywords": [
+          "orden",
+          "atención al detalle",
+          "seguimiento"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Vigilante con Carné SUCAMEC": {
+    "descripcion": "Se requiere vigilante para el control de accesos en nuestro almacén principal. Turnos rotativos de 12 horas.",
+    "funciones": "Controlar el ingreso y salida de personas, vehículos y mercadería\nRealizar rondas de vigilancia en el perímetro\nRegistrar novedades en el cuaderno de ocurrencias\nReportar de inmediato cualquier incidente a la jefatura",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "certificacion",
+        "priority": "obligatorio",
+        "description": "Carné de vigilante vigente emitido por SUCAMEC",
+        "keywords": [
+          "SUCAMEC",
+          "carné de vigilante",
+          "vigilante"
+        ],
+        "weight": 10,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 1 año como vigilante o agente de seguridad",
+        "keywords": [
+          "vigilante",
+          "agente de seguridad",
+          "control de accesos"
+        ],
+        "weight": 8,
+        "minYears": 1,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Secundaria completa",
+        "keywords": [
+          "secundaria completa"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "otro",
+        "priority": "obligatorio",
+        "description": "Antecedentes policiales, penales y judiciales limpios",
+        "keywords": [
+          "antecedentes policiales",
+          "antecedentes penales"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r5",
+        "category": "certificacion",
+        "priority": "deseable",
+        "description": "Capacitación en primeros auxilios y uso de extintores",
+        "keywords": [
+          "primeros auxilios",
+          "extintores",
+          "contra incendios"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Responsabilidad, puntualidad y redacción clara de reportes",
+        "keywords": [
+          "responsabilidad",
+          "puntualidad",
+          "reportes"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  }
+}

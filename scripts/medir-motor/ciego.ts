@@ -1,8 +1,12 @@
-// Banco ciego del motor (cv-prueba-ciego/): 30 CV que el motor no había visto,
-// escritos el 19/11/2026 por un agente que no lo conocía (10 a dos columnas,
-// exportaciones de LinkedIn, CV de Computrabajo o Bumeran, tablas, Europass,
-// en inglés…), con la vara puesta a ciegas por Opus y 5 casillas ajustadas a
-// los criterios de Omar (ver vara.json, campo «ajusteOmar»).
+// Bancos ciegos del motor: CV que el motor no había visto, escritos el
+// 19/11/2026 por agentes que no lo conocían, con la vara puesta a ciegas por
+// Opus y algunas casillas ajustadas a los criterios de Omar (vara.json, campo
+// «ajusteOmar»).
+//  - Banco 1 (cv-prueba-ciego/): 30 CV para 10 vacantes de oficina (10 a dos
+//    columnas, LinkedIn, Computrabajo o Bumeran, tablas, Europass, en inglés…).
+//  - Banco 2 (cv-prueba-ciego-2/): 30 CV de puestos operativos (almacén, reparto,
+//    caja, vigilancia…) para 10 vacantes redactadas por otra persona; los CV se
+//    escribieron viendo solo el aviso, sin los términos de búsqueda.
 //
 // Mide SOLO el motor: el PDF se lee con el mismo lector de la app y se evalúa
 // sin IA, sin base de datos y sin reglas aprendidas. Determinista.
@@ -11,7 +15,7 @@
 // acreditadas de más, más méritos perdidos o más candidatos fuera de orden. Las
 // casillas que Opus marcó como dudosas quedan fuera de las métricas.
 //
-// Uso:
+// Uso (el banco 2 es `medir:motor:ciego2`, que pasa `--banco 2`):
 //   npm run medir:motor:ciego                  (resumen)
 //   npm run medir:motor:ciego -- --detalle     (cada desacuerdo con la vara)
 //   npm run medir:motor:ciego -- --generar-pdf (rehace pdf/ desde fuente/ con Chromium)
@@ -30,11 +34,22 @@ import type {
 } from "../../src/modules/evaluation/types";
 import { extractRawText } from "../../src/modules/resumes/extraction-core";
 
-const RAIZ = resolve(import.meta.dirname, "..", "..", "cv-prueba-ciego");
+const BANCOS = {
+  /** Línea base (reglas-v14 a reglas-v16, 19/11/2026). */
+  "1": { carpeta: "cv-prueba-ciego", base: { deMas: 0, meritoPerdido: 3, inversiones: 1 } },
+  /** Línea base (reglas-v16, 19/11/2026; con reglas-v14 eran 9 de más y 7 méritos perdidos). */
+  "2": { carpeta: "cv-prueba-ciego-2", base: { deMas: 1, meritoPerdido: 1, inversiones: 3 } },
+} as const;
+const banco = argv.includes("--banco") ? argv[argv.indexOf("--banco") + 1] : "1";
+if (banco !== "1" && banco !== "2") {
+  stdout.write(`Banco desconocido: ${banco}. Use --banco 1 o --banco 2.\n`);
+  exit(2);
+}
+const RAIZ = resolve(import.meta.dirname, "..", "..", BANCOS[banco].carpeta);
 const FECHA_REFERENCIA = new Date("2026-11-19T12:00:00Z");
 
-/** Línea base (reglas-v14 y reglas-v15, 19/11/2026). Si el motor mejora, bájela en el mismo commit. */
-const BASE = { deMas: 0, meritoPerdido: 3, inversiones: 1 };
+/** Línea base del banco. Si el motor mejora, bájela en el mismo commit. */
+const BASE = BANCOS[banco].base;
 
 type Celda = {
   assessment: Assessment;
@@ -180,7 +195,7 @@ async function main(): Promise<void> {
   }
 
   stdout.write(
-    `Banco ciego del motor · ${RULE_ENGINE_VERSION} · ${Object.keys(vara).length} CV · referencia ${FECHA_REFERENCIA.toISOString().slice(0, 10)}\n`,
+    `Banco ciego ${banco} del motor · ${RULE_ENGINE_VERSION} · ${Object.keys(vara).length} CV · referencia ${FECHA_REFERENCIA.toISOString().slice(0, 10)}\n`,
   );
   stdout.write(
     `Casillas firmes: ${n} (${dudosas} dudosas fuera de la métrica)\n`,

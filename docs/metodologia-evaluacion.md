@@ -323,7 +323,7 @@ Qué se aprendió:
   - un CV en inglés;
   - un término que RRHH no puso («almacén»).
 
-Este banco sigue en el scratchpad de la sesión (no versionado). Después de este ajuste también es un examen conocido.
+Está versionado en `cv-prueba-ciego-2/` y se mide con `npm run medir:motor:ciego2` (solo el motor; también en la revisión automática de GitHub). Después de este ajuste también es un examen conocido.
 
 ### Notas del CV para la entrevista
 
@@ -385,10 +385,11 @@ Seis bancos, los seis deterministas y sin red ni base de datos:
 | `npm run medir:motor:escaneado` | Los mismos 32 CV llegados **escaneados**, por la ruta real de OCR | 8 de 8 puestos, 0 INFLA |
 | `npm run medir:motor:docx` | Los mismos 32 CV en **.docx**, la otra ruta de extracción | 8 de 8 puestos, 0 cambios |
 | `npm run medir:motor:ciego` | **Banco ciego** (`cv-prueba-ciego/`): 30 CV en PDF que el motor no había visto, escritos por un agente que no lo conocía (dos columnas, LinkedIn, Computrabajo…), con la vara de Opus a ciegas y 5 casillas ajustadas a los criterios de Omar. Falla si el motor acredita de más, pierde méritos o desordena candidatos más que su línea base | 97,1 % (laxo), 0 de más, 3 méritos perdidos, 1 inversión |
+| `npm run medir:motor:ciego2` | **Banco ciego 2** (`cv-prueba-ciego-2/`): 30 CV de puestos operativos para 10 vacantes redactadas por otra persona, escritos viendo solo el aviso público, con la vara de Opus a ciegas y 7 casillas legales ajustadas al criterio de Omar (se verifican con documentos). Falla si el motor empeora respecto de su línea base | 90,9 % (laxo), 1 de más, 1 mérito perdido, 3 inversiones |
 
 Los dos últimos comparten el criterio y el informe (`comparacion.ts`): la referencia de cada requisito es el PDF con capa de texto, y lo inaceptable es que la fuente **INFLE** —que acredite algo que el PDF no acreditaba, porque cambiar el formato de un archivo no puede inventar evidencia— o que se rompa el orden dentro de la vacante.
 
-**`npm run verificar:motor`** corre los cinco bancos rápidos de un tirón y **devuelve error si alguno falla**, que es lo que permite usarlos como puerta antes de confirmar cambios. `npm run verificar:motor:completo` añade los dos perfiles de escaneado (varios minutos: el OCR va de uno en uno).
+**`npm run verificar:motor`** corre los seis bancos rápidos de un tirón (orden, adversario, legítimo, los dos ciegos y docx) y **devuelve error si alguno falla**, que es lo que permite usarlos como puerta antes de confirmar cambios. `npm run verificar:motor:completo` añade los dos perfiles de escaneado (varios minutos: el OCR va de uno en uno).
 
 Los seis devuelven código de salida distinto de cero cuando fallan, y eso está comprobado invirtiendo a propósito la verdad de referencia. Importa decirlo porque no fue así desde el principio: `medir:motor` imprimía «orden INCORRECTO» y terminaba con éxito, de modo que el banco que comprueba el orden de 32 candidatos no podía frenar nada. Una medición que no puede fallar es decoración, no una prueba.
 
