@@ -41,6 +41,13 @@ export default async function ConfigIndexPage() {
       description: "Lo que el motor de reglas aprendió de la IA y cuánto depende todavía de ella. Puede deshacer cualquier regla.",
     });
   }
+  if (can(user.role, "users:manage")) {
+    options.push({
+      href: "/configuracion/incidentes",
+      title: "Incidentes de seguridad",
+      description: "Registro de incidentes, plazos para avisar a la Autoridad y simulacros.",
+    });
+  }
   if (options.length === 0) notFound();
 
   return (

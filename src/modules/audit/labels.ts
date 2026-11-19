@@ -67,6 +67,9 @@ const ENTITY_NOUNS: Record<string, string> = {
   email_templates: "una plantilla de correo",
   learned_equivalences: "un sinónimo aprendido por el motor de evaluación",
   vacancy_killer_questions: "una pregunta filtro de vacante",
+  security_incidents: "un incidente de seguridad",
+  security_incident_events: "una anotación de la bitácora de un incidente",
+  security_settings: "la configuración de seguridad (oficial de datos personales)",
 };
 
 /** Tablas que mueve el sistema por su cuenta: se redacta en pasiva («Se actualizó…»). */
@@ -86,6 +89,7 @@ const ENTITY_LABELS: Record<string, string> = {
   application_scorecards: "Ficha de postulación", interview_scorecards: "Ficha de entrevista", caleta_prospects: "Prospecto",
   candidate_portal_settings: "Portal del candidato", email_settings: "Configuración de correo", email_templates: "Plantilla de correo",
   learned_equivalences: "Sinónimo aprendido", vacancy_killer_questions: "Pregunta filtro", talent_pool: "Base de talentos",
+  security_incidents: "Incidente de seguridad", security_incident_events: "Bitácora de incidente", security_settings: "Configuración de seguridad",
 };
 
 const ROW_VERBS: Record<string, string> = { insert: "Creó", update: "Modificó", delete: "Eliminó" };

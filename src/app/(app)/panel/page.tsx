@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BellRingIcon } from "lucide-react";
+import { BellRingIcon, ShieldAlertIcon } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { BotStatusPanel } from "@/components/app-shell/bot-status-panel";
@@ -19,6 +19,7 @@ import { listUpcomingInterviews } from "@/modules/interviews/queries";
 import { getBotDailySummary } from "@/modules/portals/daily-summary";
 import { listBotPortalStatuses } from "@/modules/portals/queries";
 import { getDashboardSummary } from "@/modules/dashboard/queries";
+import { getOpenIncidentsSummary } from "@/modules/incidents/queries";
 import { countOpenAiJobs, describeAiWorker, getAiWorkerStatus } from "@/modules/evaluation/ai-queue";
 import { getAiStatus } from "@/modules/evaluation/service";
 import { listPendingOpinions } from "@/modules/notifications/queries";
@@ -50,7 +51,7 @@ export default async function DashboardPage() {
   const ai = getAiStatus();
   // Solo el personal que evalúa ve (y puede leer, por RLS) el estado del worker.
   const aiQueued = ai.available && ai.queued && can(user.role, "evaluations:run");
-  const [summary, pendingOpinions, upcomingInterviews, botStatuses, botDaily, aiWorker] = await Promise.all([
+  const [summary, pendingOpinions, upcomingInterviews, botStatuses, botDaily, aiWorker, incidents] = await Promise.all([
     getDashboardSummary(supabase),
     listPendingOpinions(supabase, user.id),
     canSeeInterviews ? listUpcomingInterviews(supabase, { limit: 5, days: 7 }) : Promise.resolve([]),
@@ -75,6 +76,13 @@ export default async function DashboardPage() {
             return { notice: null, openJobs: 0 };
           })
       : Promise.resolve({ notice: null, openJobs: 0 }),
+    // Incidentes de seguridad sin cerrar (solo administración; los simulacros no cuentan).
+    can(user.role, "users:manage")
+      ? getOpenIncidentsSummary(supabase).catch((error: unknown) => {
+          logServerError("panel.incidents", error);
+          return { count: 0, nextDueAt: null, overdue: false };
+        })
+      : Promise.resolve({ count: 0, nextDueAt: null, overdue: false }),
   ]);
 
   const byStatus = Constants.public.Enums.application_status
@@ -90,6 +98,27 @@ export default async function DashboardPage() {
         title={`Hola, ${user.fullName.split(" ")[0]}`}
         description="Indicadores calculados con los datos registrados en la plataforma."
       />
+
+      {incidents.count > 0 ? (
+        <section
+          role="alert"
+          aria-label="Incidentes de seguridad abiertos"
+          className="rounded-lg border border-destructive bg-danger px-4 py-3 text-danger-foreground"
+        >
+          <h2 className="flex items-start gap-2 font-medium">
+            <ShieldAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              {incidents.count === 1 ? "Hay 1 incidente de seguridad abierto" : `Hay ${incidents.count} incidentes de seguridad abiertos`}
+              {incidents.nextDueAt
+                ? ` · el plazo para avisar a la Autoridad ${incidents.overdue ? "venció" : "vence"} el ${formatDateTime(incidents.nextDueAt.toISOString())}`
+                : ""}
+            </span>
+          </h2>
+          <Link href="/configuracion/incidentes" className="mt-1 inline-block text-sm font-medium underline underline-offset-4">
+            Ver los incidentes
+          </Link>
+        </section>
+      ) : null}
 
       {aiWorker.notice ? (
         <p

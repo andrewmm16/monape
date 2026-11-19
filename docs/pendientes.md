@@ -65,7 +65,7 @@ Falta un dominio verificado en Resend para enviar de verdad, que se configura en
 - [x] Barrido periódico de archivos huérfanos en Storage y borrado de los archivos al eliminar un candidato (riesgos 7 y 15). Tarea diaria `/api/tareas/limpieza-cv`.
 - [ ] MFA para administradores: **descartada por ahora** (18/11/2026). Se implementa solo si se pide.
 - [x] Respaldo y restauración probados **en local** ([respaldo-y-restauracion.md](respaldo-y-restauracion.md)). *Falta ensayarlo en la nube.*
-- [x] Política de incidentes: [politica-incidentes.md](politica-incidentes.md) (18/11/2026; incluye la notificación en 48 h que exige el reglamento de la Ley 29733). Falta el simulacro antes de producción.
+- [x] Política de incidentes: [politica-incidentes.md](politica-incidentes.md) (18/11/2026; incluye la notificación en 48 h que exige el reglamento de la Ley 29733). Llevada a la app el 19/11/2026: registro y bitácora inmutable, plazo de 48 h con cuenta regresiva, los 6 pasos, revisión a 5 días hábiles, simulacro y aviso en el panel (Configuración → Incidentes de seguridad). Falta designar al oficial de datos personales y hacer el primer simulacro; la revisión aún no descuenta los feriados de Perú.
 - [x] Revisión automática de RLS y privilegios sobre todas las migraciones (`tests/db/security-catalog.test.ts`).
 - [ ] Pruebas de seguridad contra Supabase real; pentest externo recomendado.
 - [x] Plazo de conservación: la administración revisa a los candidatos sin actividad y los anonimiza a mano («Candidatos → Plazo de conservación»).

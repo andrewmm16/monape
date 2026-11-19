@@ -2150,6 +2150,163 @@ export type Database = {
           },
         ]
       }
+      security_incident_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          incident_id: string
+          kind: Database["public"]["Enums"]["incident_event_kind"]
+          occurred_at: string
+          recipient: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          incident_id: string
+          kind: Database["public"]["Enums"]["incident_event_kind"]
+          occurred_at?: string
+          recipient?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          incident_id?: string
+          kind?: Database["public"]["Enums"]["incident_event_kind"]
+          occurred_at?: string
+          recipient?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_incident_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_incident_events_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "security_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_incidents: {
+        Row: {
+          affected_data: string
+          affected_people: number | null
+          cause: string | null
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          detected_at: string
+          detected_by_text: string
+          id: string
+          is_drill: boolean
+          prevention: string | null
+          review_done_at: string | null
+          review_notes: string | null
+          sensitive_data: boolean
+          severity: Database["public"]["Enums"]["incident_severity"]
+          status: Database["public"]["Enums"]["incident_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_data?: string
+          affected_people?: number | null
+          cause?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          detected_at?: string
+          detected_by_text?: string
+          id?: string
+          is_drill?: boolean
+          prevention?: string | null
+          review_done_at?: string | null
+          review_notes?: string | null
+          sensitive_data?: boolean
+          severity: Database["public"]["Enums"]["incident_severity"]
+          status?: Database["public"]["Enums"]["incident_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_data?: string
+          affected_people?: number | null
+          cause?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          detected_at?: string
+          detected_by_text?: string
+          id?: string
+          is_drill?: boolean
+          prevention?: string | null
+          review_done_at?: string | null
+          review_notes?: string | null
+          sensitive_data?: boolean
+          severity?: Database["public"]["Enums"]["incident_severity"]
+          status?: Database["public"]["Enums"]["incident_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_incidents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_settings: {
+        Row: {
+          designated_at: string | null
+          designated_by: string | null
+          id: boolean
+          officer_email: string | null
+          officer_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          designated_at?: string | null
+          designated_by?: string | null
+          id?: boolean
+          officer_email?: string | null
+          officer_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          designated_at?: string | null
+          designated_by?: string | null
+          id?: boolean
+          officer_email?: string | null
+          officer_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_settings_designated_by_fkey"
+            columns: ["designated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_invitations: {
         Row: {
           batch_id: string
@@ -3277,6 +3434,9 @@ export type Database = {
       evaluation_review_outcome: "conforme" | "con_observaciones" | "requiere_reevaluacion"
       evaluation_review_status: "pendiente_revision" | "revisada"
       extraction_status: "completada" | "sin_texto" | "fallida"
+      incident_event_kind: "accion" | "notificacion" | "nota"
+      incident_severity: "alta" | "media" | "baja"
+      incident_status: "abierto" | "contenido" | "cerrado"
       intake_batch_status: "abierto" | "cerrado"
       intake_item_status: "listo" | "requiere_datos" | "error" | "registrado"
       interview_modality: "presencial" | "virtual" | "telefonica"
@@ -3336,6 +3496,9 @@ export const Constants = {
       evaluation_review_outcome: ["conforme", "con_observaciones", "requiere_reevaluacion"],
       evaluation_review_status: ["pendiente_revision", "revisada"],
       extraction_status: ["completada", "sin_texto", "fallida"],
+      incident_event_kind: ["accion", "notificacion", "nota"],
+      incident_severity: ["alta", "media", "baja"],
+      incident_status: ["abierto", "contenido", "cerrado"],
       intake_batch_status: ["abierto", "cerrado"],
       intake_item_status: ["listo", "requiere_datos", "error", "registrado"],
       interview_modality: ["presencial", "virtual", "telefonica"],

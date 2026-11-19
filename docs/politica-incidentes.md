@@ -9,7 +9,7 @@ Cubre la aplicación web (Vercel), la base de datos y los archivos (Supabase), e
 | Rol | Quién | Qué hace |
 |---|---|---|
 | Responsable del incidente | Administración de la plataforma (hoy, Omar) | Decide, coordina y registra. Puede apagar partes de la plataforma sin pedir permiso. |
-| Oficial de datos personales | Quien designe la empresa (si aún no hay, Gerencia) | Decide y firma las notificaciones a la autoridad y a las personas afectadas. |
+| Oficial de datos personales | Quien designe la empresa (si aún no hay, Gerencia). Se registra en «Configuración → Incidentes de seguridad», con la fecha de designación | Decide y firma las notificaciones a la autoridad y a las personas afectadas. |
 | RRHH | Equipo usuario | Avisa de lo raro que vea y sigue las indicaciones (por ejemplo, no abrir un archivo). |
 
 Cualquier persona que sospeche un incidente **avisa de inmediato** al responsable, aunque no esté segura. Un falso aviso no cuesta nada; uno tardío, sí.
@@ -80,17 +80,19 @@ Además, se avisa al proveedor involucrado (Supabase, Vercel, Resend, Anthropic 
 
 ## 7. Registro y revisión
 
-Cada incidente, incluso los falsos avisos, se anota en un registro que lleva el responsable (una hoja compartida solo con administración):
+Cada incidente, incluso los falsos avisos, se registra en la aplicación, en «Configuración → Incidentes de seguridad» (solo administración). Ya no se lleva en una hoja. El registro guarda:
 
 - fecha y hora en que se detectó y quién lo detectó;
 - qué pasó y qué datos afectó (cuántas personas, si hubo datos sensibles);
 - gravedad;
-- acciones tomadas y a qué hora;
+- acciones tomadas y a qué hora (bitácora; lo anotado no se puede editar ni borrar, como la auditoría);
 - notificaciones enviadas (a quién y cuándo);
 - causa y qué se cambió para que no se repita.
+
+La aplicación calcula sola el plazo de 48 h para avisar a la Autoridad (con la cuenta regresiva en el panel mientras haya un incidente sin cerrar), marca los 6 pasos del punto 4 según lo anotado y ofrece los procedimientos del punto 6.
 
 En los 5 días hábiles siguientes a un incidente de gravedad media o alta, se hace una revisión breve y sin culpables (qué pasó, qué funcionó, qué no) y se actualiza este documento si hace falta.
 
 ## 8. Práctica
 
-Una vez al año, y antes de pasar a producción, se hace un simulacro de mesa de 30 minutos. Caso sugerido: «la clave del worker de IA apareció en un chat». Se recorren los pasos, se cronometra la rotación y se corrige lo que no esté claro.
+Una vez al año, y antes de pasar a producción, se hace un simulacro de mesa de 30 minutos. Caso sugerido: «la clave del worker de IA apareció en un chat». Se recorren los pasos, se cronometra la rotación y se corrige lo que no esté claro. En la aplicación, el botón «Iniciar simulacro» (Configuración → Incidentes de seguridad) crea ese caso marcado como SIMULACRO: se recorre igual que uno real, no cuenta en el aviso del panel y deja la fecha del último simulacro (la aplicación avisa si pasó más de un año).
