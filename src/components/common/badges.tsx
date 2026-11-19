@@ -3,6 +3,7 @@ import {
   APPLICATION_STATUS_LABELS,
   ASSESSMENT_LABELS,
   COMPATIBILITY_LEVEL_LABELS,
+  COMPATIBILITY_LEVEL_SHORT_LABELS,
   DATA_ORIGIN_LABELS,
   PORTAL_PUBLICATION_STATUS_LABELS,
   VACANCY_STATUS_LABELS,
@@ -84,9 +85,24 @@ const LEVEL_TONES: Record<Enums<"compatibility_level">, Tone> = {
   pendiente: "warning",
 };
 
-export function CompatibilityBadge({ level, className }: { level: Enums<"compatibility_level"> | null; className?: string }) {
+export function CompatibilityBadge({
+  level,
+  className,
+  shortOnMobile = false,
+}: {
+  level: Enums<"compatibility_level"> | null;
+  className?: string;
+  /** En el celular, la etiqueta corta («Sin evidencia») para que quepa en una línea. */
+  shortOnMobile?: boolean;
+}) {
   if (!level) return <ToneBadge label="Sin evaluar" toneName="muted" className={className} />;
-  return <ToneBadge label={COMPATIBILITY_LEVEL_LABELS[level]} toneName={LEVEL_TONES[level]} className={className} />;
+  if (!shortOnMobile) return <ToneBadge label={COMPATIBILITY_LEVEL_LABELS[level]} toneName={LEVEL_TONES[level]} className={className} />;
+  return (
+    <>
+      <ToneBadge label={COMPATIBILITY_LEVEL_SHORT_LABELS[level]} toneName={LEVEL_TONES[level]} className={cn("sm:hidden", className)} />
+      <ToneBadge label={COMPATIBILITY_LEVEL_LABELS[level]} toneName={LEVEL_TONES[level]} className={cn("max-sm:hidden", className)} />
+    </>
+  );
 }
 
 const ASSESSMENT_TONES: Record<Enums<"requirement_assessment">, Tone> = {

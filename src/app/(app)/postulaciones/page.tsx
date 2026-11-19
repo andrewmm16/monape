@@ -130,7 +130,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/postulacio
                   <TableCell className="hidden sm:table-cell">{row.portal_name ?? "—"}</TableCell>
                   <TableCell className="hidden sm:max-md:hidden md:table-cell">{row.intake_method ? INTAKE_METHOD_LABELS[row.intake_method] : "—"}</TableCell>
                   <TableCell className="whitespace-normal max-sm:col-start-2 max-sm:row-start-1">
-                    <CompatibilityBadge level={row.level} className="max-sm:h-auto max-sm:max-w-32 max-sm:rounded-xl max-sm:text-center max-sm:text-[11px] max-sm:leading-tight max-sm:whitespace-normal" />
+                    <CompatibilityBadge level={row.level} shortOnMobile />
                     {row.evaluation_id ? (
                       <div className="mt-1 hidden text-xs text-muted-foreground sm:block">{formatPercent(row.score)} acreditado</div>
                     ) : null}

@@ -195,6 +195,14 @@ export const COMPATIBILITY_LEVEL_LABELS: Record<Enums<"compatibility_level">, st
   pendiente: "El CV no evidencia los requisitos",
 };
 
+/** Versión corta, para espacios estrechos (tarjetas del celular). */
+export const COMPATIBILITY_LEVEL_SHORT_LABELS: Record<Enums<"compatibility_level">, string> = {
+  alta: "Cumple",
+  parcial: "Cumple en parte",
+  baja: "Cumple poco",
+  pendiente: "Sin evidencia",
+};
+
 export const EVALUATION_METHOD_LABELS: Record<Enums<"evaluation_method">, string> = {
   reglas: "Motor de reglas (determinista)",
   ia: "Asistente de IA",

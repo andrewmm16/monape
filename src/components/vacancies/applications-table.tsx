@@ -39,15 +39,22 @@ function ReasonLine({ label, items, empty }: { label: string; items: string[] | 
  * en la vista de descartados, donde la posición no significa nada. El texto
  * largo va como `title` y para lectores de pantalla; a la vista, solo el número.
  */
-function RankCell({ position, evaluated }: { position: number | undefined; evaluated: number }) {
+function RankCell({ position, evaluated, tiedWith }: { position: number | undefined; evaluated: number; tiedWith: number }) {
   if (position === undefined || evaluated < 2) return null;
-  const text = `${position}.º por puntuación de ${evaluated} en proceso`;
+  // Con la misma puntuación comparten posición (1, 2, 2, 4): se aclara que es un empate.
+  const tie = tiedWith > 0 ? `, empatado con ${tiedWith} ${tiedWith === 1 ? "candidato" : "candidatos"} más` : "";
+  const text = `${position}.º por puntuación de ${evaluated} en proceso${tie}`;
   return (
-    <span title={text} className="text-sm font-medium text-muted-foreground tabular-nums">
+    <span title={text} className="inline-flex items-baseline gap-1 text-sm font-medium text-muted-foreground tabular-nums">
       <span aria-hidden>
         <span className="sm:hidden">#</span>
         {position}
       </span>
+      {tiedWith > 0 ? (
+        <span aria-hidden className="text-[10px] font-normal uppercase tracking-wide">
+          empate
+        </span>
+      ) : null}
       <span className="sr-only">{text}</span>
     </span>
   );
@@ -79,6 +86,9 @@ export function ApplicationsTable({
   comparableTotal: number;
 }) {
   const anyComparable = rows.some(isComparable);
+  // Cuántos candidatos comparten cada posición (empates de puntuación).
+  const tieCounts = new Map<number, number>();
+  for (const position of ranking.positions.values()) tieCounts.set(position, (tieCounts.get(position) ?? 0) + 1);
   const hrefForPage = (page: number) => {
     const search = new URLSearchParams({ tab: "candidatos", vista: params.vista, sort: params.sort, page: String(page) });
     if (params.q) search.set("q", params.q);
@@ -205,7 +215,11 @@ export function ApplicationsTable({
                   </TableCell>
                   <TableCell className="px-1 text-center whitespace-normal max-sm:text-left">
                     {params.vista === "proceso" && row.id ? (
-                      <RankCell position={ranking.positions.get(row.id)} evaluated={ranking.evaluated} />
+                      <RankCell
+                        position={ranking.positions.get(row.id)}
+                        evaluated={ranking.evaluated}
+                        tiedWith={(tieCounts.get(ranking.positions.get(row.id) ?? -1) ?? 1) - 1}
+                      />
                     ) : null}
                   </TableCell>
                   <TableCell className="whitespace-normal">
