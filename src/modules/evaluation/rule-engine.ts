@@ -3,6 +3,7 @@ import { applyLearnedRules, groupLearnedRules, requirementKey, type LearnedRule 
 import { findExplicitNegations, markExplicitNegation } from "./negation";
 import { coreTerms, relatedListTerms } from "./related";
 import { collegeEquivalentsFor, equivalentsFor } from "./synonyms";
+import { verbFormsOf } from "./verb-forms";
 import { buildExperienceIndex, estimateFromIndex, type ExperienceIndex } from "./experience-dates";
 import {
   findTermOccurrences,
@@ -167,6 +168,10 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    limitada», «full professional», «bilingüe»).
  *  - Siglas de los colegios profesionales (CEP, CIP, CMP, CCPL…) en formación y
  *    certificación; la colegiatura sigue quedando para verificar con documentos.
+ *  - Una palabra clave escrita como verbo en primera persona del pretérito
+ *    («Capacité», «Dirigí un equipo») también encuentra sus conjugaciones
+ *    («capacitó», «dirigía», «capacitando»): verb-forms.ts. No los sustantivos:
+ *    «recibí capacitación en Excel» no es capacitar a otros.
  */
 export const RULE_ENGINE_VERSION = "reglas-v14";
 
@@ -247,7 +252,11 @@ function collectMatches(
       }
     }
   };
-  for (const term of terms) add(term, term);
+  for (const term of terms) {
+    add(term, term);
+    // reglas-v14: el verbo conjugado es el mismo término, como el plural («Capacité» → «capacitó»).
+    for (const form of verbFormsOf(term)) add(term, form);
+  }
   for (const term of terms) for (const e of expand(term)) add(term, e, e);
   return [...found.values()].sort((a, b) => a.start - b.start);
 }
