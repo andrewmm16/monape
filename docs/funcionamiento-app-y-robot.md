@@ -24,7 +24,7 @@ Cada decisión queda registrada (auditoría).
   estricto, Tailwind CSS 4, shadcn/ui.
 - **Datos:** Supabase — PostgreSQL con RLS en todas las tablas, Auth y Storage privado.
 - **Pruebas:** Vitest (unidad y base con PGlite) + Playwright (e2e y portales ficticios).
-- **Node ≥ 22.12.**
+- **Node 24** (`engines`: `24.x`).
 - **Subsistemas (carpetas):** `src/` (app web), `bot/` (robot de portales),
   `correo/` (ingesta por correo), `mercado/` y `scripts/caleta/` (sourcing de
   candidatos), `supabase/` (migraciones y RLS).

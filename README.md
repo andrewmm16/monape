@@ -43,7 +43,7 @@ Limitaciones: la URL cambia cada vez que se abre el túnel y solo funciona mient
 
 ## Requisitos
 
-- Node.js ≥ 22.12 (probado con 24.22.1 LTS).
+- Node.js 24 (`engines`: `24.x`; probado con 24.22.1 LTS). Vercel usa esa versión por `engines` (su predeterminada es 26, sin probar). Con 22.12 la app funciona en local, pero npm avisa y la prueba del límite de memoria del lector de PDF puede fallar por tiempo.
 - Un proyecto Supabase (nube) o Supabase CLI con Docker para desarrollo local.
 
 ## Puesta en marcha

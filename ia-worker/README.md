@@ -52,14 +52,14 @@ entrenar modelos: por aquí pasan CV de personas reales.
 
 ### 3. La máquina del worker
 
-Necesita estar siempre encendida, con Node.js 22.12 o superior y salida a internet. No necesita
+Necesita estar siempre encendida, con Node.js 24 (22.12 también sirve para el worker; npm solo avisará por `engines`) y salida a internet. No necesita
 puertos abiertos: solo hace solicitudes salientes a la app y a Anthropic.
 
 **Opción recomendada: VM gratuita (Oracle Cloud Always Free, Ubuntu)**
 
 ```bash
-# Node 22 y Claude Code
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+# Node 24 y Claude Code
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs git
 sudo npm install -g @anthropic-ai/claude-code
 

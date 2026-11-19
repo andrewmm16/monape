@@ -12,7 +12,7 @@ Cada entorno tiene sus **propias claves**. Nunca reutilice la clave secreta de p
 
 ## Vercel
 
-1. Importe el repositorio en Vercel (framework detectado: Next.js). Node 22 o superior. **Plan:** el plan Hobby (gratuito) es solo para uso personal no comercial ([fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines), consultado el 28/10/2026). Una plataforma de la empresa necesita el plan Pro.
+1. Importe el repositorio en Vercel (framework detectado: Next.js). Node 24: lo fija `engines` (`24.x`) en `package.json`, que manda sobre la versión de *Project Settings*; la predeterminada de Vercel es 26 y no está probada. En Node 22, un PDF que agota la memoria tarda 13-22 s en cortarse (1,6 s en Node 24; ensayo en Linux del 19/11/2026). **Plan:** el plan Hobby (gratuito) es solo para uso personal no comercial ([fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines), consultado el 28/10/2026). Una plataforma de la empresa necesita el plan Pro.
 2. En **Settings → Environment Variables**, defina por entorno (*Production*, *Preview*, *Development*):
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY` (marcar como *Sensitive*)

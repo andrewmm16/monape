@@ -8,7 +8,7 @@ Aplicación web privada para el área de **Recursos Humanos**: vacantes con crit
 
 ## Stack y comandos
 
-- **Stack:** Next.js (App Router, Server Actions, Route Handlers), React 19, TypeScript estricto, Tailwind CSS 4, shadcn/ui, Supabase (PostgreSQL con RLS, Auth, Storage privado), Vitest + Playwright. Node ≥ 22.12.
+- **Stack:** Next.js (App Router, Server Actions, Route Handlers), React 19, TypeScript estricto, Tailwind CSS 4, shadcn/ui, Supabase (PostgreSQL con RLS, Auth, Storage privado), Vitest + Playwright. Node 24 (`engines`: `24.x`, que Vercel respeta).
 - **Importante sobre Next.js:** es una versión con *breaking changes* respecto a lo conocido. Antes de escribir código de framework, sigue `AGENTS.md` y consulta los docs en `node_modules/next/dist/docs/`.
 - **Comandos frecuentes:**
   - `npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck`
