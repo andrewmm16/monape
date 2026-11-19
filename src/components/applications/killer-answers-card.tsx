@@ -1,5 +1,6 @@
 import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { killerAnswerText } from "@/modules/evaluation/interview-topics";
 import type { Enums } from "@/types/database";
 
 export type KillerAnswerRow = {
@@ -10,12 +11,6 @@ export type KillerAnswerRow = {
   answer_text: string | null;
   question: { question: string; question_type: Enums<"killer_question_type"> } | null;
 };
-
-function answerText(row: KillerAnswerRow): string {
-  if (row.answer_boolean !== null) return row.answer_boolean ? "Sí" : "No";
-  if (row.answer_number !== null) return String(row.answer_number);
-  return row.answer_text ?? "—";
-}
 
 /**
  * Respuestas del candidato a las preguntas eliminatorias. Es solo una marca para
@@ -39,7 +34,7 @@ export function KillerAnswersCard({ answers }: { answers: KillerAnswerRow[] }) {
             {failed.map((a) => (
               <li key={a.id} className="flex items-start gap-1.5">
                 <CircleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <span>No cumple la condición indicada:{a.question?.question ?? "pregunta eliminada"}</span>
+                <span>No cumple la condición indicada: {a.question?.question ?? "pregunta eliminada"}</span>
               </li>
             ))}
           </ul>
@@ -54,7 +49,7 @@ export function KillerAnswersCard({ answers }: { answers: KillerAnswerRow[] }) {
               )}
               <span>
                 {a.question?.question ?? "Pregunta eliminada"}
-                <span className="block text-muted-foreground">Respuesta: {answerText(a)}</span>
+                <span className="block text-muted-foreground">Respuesta: {killerAnswerText(a)}</span>
               </span>
             </li>
           ))}

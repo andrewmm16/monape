@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BellRingIcon, CalendarClockIcon, MapPinIcon, UserRoundIcon } from "lucide-react";
+import { BellRingIcon, CalendarClockIcon, MapPinIcon, MessageCircleQuestionIcon, PhoneIcon, UserRoundIcon } from "lucide-react";
+import { INTERVIEW_GUIDE_ANCHOR } from "@/components/applications/interview-guide-card";
 import { ApplicationStatusBadge } from "@/components/common/badges";
 import { LocationMap } from "@/components/common/location-map";
 import { Badge } from "@/components/ui/badge";
@@ -124,7 +125,10 @@ export function InterviewItem({
             </div>
           ) : null}
         </div>
-        {showApplication ? <ApplicationStatusBadge status={application.status} /> : null}
+        {/* La etapa de la postulación, salvo que repita lo que ya dice la entrevista («Programada»). */}
+        {showApplication && !(programmed && application.status === "entrevista_programada") ? (
+          <ApplicationStatusBadge status={application.status} />
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
@@ -137,8 +141,18 @@ export function InterviewItem({
         ) : null}
         {interview.location ? (
           <span className="flex min-w-0 items-center gap-1">
-            <MapPinIcon className="size-3.5 shrink-0" aria-hidden />
-            <LocationText location={interview.location} />
+            {interview.modality === "telefonica" ? (
+              <PhoneIcon className="size-3.5 shrink-0" aria-hidden />
+            ) : (
+              <MapPinIcon className="size-3.5 shrink-0" aria-hidden />
+            )}
+            {interview.modality === "telefonica" && /^[+\d][\d\s-]{5,}$/.test(interview.location.trim()) ? (
+              <a href={`tel:${interview.location.replace(/[\s-]/g, "")}`} className="text-brand underline underline-offset-2">
+                {interview.location}
+              </a>
+            ) : (
+              <LocationText location={interview.location} />
+            )}
           </span>
         ) : null}
         {interview.interviewers ? (
@@ -176,6 +190,14 @@ export function InterviewItem({
 
       {programmed && canManage ? (
         <div className="flex flex-wrap gap-2 pt-1">
+          {/* En la lista de Entrevistas: acceso directo a las preguntas recomendadas de la persona. */}
+          {showApplication ? (
+            <Button asChild size="sm" variant="outline" className="h-9 sm:h-8">
+              <Link href={`/postulaciones/${application.id}#${INTERVIEW_GUIDE_ANCHOR}`}>
+                <MessageCircleQuestionIcon aria-hidden /> Preguntas para la entrevista
+              </Link>
+            </Button>
+          ) : null}
           <RecordResultDialog
             interviewId={interview.id}
             scheduledLabel={scheduledLabel}
@@ -199,8 +221,9 @@ export function InterviewItem({
             interviewId={interview.id}
             applicationStatus={application.status}
             trigger={
-              <Button type="button" size="sm" variant="ghost" className="h-9 sm:h-8">
-                Cancelar
+              // Separado de las otras acciones y en rojo: anula la entrevista.
+              <Button type="button" size="sm" variant="ghost" className="h-9 text-destructive hover:bg-destructive/10 hover:text-destructive sm:ml-auto sm:h-8">
+                Cancelar entrevista
               </Button>
             }
           />

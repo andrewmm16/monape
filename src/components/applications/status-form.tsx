@@ -36,10 +36,13 @@ export function StatusForm({
   applicationId,
   current,
   draft,
+  primary = true,
 }: {
   applicationId: string;
   current: Status;
   draft: DraftInput | null;
+  /** Botón destacado. Con una entrevista programada, la acción principal de la página es «Registrar resultado». */
+  primary?: boolean;
 }) {
   const options = SELECTABLE_STATUSES.filter((status) => status !== current);
   const suggestion = draft ? suggestStatus(draft, current) : null;
@@ -167,7 +170,7 @@ export function StatusForm({
           </Field>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" variant={primary ? "default" : "outline"} disabled={pending}>
             {pending ? "Guardando…" : "Actualizar estado"}
           </Button>
           {draft && selected ? (

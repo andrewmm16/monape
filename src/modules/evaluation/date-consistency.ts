@@ -30,6 +30,16 @@ import type { Evidence } from "./types";
  * (`countShortTenures`: varios empleos de corta duración).
  */
 
+/**
+ * Inicio fijo de cada nota. Las notas se guardan como texto en las limitaciones
+ * de la evaluación; la guía de entrevista las reconoce por este inicio.
+ */
+export const DATE_NOTE_PREFIX = {
+  solapamiento: "Posibles fechas superpuestas en el historial laboral",
+  fecha_imposible: "Fecha incoherente en el historial laboral",
+  rotacion: "El historial laboral muestra varios empleos de corta duración",
+} as const;
+
 /** Meses de coexistencia garantizada a partir de los cuales se considera un solapamiento real. */
 const MIN_OVERLAP_MONTHS = 2;
 /** Tope de notas para no inundar la evaluación. */
@@ -73,7 +83,7 @@ export function describeDateOverlaps(overlaps: DateOverlap[]): string[] {
     .slice(0, MAX_NOTES)
     .map(
       (o) =>
-        `Posibles fechas superpuestas en el historial laboral: el CV declara periodos que coinciden en el tiempo («${o.first.quote}» y «${o.second.quote}»). Puede ser pluriempleo legítimo o un error de fechas; conviene aclararlo en la entrevista.`,
+        `${DATE_NOTE_PREFIX.solapamiento}: el CV declara periodos que coinciden en el tiempo («${o.first.quote}» y «${o.second.quote}»). Puede ser pluriempleo legítimo o un error de fechas; conviene aclararlo en la entrevista.`,
     );
 }
 
@@ -110,7 +120,7 @@ export function countShortTenures(index: ExperienceIndex): number {
 export function describeJobHopping(shortTenures: number): string[] {
   if (shortTenures < MIN_SHORT_TENURES) return [];
   return [
-    `El historial laboral muestra varios empleos de corta duración (${shortTenures} de 12 meses o menos). No es un motivo de descarte; conviene conversar la trayectoria profesional en la entrevista.`,
+    `${DATE_NOTE_PREFIX.rotacion} (${shortTenures} de 12 meses o menos). No es un motivo de descarte; conviene conversar la trayectoria profesional en la entrevista.`,
   ];
 }
 
@@ -125,7 +135,7 @@ export function describeImpossibleRanges(ranges: ImpossibleRange[]): string[] {
     .slice(0, MAX_NOTES)
     .map(
       (r) =>
-        `Fecha incoherente en el historial laboral («${r.quote}»): ${IMPOSSIBLE_LABEL[r.reason]}. Puede ser un error de tipeo; conviene aclararlo en la entrevista.`,
+        `${DATE_NOTE_PREFIX.fecha_imposible} («${r.quote}»): ${IMPOSSIBLE_LABEL[r.reason]}. Puede ser un error de tipeo; conviene aclararlo en la entrevista.`,
     );
 }
 

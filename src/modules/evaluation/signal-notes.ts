@@ -1,4 +1,4 @@
-import { detectDateSignalNotes } from "./date-consistency";
+import { DATE_NOTE_PREFIX, detectDateSignalNotes } from "./date-consistency";
 import { describeVacancyCopy, findCopiedVacancyPhrases, VACANCY_COPY_NOTE_PREFIX } from "./vacancy-copy";
 
 /**
@@ -16,9 +16,9 @@ export function detectEvaluationSignalNotes(fullText: string, vacancyText: strin
  * `date-consistency.ts` y `vacancy-copy.ts` (lo comprueba la prueba unitaria).
  */
 export const SIGNAL_NOTE_PREFIXES = [
-  "Posibles fechas superpuestas en el historial laboral",
-  "Fecha incoherente en el historial laboral",
-  "El historial laboral muestra varios empleos de corta duración",
+  DATE_NOTE_PREFIX.solapamiento,
+  DATE_NOTE_PREFIX.fecha_imposible,
+  DATE_NOTE_PREFIX.rotacion,
   VACANCY_COPY_NOTE_PREFIX,
 ] as const;
 

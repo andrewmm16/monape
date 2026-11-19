@@ -11,7 +11,7 @@ import {
 import { consolidateScorecards, type ScorecardEntry } from "@/modules/scorecards/consolidation";
 import { listApplicationScorecards } from "@/modules/scorecards/queries";
 import { EvaluationCard } from "@/components/applications/evaluation-card";
-import { InterviewGuideCard } from "@/components/applications/interview-guide-card";
+import { INTERVIEW_GUIDE_ANCHOR, InterviewGuideCard, InterviewQuestionsCallout } from "@/components/applications/interview-guide-card";
 import { NoteForm } from "@/components/applications/note-form";
 import { KillerAnswersCard } from "@/components/applications/killer-answers-card";
 import { StatusForm } from "@/components/applications/status-form";
@@ -27,7 +27,13 @@ import { can } from "@/lib/auth/permissions";
 import { requirePageUser } from "@/lib/auth/session";
 import { AppError, logServerError } from "@/lib/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { APPLICATION_EVENT_LABELS, APPLICATION_STATUS_LABELS, REVIEW_OUTCOME_LABELS, SYSTEM_ACTOR_LABEL } from "@/lib/labels";
+import {
+  APPLICATION_EVENT_LABELS,
+  APPLICATION_STATUS_LABELS,
+  INTERVIEW_MODALITY_LABELS,
+  REVIEW_OUTCOME_LABELS,
+  SYSTEM_ACTOR_LABEL,
+} from "@/lib/labels";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { linkCurrentResume, requestAiEvaluationAction, runEvaluation } from "@/modules/applications/actions";
 import { AiJobStatus } from "@/components/applications/ai-job-status";
@@ -47,8 +53,18 @@ import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
 import { getAiStatus } from "@/modules/evaluation/service";
 import { loadInterviewGuide } from "@/modules/evaluation/interview-guide-data";
+import { buildInterviewTopics } from "@/modules/evaluation/interview-topics";
 
 export const metadata: Metadata = { title: "Postulación" };
+
+/** La base guarda la modalidad de la entrevista con su clave («45 min, telefonica»): se muestra su nombre. */
+const MODALITY_IN_NOTE = /(\d+ min, )(presencial|virtual|telefonica)\)/g;
+function readableNote(note: string): string {
+  return note.replace(
+    MODALITY_IN_NOTE,
+    (_match, prefix: string, modality: keyof typeof INTERVIEW_MODALITY_LABELS) => `${prefix}${INTERVIEW_MODALITY_LABELS[modality].toLowerCase()})`,
+  );
+}
 
 export default async function ApplicationPage({ params, searchParams }: PageProps<"/postulaciones/[id]">) {
   const user = await requirePageUser();
@@ -92,6 +108,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       consolidation: consolidateScorecards(scorecardsByInterview.get(interview.id) ?? []),
     }));
   const schedulable = canManage && canScheduleInterview(application.status, application.vacancy.status);
+  // Con una entrevista programada, lo principal es registrar su resultado: el resto de botones va con contorno.
+  const hasProgrammedInterview = interviews.some((interview) => interview.status === "programada");
   const newerResume =
     currentResume && application.resume && currentResume.id !== application.resume.id ? currentResume : null;
   const requested = typeof search.evaluacion === "string" ? evaluations.find((e) => e.id === search.evaluacion) : undefined;
@@ -145,13 +163,16 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const aiJob = aiQueued ? describeAiJob(await getLatestAiJob(supabase, application.id), formatDateTime) : null;
   // Con un trabajo abierto, avisa si el worker no está atendiendo la cola (caído o en pausa).
   const aiWorkerNotice = aiJob?.active ? describeAiWorker(await getAiWorkerStatus(supabase), formatDateTime) : null;
-  // Guía de entrevista: lo que falta confirmar. Si falla, la página sigue sin ella.
+  // Preguntas para la entrevista: los requisitos que falta confirmar (null sin
+  // evaluación o si falla, y la página sigue) y otros puntos por aclarar.
   const interviewGuide = canManage
     ? await loadInterviewGuide(supabase, application.id).catch((error: unknown) => {
         logServerError("applications.interview_guide", error);
         return null;
       })
     : null;
+  const interviewTopics = canManage ? buildInterviewTopics({ killerAnswers, limitations: main?.limitations ?? [] }) : [];
+  const interviewQuestionCount = (interviewGuide?.length ?? 0) + interviewTopics.length;
 
   return (
     <>
@@ -173,6 +194,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           </span>
         }
       />
+
+      {canManage ? <InterviewQuestionsCallout pending={interviewGuide?.length ?? 0} topics={interviewTopics.length} /> : null}
 
       {/* Pantalla ancha: a la izquierda lo que dice la evaluación; a la derecha la decisión y el seguimiento. */}
       <div className="mx-auto grid max-w-3xl gap-6 xl:max-w-none xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
@@ -265,14 +288,15 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             canReview={can(user.role, "evaluations:review")}
             verifications={verifications}
           />
-          {interviewGuide ? <InterviewGuideCard guide={interviewGuide} /> : null}
+          {canManage ? <InterviewGuideCard guide={interviewGuide} topics={interviewTopics} /> : null}
         </div>
 
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Estado del proceso</CardTitle>
-              <CardDescription>Su decisión. Último cambio: {formatDateTime(application.status_changed_at)}.</CardDescription>
+              {/* Sin punto final: la hora ya termina en «a. m.» o «p. m.». */}
+              <CardDescription>Su decisión. Último cambio: {formatDateTime(application.status_changed_at)}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <ApplicationStatusBadge status={application.status} />
@@ -282,6 +306,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   applicationId={application.id}
                   current={application.status}
                   draft={draftInput}
+                  primary={!hasProgrammedInterview}
                 />
               ) : null}
             </CardContent>
@@ -313,11 +338,24 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               <CardDescription>Fechas y horas en hora de Perú (Lima).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {canManage && interviewQuestionCount > 0 ? (
+                <p className="text-sm">
+                  <a href={`#${INTERVIEW_GUIDE_ANCHOR}`} className="font-medium text-brand underline-offset-4 hover:underline">
+                    {interviewQuestionCount === 1
+                      ? "Ver la pregunta recomendada para esta persona"
+                      : `Ver las ${interviewQuestionCount} preguntas recomendadas para esta persona`}
+                  </a>
+                </p>
+              ) : null}
               {schedulable ? (
                 <InterviewFormDialog
                   applicationId={application.id}
                   defaultOpen={search.programar === "1"}
-                  trigger={<Button type="button">Programar entrevista</Button>}
+                  trigger={
+                    <Button type="button" variant={hasProgrammedInterview ? "outline" : "default"}>
+                      Programar entrevista
+                    </Button>
+                  }
                 />
               ) : null}
               {interviews.length === 0 ? (
@@ -407,7 +445,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                           : event.reason}
                       </p>
                     ) : null}
-                    {event.note ? <p className="mt-1 text-xs whitespace-pre-wrap text-muted-foreground">{event.note}</p> : null}
+                    {event.note ? <p className="mt-1 text-xs whitespace-pre-wrap text-muted-foreground">{readableNote(event.note)}</p> : null}
                   </li>
                 ))}
               </ol>

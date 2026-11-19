@@ -27,6 +27,14 @@ Quitarle a RRHH el trabajo de leer cada CV para saber qué preguntar. Cada postu
 - Interfaz: tarjeta «Guía de entrevista» en la postulación (permiso `applications:manage`) y preguntas en «Registrar resultado», con lo pendiente primero.
 - `recordInterviewResult` llama a `learnFromVerifications`, igual que «Verificar».
 
+## Ampliación del 19/11: «Preguntas para la entrevista»
+
+Pedido de Omar: que quien usa la app vea qué preguntas se recomienda hacerle a cada persona.
+
+- **Nombre y lugar:** la tarjeta se llama «Preguntas para la entrevista». Se muestra siempre a quien tiene `applications:manage`; sin evaluación, avisa que las preguntas sobre requisitos aparecen al evaluar el CV. La tarjeta de Entrevistas enlaza a ella («Ver las N preguntas recomendadas para esta persona»).
+- **«Otros puntos para aclarar»** (`interview-topics.ts`, puro): además de los requisitos, entran las respuestas eliminatorias que no cumplen y las notas de fechas del CV (solapamientos, fechas imposibles y rotación). Las notas se reconocen por su inicio fijo, `DATE_NOTE_PREFIX` en `date-consistency.ts`. No cambian la puntuación ni descartan a nadie. La pregunta sobre la trayectoria advierte que no se pregunte por motivos personales ni de salud.
+- Sigue fuera: preguntas generales por vacante, correo o PDF para los entrevistadores. Esperan la reunión de Omar con RRHH sobre quién entrevista.
+
 ## Decisiones tomadas por mí (corregibles)
 
 - La guía va **dentro de la app**: Omar no dijo quién entrevista. El correo o PDF para jefes de área queda pendiente.
