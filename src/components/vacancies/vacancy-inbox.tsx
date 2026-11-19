@@ -180,7 +180,7 @@ export function VacancyInbox({ inbox, canVerify }: { inbox: Inbox; canVerify: bo
                         {entry.optionalCount > 0
                           ? `Y ${entry.optionalCount} deseable${entry.optionalCount === 1 ? "" : "s"} por confirmar. `
                           : ""}
-                        <Link href={`/postulaciones/${entry.applicationId}`} className="underline underline-offset-4">
+                        <Link href={`/postulaciones/${entry.applicationId}`} className="font-medium text-brand underline underline-offset-4">
                           Ver la guía completa o programar la entrevista
                         </Link>
                       </p>

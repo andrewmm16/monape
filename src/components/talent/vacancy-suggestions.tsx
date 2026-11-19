@@ -115,7 +115,7 @@ export function VacancySuggestions({
           <AlertDescription>
             <p>
               Para invitar por correo, configure primero a qué dirección llegan las respuestas de los candidatos en{" "}
-              <Link href="/configuracion/plantillas-correo" className="underline underline-offset-2">
+              <Link href="/configuracion/plantillas-correo" className="font-medium text-brand underline underline-offset-4">
                 Configuración → Plantillas de correo
               </Link>
               . Mientras tanto puede añadirlos al proceso.

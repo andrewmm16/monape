@@ -94,8 +94,8 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   await page.getByRole("link", { name: `Analista E2E ${suffix}` }).click();
   await page.getByRole("button", { name: "Evaluar con motor de reglas" }).click();
   await expect(page.getByText("Detalle por requisito")).toBeVisible({ timeout: 30_000 });
-  // Cada requisito muestra lo que busca el puesto frente a lo que dice el CV, con la cita como evidencia.
-  await expect(page.getByText("Lo que dice el CV").first()).toBeVisible();
+  // Cada requisito va como cabecera (con su resultado) y debajo lo que dice el CV, con la cita como evidencia.
+  await expect(page.getByText("Consultas SQL", { exact: true }).first()).toBeVisible();
   await expect(page.locator("blockquote").filter({ hasText: "SQL Server" }).first()).toBeVisible();
   await expect(page.getByText("Nuevo").first()).toBeVisible();
 

@@ -58,7 +58,7 @@ export default async function VacanciesPage({ searchParams }: PageProps<"/vacant
           ))}
         </NativeSelect>
         <Button type="submit" variant="outline">
-          Filtrar
+          Aplicar
         </Button>
       </form>
 

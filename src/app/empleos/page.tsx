@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
 import { EMPLOYMENT_TYPE_LABELS, WORK_MODALITY_LABELS } from "@/lib/labels";
+import { formatCityRegion } from "@/components/vacancies/format-location";
 import { getPublicJobsConfig, requirePublicJobsConfig } from "@/modules/public-jobs/config";
 import { listPublicVacancies } from "@/modules/public-jobs/queries";
 import { jobPath } from "@/modules/public-jobs/slug";
@@ -42,7 +43,7 @@ export default async function PublicJobsPage() {
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span>{vacancy.department}</span>
-                  {vacancy.city ? <span>{[vacancy.city, vacancy.region].filter(Boolean).join(", ")}</span> : null}
+                  {vacancy.city ? <span>{formatCityRegion(vacancy.city, vacancy.region)}</span> : null}
                   {vacancy.modality ? <span>{WORK_MODALITY_LABELS[vacancy.modality]}</span> : null}
                   <span>{EMPLOYMENT_TYPE_LABELS[vacancy.employmentType]}</span>
                   <span>Publicada el {formatDate(vacancy.firstPublishedAt)}</span>

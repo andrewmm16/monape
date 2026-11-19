@@ -26,7 +26,7 @@ import {
 } from "@/modules/talent-pool/queries";
 import { TALENT_APPLICATION_STATUSES, TALENT_SOURCES, talentFiltersSchema } from "@/modules/talent-pool/schema";
 
-export const metadata: Metadata = { title: "Buscar en el pool de talento" };
+export const metadata: Metadata = { title: "Buscar en la base de talentos" };
 
 const MAX_TAGS_SHOWN = 3;
 
@@ -57,7 +57,7 @@ export default async function TalentSearchPage({ searchParams }: PageProps<"/can
   return (
     <>
       <PageHeader
-        title="Pool de talento"
+        title="Base de talentos"
         description="Busque en el histórico de candidatos para reutilizarlos en nuevas vacantes. Los filtros se combinan."
       />
       <form method="get" className="grid gap-4 rounded-md border bg-card p-4 shadow-xs sm:grid-cols-2 lg:grid-cols-3" aria-label="Filtros de búsqueda">

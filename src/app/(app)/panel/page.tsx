@@ -191,8 +191,8 @@ export default async function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vacante</TableHead>
-                    <TableHead className="text-right max-sm:w-16 max-sm:whitespace-normal">Candidatos</TableHead>
-                    <TableHead className="text-right max-sm:w-16 max-sm:whitespace-normal">Sin evaluar</TableHead>
+                    <TableHead className="text-right max-sm:px-1">Candidatos</TableHead>
+                    <TableHead className="text-right max-sm:px-1">Sin evaluar</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -218,12 +218,12 @@ export default async function DashboardPage() {
           <CardHeader>
             <CardTitle>Actividad reciente</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {summary.recent_activity.length === 0 ? (
               <EmptyState title="Aún no hay actividad registrada" />
             ) : (
               <ul className="divide-y text-sm">
-                {summary.recent_activity.map((event) => (
+                {summary.recent_activity.slice(0, 5).map((event) => (
                   <li key={event.id} className="py-2">
                     <Link href={`/postulaciones/${event.application_id}`} className="font-medium hover:underline">
                       {event.candidate_name}
@@ -241,6 +241,9 @@ export default async function DashboardPage() {
                 ))}
               </ul>
             )}
+            <Link href="/auditoria" className="text-sm font-medium text-brand underline underline-offset-4">
+              Ver toda la actividad
+            </Link>
           </CardContent>
         </Card>
 
@@ -277,7 +280,7 @@ export default async function DashboardPage() {
                   ))}
                 </ul>
               )}
-              <Link href="/entrevistas" className="text-sm font-medium underline-offset-4 hover:underline">
+              <Link href="/entrevistas" className="text-sm font-medium text-brand underline underline-offset-4">
                 Ver todas las entrevistas
               </Link>
             </CardContent>

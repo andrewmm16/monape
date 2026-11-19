@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ApplicationStatusBadge, CompatibilityBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -80,12 +81,10 @@ export function ApplicationsBoard({ rows, canManage }: { rows: BoardApplication[
   const discardMoves = [...moves.values()].filter(requiresReason).length;
   const reasonNeeded = discardMoves > 0;
 
-  const handleDrop = (col: BoardColumn, payload: string) => {
-    if (!canManage || !col.dropStatus) return;
-    const id = payload.split("|")[0];
+  // Misma lógica para arrastrar y para «Mover a…» (útil en pantallas táctiles).
+  const moveCard = (id: string, target: Status) => {
     const card = rows.find((row) => row.id === id);
-    if (!id || !card) return;
-    const target = col.dropStatus;
+    if (!canManage || !card) return;
     setMoves((current) => {
       const next = new Map(current);
       // Volver a la columna original cancela el movimiento pendiente.
@@ -93,6 +92,11 @@ export function ApplicationsBoard({ rows, canManage }: { rows: BoardApplication[
       else next.set(id, target);
       return next;
     });
+  };
+
+  const handleDrop = (col: BoardColumn, payload: string) => {
+    if (!col.dropStatus) return;
+    moveCard(payload.split("|")[0], col.dropStatus);
   };
 
   const revert = () => {
@@ -181,6 +185,27 @@ export function ApplicationsBoard({ rows, canManage }: { rows: BoardApplication[
                       <CompatibilityBadge level={card.level} />
                       {col.key === "descartados" && card.status ? <ApplicationStatusBadge status={card.status} /> : null}
                     </div>
+                    {canManage ? (
+                      <label className="relative mt-2 block">
+                        <span className="sr-only">Mover a {card.candidate_name ?? "candidato"}</span>
+                        <NativeSelect
+                          size="sm"
+                          className="w-full"
+                          value=""
+                          onChange={(event) => {
+                            const target = event.target.value as Status;
+                            if (target) moveCard(card.id, target);
+                          }}
+                        >
+                          <NativeSelectOption value="">Mover a…</NativeSelectOption>
+                          {BOARD_COLUMNS.filter((other) => other.dropStatus && other.key !== col.key).map((other) => (
+                            <NativeSelectOption key={other.key} value={other.dropStatus!}>
+                              {other.label}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </label>
+                    ) : null}
                   </article>
                 );
               })}
@@ -192,7 +217,7 @@ export function ApplicationsBoard({ rows, canManage }: { rows: BoardApplication[
 
       {canManage && !dirty ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Arrastre las tarjetas entre columnas; abajo podrá confirmar todos los cambios juntos. «Evaluación post-entrevista» la
+          Arrastre las tarjetas entre columnas o use «Mover a…» en cada una; abajo podrá confirmar todos los cambios juntos. «Evaluación post-entrevista» la
           asigna la entrevista, no se arrastra.
         </p>
       ) : null}

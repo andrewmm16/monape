@@ -180,6 +180,83 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const evaluationHref = typeof search.evaluacion === "string" ? `?evaluacion=${encodeURIComponent(search.evaluacion)}` : "?";
   const questionsHref = `?vista=preguntas#${INTERVIEW_GUIDE_ANCHOR}`;
 
+  // Evaluar y sus avisos: dentro de la tarjeta de cumplimiento, junto a lo que evalúan.
+  const evaluateActions = canEvaluate ? (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <ActionButton
+          action={runEvaluation.bind(null, application.id, "reglas")}
+          disabled={!criteriaApproved}
+          pendingLabel="Evaluando…"
+          variant={evaluations.length > 0 ? "outline" : "default"}
+        >
+          {evaluations.length > 0 ? "Volver a evaluar" : "Evaluar con motor de reglas"}
+        </ActionButton>
+        {ai?.available && aiQueued ? (
+          <ActionButton
+            variant="outline"
+            action={requestAiEvaluationAction.bind(null, application.id)}
+            disabled={!criteriaApproved || Boolean(aiJob?.active)}
+            pendingLabel="Enviando a la cola…"
+            confirm={{
+              title: "¿Evaluar con IA?",
+              description:
+                "Se pondrá en cola el texto del CV, sin datos de contacto, para el proveedor de IA aprobado por la empresa. El resultado aparecerá en esta página en unos minutos; se verificará contra el CV y deberá revisarlo RRHH.",
+              confirmLabel: "Evaluar con IA",
+            }}
+          >
+            {aiJob?.active ? "IA en cola" : "Evaluar con IA"}
+          </ActionButton>
+        ) : ai?.available ? (
+          <ActionButton
+            variant="outline"
+            action={runEvaluation.bind(null, application.id, "ia")}
+            disabled={!criteriaApproved}
+            pendingLabel="Consultando al asistente de IA…"
+            confirm={{
+              title: "¿Evaluar con IA?",
+              description:
+                "Se enviará el texto del CV, sin datos de contacto, al proveedor de IA aprobado por la empresa. La propuesta del modelo se verificará contra el CV y deberá revisarla RRHH.",
+              confirmLabel: "Evaluar con IA",
+            }}
+          >
+            Evaluar con IA
+          </ActionButton>
+        ) : null}
+        <span className="text-xs text-muted-foreground">
+          CV evaluado:{" "}
+          {application.resume
+            ? `versión ${application.resume.version} (${application.resume.original_filename})`
+            : currentResume
+              ? `versión vigente (${currentResume.version})`
+              : "el candidato aún no tiene CV"}
+        </span>
+      </div>
+      {aiJob ? <AiJobStatus message={aiJob.message} tone={aiJob.tone} active={aiJob.active} /> : null}
+      {aiWorkerNotice ? (
+        <p role="status" className="rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
+          {aiWorkerNotice.message}
+        </p>
+      ) : null}
+      {newerResume && canManage ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
+          <span>Existe una versión más reciente del CV (v{newerResume.version}).</span>
+          <ActionButton size="sm" variant="outline" action={linkCurrentResume.bind(null, application.id)}>
+            Usar versión {newerResume.version}
+          </ActionButton>
+        </div>
+      ) : null}
+      {!criteriaApproved ? (
+        <p className="text-sm text-warning-foreground">
+          Los criterios de la vacante no están aprobados.{" "}
+          <Link href={`/vacantes/${application.vacancy.id}?tab=criterios`} className="underline">
+            Revisarlos
+          </Link>
+        </p>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
     <>
       <PageHeader
@@ -248,81 +325,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
           {view === "preguntas" ? <InterviewGuideCard guide={interviewGuide} topics={interviewTopics} /> : null}
 
-          {view === "evaluacion" && canEvaluate ? (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <ActionButton
-                  action={runEvaluation.bind(null, application.id, "reglas")}
-                  disabled={!criteriaApproved}
-                  pendingLabel="Evaluando…"
-                  variant={evaluations.length > 0 ? "outline" : "default"}
-                >
-                  {evaluations.length > 0 ? "Volver a evaluar" : "Evaluar con motor de reglas"}
-                </ActionButton>
-                {ai?.available && aiQueued ? (
-                  <ActionButton
-                    variant="outline"
-                    action={requestAiEvaluationAction.bind(null, application.id)}
-                    disabled={!criteriaApproved || Boolean(aiJob?.active)}
-                    pendingLabel="Enviando a la cola…"
-                    confirm={{
-                      title: "¿Evaluar con IA?",
-                      description:
-                        "Se pondrá en cola el texto del CV, sin datos de contacto, para el proveedor de IA aprobado por la empresa. El resultado aparecerá en esta página en unos minutos; se verificará contra el CV y deberá revisarlo RRHH.",
-                      confirmLabel: "Evaluar con IA",
-                    }}
-                  >
-                    {aiJob?.active ? "IA en cola" : "Evaluar con IA"}
-                  </ActionButton>
-                ) : ai?.available ? (
-                  <ActionButton
-                    variant="outline"
-                    action={runEvaluation.bind(null, application.id, "ia")}
-                    disabled={!criteriaApproved}
-                    pendingLabel="Consultando al asistente de IA…"
-                    confirm={{
-                      title: "¿Evaluar con IA?",
-                      description:
-                        "Se enviará el texto del CV, sin datos de contacto, al proveedor de IA aprobado por la empresa. La propuesta del modelo se verificará contra el CV y deberá revisarla RRHH.",
-                      confirmLabel: "Evaluar con IA",
-                    }}
-                  >
-                    Evaluar con IA
-                  </ActionButton>
-                ) : null}
-                <span className="text-xs text-muted-foreground">
-                  CV evaluado:{" "}
-                  {application.resume
-                    ? `versión ${application.resume.version} (${application.resume.original_filename})`
-                    : currentResume
-                      ? `versión vigente (${currentResume.version})`
-                      : "el candidato aún no tiene CV"}
-                </span>
-              </div>
-              {aiJob ? <AiJobStatus message={aiJob.message} tone={aiJob.tone} active={aiJob.active} /> : null}
-              {aiWorkerNotice ? (
-                <p role="status" className="rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
-                  {aiWorkerNotice.message}
-                </p>
-              ) : null}
-              {newerResume && canManage ? (
-                <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning-foreground/40 bg-warning px-3 py-2 text-sm text-warning-foreground">
-                  <span>Existe una versión más reciente del CV (v{newerResume.version}).</span>
-                  <ActionButton size="sm" variant="outline" action={linkCurrentResume.bind(null, application.id)}>
-                    Usar versión {newerResume.version}
-                  </ActionButton>
-                </div>
-              ) : null}
-              {!criteriaApproved ? (
-                <p className="text-sm text-warning-foreground">
-                  Los criterios de la vacante no están aprobados.{" "}
-                  <Link href={`/vacantes/${application.vacancy.id}?tab=criterios`} className="underline">
-                    Revisarlos
-                  </Link>
-                </p>
-              ) : null}
-            </div>
-          ) : null}
 
           {view === "evaluacion" ? (
             <>
@@ -337,6 +339,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             currentCriteriaVersion={application.vacancy.criteria_version}
             canReview={can(user.role, "evaluations:review")}
             verifications={verifications}
+            actions={evaluateActions}
           />
             </>
           ) : null}

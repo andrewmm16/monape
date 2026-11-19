@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { AccessDenied } from "@/components/common/access-denied";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
@@ -12,11 +13,45 @@ import { requirePageUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AUDIT_GROUPS, AUDIT_GROUP_KEYS, describeAuditEntry } from "@/modules/audit/labels";
+import { describeAuditGroup, groupAuditRows, groupTimeRange } from "@/modules/audit/grouping";
 import { AUDIT_PAGE_SIZE, listAuditLog } from "@/modules/audit/queries";
 import { auditParamsSchema } from "@/modules/audit/schemas";
 import { listActiveProfiles } from "@/modules/users/queries";
 
 export const metadata: Metadata = { title: "Auditoría" };
+
+type AuditPageData = Awaited<ReturnType<typeof listAuditLog>>;
+
+function EntryRow({ row, context }: { row: AuditPageData["rows"][number]; context: AuditPageData["context"] }) {
+  const { text, href, details } = describeAuditEntry(row, context);
+  return (
+    <li className="space-y-1 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 break-words">{text}</p>
+        {href ? (
+          <Link href={href} className="shrink-0 text-sm text-primary hover:underline">
+            Abrir ›
+          </Link>
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {formatDateTime(row.created_at)} · {row.actor_name}
+        {row.ordered_by_name ? ` · por orden de ${row.ordered_by_name}` : ""}
+      </p>
+      {details.length > 0 ? (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer select-none py-1 hover:text-foreground">Ver detalle técnico</summary>
+          <ul className="mt-1 space-y-0.5 break-words">
+            {row.actor_detail ? <li>{row.actor_detail}</li> : null}
+            {details.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </li>
+  );
+}
 
 export default async function AuditPage({ searchParams }: PageProps<"/auditoria">) {
   const user = await requirePageUser();
@@ -85,33 +120,29 @@ export default async function AuditPage({ searchParams }: PageProps<"/auditoria"
         />
       ) : (
         <ul className="divide-y overflow-hidden rounded-md border bg-card shadow-xs">
-          {rows.map((row) => {
-            const { text, href, details } = describeAuditEntry(row, context);
+          {groupAuditRows(rows).map((item) => {
+            if (item.kind === "single") return <EntryRow key={item.row.id} row={item.row} context={context} />;
+            const oldest = item.rows[item.rows.length - 1].created_at;
+            const newest = item.rows[0].created_at;
+            const range = groupTimeRange(item.rows) ?? `entre ${formatDateTime(oldest)} y ${formatDateTime(newest)}`;
             return (
-              <li key={row.id} className="space-y-1 px-3 py-2.5 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 break-words">{text}</p>
-                  {href ? (
-                    <Link href={href} className="shrink-0 text-sm text-primary hover:underline">
-                      Abrir ›
-                    </Link>
-                  ) : null}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTime(row.created_at)} · {row.actor_name}
-                  {row.ordered_by_name ? ` · por orden de ${row.ordered_by_name}` : ""}
-                </p>
-                {details.length > 0 ? (
-                  <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer select-none py-1 hover:text-foreground">Ver detalle técnico</summary>
-                    <ul className="mt-1 space-y-0.5 break-words">
-                      {row.actor_detail ? <li>{row.actor_detail}</li> : null}
-                      {details.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : null}
+              <li key={item.key} className="text-sm">
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-start gap-2 px-3 py-2.5 select-none hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+                    <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                    <span className="min-w-0 break-words">
+                      {describeAuditGroup(item)} · {range}
+                      <span className="block text-xs text-muted-foreground">
+                        {formatDateTime(newest)} · {item.actorName} · ver cada una
+                      </span>
+                    </span>
+                  </summary>
+                  <ul className="divide-y border-t bg-muted/20 pl-4 sm:pl-6">
+                    {item.rows.map((row) => (
+                      <EntryRow key={row.id} row={row} context={context} />
+                    ))}
+                  </ul>
+                </details>
               </li>
             );
           })}

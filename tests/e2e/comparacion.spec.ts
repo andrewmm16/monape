@@ -150,6 +150,10 @@ test("RRHH compara candidatos: los mejores, la selección manual y un «no cumpl
 
   // Con 2 columnas no se puede quitar a nadie; con identificadores inválidos hay un mensaje claro.
   await expect(page.getByRole("link", { name: /^Quitar a / })).toHaveCount(0);
+  // Sin candidatos elegidos: estado vacío neutro, no un error.
+  await page.goto(`${vacancyUrl}/comparar`);
+  await expect(page.getByText("Aún no eligió candidatos para comparar")).toBeVisible();
+  await expect(page.locator('[data-slot="alert"]')).toHaveCount(0);
   await page.goto(`${vacancyUrl}/comparar?ids=no-es-un-uuid,otro`);
   await expect(page.getByText("No se puede mostrar la comparación")).toBeVisible();
   await expect(page.getByText(/identificador incorrecto/)).toBeVisible();

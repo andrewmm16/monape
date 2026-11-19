@@ -47,7 +47,7 @@ export default async function InterviewsPage({ searchParams }: PageProps<"/entre
           ))}
         </NativeSelect>
         <Button type="submit" variant="outline">
-          Filtrar
+          Aplicar
         </Button>
       </form>
 

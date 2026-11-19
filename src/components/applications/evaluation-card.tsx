@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { AssessmentBadge, CompatibilityBadge } from "@/components/common/badges";
 import { EmptyState } from "@/components/common/empty-state";
@@ -162,6 +163,7 @@ export function EvaluationCard({
   currentCriteriaVersion,
   canReview,
   verifications = [],
+  actions = null,
 }: {
   applicationId: string;
   evaluation: Evaluation | null;
@@ -174,12 +176,15 @@ export function EvaluationCard({
   currentCriteriaVersion: number;
   canReview: boolean;
   verifications?: Verification[];
+  /** Botones para (volver a) evaluar y sus avisos: van dentro de la tarjeta, junto a lo que evalúan. */
+  actions?: ReactNode;
 }) {
   if (!evaluation) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Cumplimiento del puesto</CardTitle>
+          {actions}
         </CardHeader>
         <CardContent>
           <EmptyState
@@ -220,7 +225,7 @@ export function EvaluationCard({
           {isAiEvaluation ? (
             <>
               Evaluación con IA: segunda opinión sobre la del motor de reglas.{" "}
-              <Link href={`/postulaciones/${applicationId}`} className="underline underline-offset-4">
+              <Link href={`/postulaciones/${applicationId}`} className="font-medium text-brand underline underline-offset-4">
                 Volver a la evaluación del motor
               </Link>
             </>
@@ -233,6 +238,7 @@ export function EvaluationCard({
             Los criterios de la vacante cambiaron después de esta evaluación. Vuelva a evaluar.
           </p>
         ) : null}
+        {actions}
       </CardHeader>
       <CardContent className="space-y-6">
         <ScoreMeter score={evaluation.score} potential={evaluation.score_potential} />
@@ -263,7 +269,7 @@ export function EvaluationCard({
             </p>
             <Link
               href={`/postulaciones/${applicationId}?evaluacion=${secondOpinion.evaluation.id}`}
-              className="text-xs underline underline-offset-4"
+              className="text-xs font-medium text-brand underline underline-offset-4"
             >
               Ver la evaluación completa de la IA
             </Link>
@@ -284,10 +290,6 @@ export function EvaluationCard({
 
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">Detalle por requisito</h3>
-          <div className="hidden grid-cols-2 gap-0 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase sm:grid">
-            <span>Lo que busca el puesto</span>
-            <span className="pl-4">Lo que dice el CV</span>
-          </div>
           <ul className="space-y-2">
             {items.map((item) => {
               const evidence = (Array.isArray(item.evidence) ? item.evidence : []) as Evidence[];
@@ -301,18 +303,16 @@ export function EvaluationCard({
               const aiKind = aiItem ? secondOpinionKind(item.assessment, aiItem.assessment) : null;
               return (
                 <li key={item.id} className="overflow-hidden rounded-md border">
-                  <div className="grid sm:grid-cols-2 sm:divide-x">
-                    <div className="space-y-1.5 p-3">
-                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase sm:hidden">Lo que busca el puesto</p>
+                  {/* Cabecera a todo el ancho: lo que busca el puesto y su resultado. Debajo, lo que dice el CV. */}
+                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5 border-b bg-muted/40 px-3 py-2">
+                    <div className="min-w-0 space-y-1">
                       <p className="font-medium">{item.description}</p>
                       <div className="flex flex-wrap gap-1.5">
                         <Badge variant="outline">{item.priority === "obligatorio" ? "Obligatorio" : "Deseable"}</Badge>
                         {item.is_essential ? <Badge variant="outline">Legal o esencial</Badge> : null}
                       </div>
                     </div>
-                    <div className="space-y-2 border-t p-3 sm:border-t-0">
-                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase sm:hidden">Lo que dice el CV</p>
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                         {verified ? <OriginBadge item={item} /> : null}
                         {verified ? (
                           <span
@@ -333,7 +333,9 @@ export function EvaluationCard({
                             {item.resolved_by === "ia" ? "Resuelto por la IA" : "Regla aprendida"}
                           </Badge>
                         ) : null}
-                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 p-3">
                       {verified && item.verification_source ? (
                         <p className="text-sm">
                           Verificado en {VERIFICATION_SOURCE_PHRASES[item.verification_source]} el {formatNumericDate(item.verified_at)} por{" "}
@@ -413,7 +415,6 @@ export function EvaluationCard({
                           ) : null}
                         </div>
                       ) : null}
-                    </div>
                   </div>
                 </li>
               );

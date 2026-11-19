@@ -10,8 +10,9 @@ import { Constants } from "@/types/database";
 export function UserRowActions({ userId, role }: { userId: string; role: AppRole }) {
   const [selectedRole, setSelectedRole] = useState<AppRole>(role);
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
       <NativeSelect
+        className="max-sm:w-full sm:min-w-44"
         size="sm"
         aria-label="Rol"
         value={selectedRole}
@@ -26,6 +27,7 @@ export function UserRowActions({ userId, role }: { userId: string; role: AppRole
       <ActionButton
         size="sm"
         variant="outline"
+        className="max-sm:flex-1"
         disabled={selectedRole === role}
         action={() => updateUser({ userId, role: selectedRole })}
       >
@@ -34,6 +36,7 @@ export function UserRowActions({ userId, role }: { userId: string; role: AppRole
       <ActionButton
         size="sm"
         variant="destructive"
+        className="max-sm:flex-1"
         action={() => updateUser({ userId, isActive: false })}
         confirm={{
           title: "¿Desactivar usuario?",

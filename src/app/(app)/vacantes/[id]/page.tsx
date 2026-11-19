@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatCityRegion } from "@/components/vacancies/format-location";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -182,13 +183,14 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
   const criteriaApproved = Boolean(vacancy.criteria_approved_at);
   const blockers = publishBlockers({ requirementCount, criteriaApproved });
 
+  const sameCityRegion = Boolean(vacancy.region?.trim()) && formatCityRegion(vacancy.city, vacancy.region) === vacancy.city?.trim();
   let content: React.ReactNode;
   if (tab === "candidatos") {
     const modo: "tabla" | "tablero" = search.modo === "tablero" ? "tablero" : "tabla";
     const canRun = can(user.role, "evaluations:run");
     const pending = canRun ? await countPendingEvaluations(supabase, vacancy.id) : 0;
     const comparable = await countComparable(supabase, vacancy.id);
-    // Sugerencias de la base de talento: solo si RRHH puede gestionar candidatos y la vacante admite postulaciones.
+    // Sugerencias de la base de talentos: solo si RRHH puede gestionar candidatos y la vacante admite postulaciones.
     const showSuggestions =
       can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada");
     const [suggestedCandidates, replyTo] = showSuggestions
@@ -246,7 +248,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     if (modo === "tablero") {
       const boardRows = await listApplicationsForBoard(supabase, vacancy.id);
       content = (
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {suggestions}
           {actions}
           <ApplicationsBoard rows={boardRows} canManage={canManage} />
@@ -333,7 +335,7 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
             <Detail label="Cierre" value={formatDate(vacancy.closing_date)} />
             <Detail label="Responsable del proceso" value={vacancy.owner?.full_name} />
             <Detail label="Ciudad" value={vacancy.city} />
-            <Detail label="Región" value={vacancy.region} />
+            {sameCityRegion ? null : <Detail label="Región" value={vacancy.region} />}
             <Detail label="Tipo de empleo" value={vacancy.employment_type ? EMPLOYMENT_TYPE_LABELS[vacancy.employment_type] : null} />
             <Detail
               label="Sueldo"

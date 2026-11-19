@@ -114,7 +114,7 @@ export default async function CandidatePage({ params }: PageProps<"/candidatos/[
             <Card>
               <CardHeader>
                 <CardTitle>Etiquetas</CardTitle>
-                <CardDescription>Clasifique al candidato en el pool de talento y añádalo a otras vacantes.</CardDescription>
+                <CardDescription>Clasifique al candidato en la base de talentos y añádalo a otras vacantes.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">

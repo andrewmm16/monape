@@ -16,7 +16,7 @@ const NEUTRAL_TONE = "bg-muted text-muted-foreground";
 
 type Props = { tag: TalentTag } | { name: string; color: string | null };
 
-/** Chip pequeño de una etiqueta del pool de talento, coloreado según su color. */
+/** Chip pequeño de una etiqueta de la base de talentos, coloreado según su color. */
 export function TalentTagBadge(props: Props) {
   const { name, color } = "tag" in props ? props.tag : props;
   const tone = (color && TAG_TONES[color]) || NEUTRAL_TONE;

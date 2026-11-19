@@ -21,6 +21,9 @@ const PAGE = 1000;
 /** Tope de filas leídas por consulta; si se alcanza, el reporte avisa que es parcial. */
 const MAX_ROWS = 20_000;
 
+/** Postulaciones que llegaron por un portal de empleo concreto. */
+export type PortalRow = { portal: string; applications: number; selected: number };
+
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const reportParamsSchema = z.object({
@@ -96,8 +99,34 @@ export async function getReport(supabase: AppSupabaseClient, params: ReportParam
       : [],
   );
 
+  // Desglose por portal de origen (vista application_overview, ya existente).
+  const portalsResult = await fetchAll((from, to) => {
+    let query = supabase
+      .from("application_overview")
+      .select("id, status, portal_name")
+      .not("portal_name", "is", null)
+      .order("id")
+      .range(from, to);
+    if (params.vacante) query = query.eq("vacancy_id", params.vacante);
+    if (fromDate) query = query.gte("applied_at", fromDate);
+    if (toDate) query = query.lte("applied_at", toDate);
+    return query;
+  });
+  const portalMap = new Map<string, PortalRow>();
+  for (const row of portalsResult.rows) {
+    if (!row.portal_name) continue;
+    const entry = portalMap.get(row.portal_name) ?? { portal: row.portal_name, applications: 0, selected: 0 };
+    entry.applications += 1;
+    if (row.status === "seleccionado") entry.selected += 1;
+    portalMap.set(row.portal_name, entry);
+  }
+  const portals = [...portalMap.values()].sort(
+    (a, b) => b.applications - a.applications || a.portal.localeCompare(b.portal, "es"),
+  );
+
   return {
     totalApplications: apps.length,
+    portals,
     kpis: computeKpis(apps),
     funnel: computeFunnel(apps, events),
     side: computeSideCounts(apps),

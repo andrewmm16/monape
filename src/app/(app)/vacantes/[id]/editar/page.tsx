@@ -59,8 +59,8 @@ export default async function EditVacancyPage({ params }: PageProps<"/vacantes/[
         <div>
           <h2 className="text-lg font-semibold">Portales de empleo</h2>
           <p className="text-sm text-muted-foreground">
-            Se guardan aparte del formulario de arriba. Guarde primero los cambios de la vacante: el robot publica la
-            versión guardada.
+            Tienen su propio botón «Guardar cambios», aparte del formulario de arriba. Guarde primero los cambios de la
+            vacante: el robot publica la versión guardada.
           </p>
         </div>
         <PortalsPanel

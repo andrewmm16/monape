@@ -129,7 +129,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
           </label>
           <Input id="hasta" type="date" name="hasta" defaultValue={params.hasta ?? ""} className="sm:w-40" />
         </div>
-        <Button type="submit">Ver reporte</Button>
+        <Button type="submit" variant="outline">Aplicar</Button>
       </form>
       {!selected ? (
         <p className="text-xs text-muted-foreground">Seleccione una vacante para habilitar la exportación a CSV (la exportación no aplica el rango de fechas).</p>
@@ -231,8 +231,31 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
                 <CardTitle>Fuentes de candidatos</CardTitle>
                 <CardDescription>Candidatos distintos por fuente y cuántos llegaron a seleccionado (calidad de la fuente).</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
                 <SourcesChart sources={report.sources} />
+                {report.portals.length > 0 ? (
+                  <div>
+                    <h3 className="mb-2 text-sm font-medium">Por portal</h3>
+                    <Table stacked>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Portal</TableHead>
+                          <TableHead className="text-right">Postulaciones</TableHead>
+                          <TableHead className="text-right">A seleccionado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {report.portals.map((portal) => (
+                          <TableRow key={portal.portal}>
+                            <TableCell>{portal.portal}</TableCell>
+                            <TableCell data-label="Postulaciones" className="text-right tabular-nums">{portal.applications}</TableCell>
+                            <TableCell data-label="A seleccionado" className="text-right tabular-nums">{portal.selected}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 

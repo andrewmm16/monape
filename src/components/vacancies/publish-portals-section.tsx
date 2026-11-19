@@ -61,7 +61,7 @@ export function PublishPortalsSection({
     });
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <CardHeader>
         <CardTitle>{reopen ? "Reabrir y publicar la vacante" : "Publicar la vacante"}</CardTitle>
       </CardHeader>
@@ -130,12 +130,12 @@ export function PublishPortalsSection({
           </p>
         ) : null}
 
-        <div className="flex justify-end">
-          <Button type="button" onClick={run} disabled={pending || blocked}>
-            {pending ? "Publicando…" : label}
-          </Button>
-        </div>
       </CardContent>
+      <div className="sticky bottom-0 z-10 -mb-(--card-spacing) flex justify-end rounded-b-xl border-t bg-card px-4 py-3">
+        <Button type="button" onClick={run} disabled={pending || blocked}>
+          {pending ? "Publicando…" : label}
+        </Button>
+      </div>
     </Card>
   );
 }

@@ -160,9 +160,9 @@ test("una entrevista realizada se evalúa en equipo; el candidato cerrado se eti
   await expect(page.getByText("Etiqueta creada y asignada.")).toBeVisible();
   await expect(page.getByRole("list", { name: "Etiquetas del candidato" }).getByText(tagName)).toBeVisible();
 
-  // --- 6. Pool de talento: se filtra por la etiqueta.
+  // --- 6. Base de talentos: se filtra por la etiqueta.
   await page.goto("/candidatos");
-  await page.getByRole("link", { name: "Pool de talento" }).click();
+  await page.getByRole("link", { name: "Base de talentos" }).click();
   await expect(page).toHaveURL(/\/candidatos\/buscar/);
   await page.getByLabel("Etiqueta").selectOption({ label: tagName });
   await page.getByRole("button", { name: "Buscar" }).click();

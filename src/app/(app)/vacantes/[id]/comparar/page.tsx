@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,9 +35,11 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
   const chosenIds = parsed?.ok ? parsed.ids : [];
   const keepChosenOrder = !best && search.orden === "elegido";
 
-  let error: string | null = parsed && !parsed.ok ? parsed.error : null;
+  // Sin candidatos elegidos no es un error: es un punto de partida.
+  const nothingChosen = !best && [search.ids ?? ""].flat().join(",").replace(/[,\s]/g, "") === "";
+  let error: string | null = parsed && !parsed.ok && !nothingChosen ? parsed.error : null;
   let ranked: CompareCandidate[] = [];
-  if (!error) {
+  if (!error && !nothingChosen) {
     const result = await loadComparison(supabase, vacancy.id, best ? { best: true } : { ids: chosenIds });
     ranked = result.candidates;
     if (result.missing) {
@@ -48,7 +51,7 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
     }
   }
 
-  const requirements = error ? [] : await listRequirements(supabase, vacancy.id);
+  const requirements = error || nothingChosen ? [] : await listRequirements(supabase, vacancy.id);
   const rankOf = new Map(ranked.map((candidate, index) => [candidate.id, index + 1]));
   const columns = keepChosenOrder ? [...ranked].sort((a, b) => chosenIds.indexOf(a.id) - chosenIds.indexOf(b.id)) : ranked;
 
@@ -75,12 +78,22 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
         description={RANKING_EXPLANATION}
       />
 
-      {error ? (
+      {nothingChosen ? (
+        <EmptyState
+          title="Aún no eligió candidatos para comparar"
+          description="En la lista de candidatos de la vacante marque de 2 a 4 postulaciones con la casilla de cada fila y pulse «Comparar seleccionados». También puede usar «Comparar los mejores»."
+          action={
+            <Link href={`/vacantes/${vacancy.id}?tab=candidatos`} className={buttonVariants({ variant: "outline" })}>
+              Volver a la lista de candidatos
+            </Link>
+          }
+        />
+      ) : error ? (
         <Alert variant="destructive">
           <AlertTitle>No se puede mostrar la comparación</AlertTitle>
           <AlertDescription>
             {error}{" "}
-            <Link href={`/vacantes/${vacancy.id}?tab=candidatos`} className="underline">
+            <Link href={`/vacantes/${vacancy.id}?tab=candidatos`} className="font-medium text-brand underline underline-offset-4">
               Volver a los candidatos
             </Link>
           </AlertDescription>

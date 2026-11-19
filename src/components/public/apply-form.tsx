@@ -381,7 +381,7 @@ export function ApplyForm({
       <div className="space-y-3 rounded-lg border bg-background px-3 py-3">
         <p className="text-sm">
           Sus datos serán tratados por {companyName} para este proceso de selección.{" "}
-          <Link href={`/empleos/privacidad?v=${noticeId}`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+          <Link href={`/empleos/privacidad?v=${noticeId}`} target="_blank" rel="noopener noreferrer" className="font-medium text-brand underline underline-offset-4">
             Leer el aviso de privacidad completo
           </Link>
         </p>

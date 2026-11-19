@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { EMPLOYMENT_TYPE_LABELS, REQUIREMENT_PRIORITY_LABELS, WORK_MODALITY_LABELS } from "@/lib/labels";
 import { logServerError } from "@/lib/errors";
 import { ApplyForm } from "@/components/public/apply-form";
+import { formatCityRegion } from "@/components/vacancies/format-location";
 import { getOnlineApplyConfig } from "@/modules/online-apply/config";
 import { getCurrentPrivacyNotice } from "@/modules/privacy/queries";
 import { getPublicJobsConfig, requirePublicJobsConfig } from "@/modules/public-jobs/config";
@@ -85,7 +86,7 @@ export default async function PublicJobPage({ params }: PageProps<"/empleos/[slu
   }
   const offersForm = notice !== null;
   const jsonLd = serializeJsonLd(buildJobPosting(vacancy, site, { directApply: offersForm }));
-  const location = [vacancy.city, vacancy.region].filter(Boolean).join(", ");
+  const location = formatCityRegion(vacancy.city, vacancy.region);
 
   return (
     <article className="space-y-6">

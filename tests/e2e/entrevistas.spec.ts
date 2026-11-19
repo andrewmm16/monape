@@ -164,7 +164,7 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
 
   // Filtro por vacante: otra vacante no muestra esta entrevista.
   await page.getByLabel("Vacante").selectOption({ label: title });
-  await page.getByRole("button", { name: "Filtrar" }).click();
+  await page.getByRole("button", { name: "Aplicar" }).click();
   await expect(page).toHaveURL(/vacante=/);
   await expect(page.getByTestId("interview-item").filter({ hasText: names.pass })).toHaveCount(1);
 

@@ -75,6 +75,9 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
           <Field data-invalid={Boolean(errors.location)}>
             <FieldLabel htmlFor="location">Ubicación</FieldLabel>
             <Input id="location" {...form.register("location")} />
+            <FieldDescription>
+              Texto libre para el equipo, por ejemplo «Sede San Isidro». Se ve en la ficha y en la lista de vacantes.
+            </FieldDescription>
             <FieldError errors={[errors.location]} />
           </Field>
           <Field>
@@ -118,11 +121,15 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
             <Field data-invalid={Boolean(errors.city)}>
               <FieldLabel htmlFor="city">Ciudad</FieldLabel>
               <Input id="city" {...form.register("city")} />
+              <FieldDescription>Ciudad o distrito del puesto. Se muestra en la página pública y en Google.</FieldDescription>
               <FieldError errors={[errors.city]} />
             </Field>
             <Field data-invalid={Boolean(errors.region)}>
               <FieldLabel htmlFor="region">Región</FieldLabel>
               <Input id="region" {...form.register("region")} />
+              <FieldDescription>
+                Departamento o región. Si coincide con la ciudad (por ejemplo, Lima), la página pública no lo repite.
+              </FieldDescription>
               <FieldError errors={[errors.region]} />
             </Field>
             <Field>
@@ -184,7 +191,7 @@ export function VacancyForm({ vacancyId, defaultValues, owners }: Props) {
             )}
           />
 
-        <div className="flex gap-2">
+        <div className="sticky bottom-0 z-10 -mx-1 flex gap-2 border-t bg-background px-1 py-3">
           <Button type="submit" disabled={pending}>
             {pending ? "Guardando…" : vacancyId ? "Guardar cambios" : "Crear vacante"}
           </Button>

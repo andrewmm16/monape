@@ -77,7 +77,7 @@ export function PortalPicker({
   const withDetails = rows.filter((row) => row.publication);
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Checkbox
@@ -89,24 +89,6 @@ export function PortalPicker({
           <Label htmlFor="portales-todos" className="font-medium">
             Seleccionar todos los disponibles
           </Label>
-        </div>
-        <div className="flex items-center gap-2">
-          {changes > 0 ? (
-            <Button type="button" variant="ghost" onClick={() => setTouched(new Map())}>
-              Descartar
-            </Button>
-          ) : null}
-          <ActionButton
-            disabled={changes === 0}
-            action={() => applyPortalSelection(vacancyId, add, remove)}
-            confirm={{
-              title: "¿Guardar los cambios de portales?",
-              description: `Se va a ${changeSummary}. El robot trabaja desde la cuenta de la empresa en cada portal: confirme que la empresa autorizó la automatización. Retirar una oferta no borra las postulaciones ya recibidas.`,
-              confirmLabel: "Guardar cambios",
-            }}
-          >
-            {changes === 0 ? "Sin cambios" : `Guardar cambios (${changes})`}
-          </ActionButton>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -131,7 +113,7 @@ export function PortalPicker({
                   htmlFor={id}
                   className={cn(
                     "relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border bg-card p-3 text-center transition-colors",
-                    enabled ? "cursor-pointer hover:bg-accent/40" : "cursor-not-allowed opacity-60",
+                    enabled ? "cursor-pointer hover:bg-accent/40" : "cursor-not-allowed bg-muted/40",
                     checked && "border-brand bg-brand/5 ring-2 ring-brand/40",
                   )}
                 >
@@ -142,7 +124,7 @@ export function PortalPicker({
                     disabled={!enabled}
                     onCheckedChange={(value) => setOne(portal.id, value === true)}
                   />
-                  <span className="flex h-14 w-full items-center justify-center">
+                  <span className={cn("flex h-14 w-full items-center justify-center", !enabled && "opacity-60")}>
                     {logo ? (
                       <Image src={logo} alt="" width={56} height={56} unoptimized className="size-14 rounded-md object-contain" />
                     ) : (
@@ -157,7 +139,7 @@ export function PortalPicker({
                   <span className="text-sm font-medium leading-tight">{portal.name}</span>
                   <span className="flex min-h-5 flex-wrap items-center justify-center gap-1">
                     {publication ? <PortalPublicationBadge status={publication.status} /> : null}
-                    {note ? <span className="text-xs text-muted-foreground">{note}</span> : null}
+                    {note ? <span className="text-xs text-foreground/75">{note}</span> : null}
                   </span>
                 </label>
               </li>
@@ -202,6 +184,26 @@ export function PortalPicker({
           </div>
         ) : null}
       </CardContent>
+      {/* Un solo guardado, al final de la lista y fijo abajo para que siempre esté a mano. */}
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 -mb-(--card-spacing) rounded-b-xl border-t bg-card px-4 py-3">
+        {changes > 0 ? <p className="mr-auto text-sm text-muted-foreground">{changeSummary}</p> : null}
+        {changes > 0 ? (
+          <Button type="button" variant="ghost" onClick={() => setTouched(new Map())}>
+            Descartar
+          </Button>
+        ) : null}
+        <ActionButton
+          disabled={changes === 0}
+          action={() => applyPortalSelection(vacancyId, add, remove)}
+          confirm={{
+            title: "¿Guardar los cambios de portales?",
+            description: `Se va a ${changeSummary}. El robot trabaja desde la cuenta de la empresa en cada portal: confirme que la empresa autorizó la automatización. Retirar una oferta no borra las postulaciones ya recibidas.`,
+            confirmLabel: "Guardar cambios",
+          }}
+        >
+          {changes === 0 ? "Sin cambios" : `Guardar cambios (${changes})`}
+        </ActionButton>
+      </div>
     </Card>
   );
 }

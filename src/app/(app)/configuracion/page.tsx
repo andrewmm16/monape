@@ -45,7 +45,7 @@ export default async function ConfigIndexPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Configuración" title="Configuración" description="Ajustes del área de Recursos Humanos." />
+      <PageHeader title="Configuración" description="Ajustes del área de Recursos Humanos." />
       <div className="grid gap-4 sm:grid-cols-2">
         {options.map((option) => (
           <Link key={option.href} href={option.href} className="block">

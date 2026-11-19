@@ -2,10 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,17 +94,27 @@ export function TemplateEditor({
     });
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle>{label}</CardTitle>
-          <Badge variant="outline" className={isEdited ? "bg-info text-info-foreground border-transparent" : "text-muted-foreground"}>
-            {isEdited ? "Personalizada" : "Texto original"}
-          </Badge>
-        </div>
-        <CardDescription>{when}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card className="py-0">
+      {/* El contenido sigue montado al plegar (details), así no se pierde lo que se está escribiendo. */}
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-start gap-3 p-4 select-none hover:bg-muted/40 sm:items-center sm:px-6 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="text-base">{label}</CardTitle>
+              <Badge variant="outline" className={isEdited ? "bg-info text-info-foreground border-transparent" : "text-muted-foreground"}>
+                {isEdited ? "Personalizada" : "Texto por defecto"}
+              </Badge>
+              {dirty ? <span className="text-xs text-muted-foreground">Cambios sin guardar</span> : null}
+            </div>
+            <p className="text-sm text-muted-foreground">{when}</p>
+          </div>
+          <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-foreground underline-offset-4 group-hover:underline">
+            <span className="group-open:hidden">Editar</span>
+            <span className="hidden group-open:inline">Cerrar</span>
+            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+        <CardContent className="space-y-4 border-t py-4 sm:px-6">
         <Field>
           <FieldLabel htmlFor={`subject-${templateKey}`}>Asunto</FieldLabel>
           <Input
@@ -145,8 +156,12 @@ export function TemplateEditor({
           </div>
         </Field>
 
-        <div className="rounded-md border bg-muted/30 p-3">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">Vista previa (con datos de ejemplo)</p>
+        <details className="group/preview rounded-md border bg-muted/30">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-3 text-xs font-medium text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
+            <ChevronRight aria-hidden className="size-4 transition-transform group-open/preview:rotate-90" />
+            Vista previa (con datos de ejemplo)
+          </summary>
+          <div className="border-t p-3">
           <p className="text-sm font-semibold">{previewSubject || "(sin asunto)"}</p>
           <div className="mt-2 space-y-2 text-sm">
             <p>Hola {previewVars.nombre},</p>
@@ -168,7 +183,8 @@ export function TemplateEditor({
             </p>
             {extras ? <p className="border-t pt-2 text-xs text-muted-foreground">{extras.footer}</p> : null}
           </div>
-        </div>
+          </div>
+        </details>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={save} disabled={pending || !dirty || !valid}>
@@ -180,7 +196,8 @@ export function TemplateEditor({
             </Button>
           ) : null}
         </div>
-      </CardContent>
+        </CardContent>
+      </details>
     </Card>
   );
 }

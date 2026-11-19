@@ -36,7 +36,7 @@ export default async function PrivacySettingsPage() {
           <>
             Versiones del aviso que se muestra a los postulantes. Solo se activa un texto aprobado por el área legal. La
             versión vigente se publica en{" "}
-            <Link href="/empleos/privacidad" className="underline">
+            <Link href="/empleos/privacidad" className="font-medium text-brand underline underline-offset-4">
               /empleos/privacidad
             </Link>
             .
