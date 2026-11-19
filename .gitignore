@@ -93,3 +93,7 @@ next-env.d.ts
 
 # Servidores locales lanzados con scripts/servidores.cmd (PID y registros)
 /.servidores/
+
+# Carpetas locales que no son del proyecto: capturas sueltas de revisiones y documentos externos
+/after/
+/externas/
