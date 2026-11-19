@@ -49,6 +49,25 @@ const OCR_ROUTES = [
   "/api/integraciones/talent/postular/[code]/[token]",
 ];
 
+/**
+ * Fuentes estándar y mapas de caracteres de PDF.js (`pdfjs-dist`). `unpdf` los
+ * usa si encuentra el paquete; sin ellos, al dibujar un PDF con fuentes estándar
+ * no incrustadas depende de las fuentes del servidor (Vercel no tiene), y la
+ * detección de texto sin contraste se omite en silencio (ensayo en Linux del
+ * 19/11/2026). `unpdf` los busca en tiempo de ejecución: el rastreo no los ve.
+ */
+const PDF_FONT_FILES = [
+  "./node_modules/pdfjs-dist/package.json",
+  "./node_modules/pdfjs-dist/standard_fonts/**/*",
+  "./node_modules/pdfjs-dist/cmaps/**/*",
+];
+
+/** Rutas que leen PDF (extracción y contraste): las de OCR y las que solo extraen. */
+const PDF_ROUTES = [...OCR_ROUTES, "/postulaciones/[id]", "/api/bot/postulantes", "/api/evaluar-cv"];
+
+// Los corchetes de las rutas dinámicas se escapan para picomatch.
+const routeGlob = (route: string) => route.replace(/[[\]]/g, "\\$&");
+
 const nextConfig: NextConfig = {
   cacheComponents: false,
   partialPrefetching: false,
@@ -65,8 +84,7 @@ const nextConfig: NextConfig = {
   // tesseract.js y @napi-rs/canvas (OCR local) cargan binarios, WASM y workers por ruta.
   serverExternalPackages: ["unpdf", "mammoth", "tesseract.js", "@napi-rs/canvas"],
   outputFileTracingIncludes: Object.fromEntries(
-    // Los corchetes de las rutas dinámicas se escapan para picomatch.
-    OCR_ROUTES.map((route) => [route.replace(/[[\]]/g, "\\$&"), OCR_RUNTIME_FILES]),
+    PDF_ROUTES.map((route) => [routeGlob(route), [...(OCR_ROUTES.includes(route) ? OCR_RUNTIME_FILES : []), ...PDF_FONT_FILES]]),
   ),
   experimental: {
     serverActions: {

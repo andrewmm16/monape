@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, sep } from "node:path";
 import { createIsomorphicCanvasFactory, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
 import { extractHeaderFooterText, inspectDocx, repackTextParts } from "./docx.ts";
@@ -147,9 +150,38 @@ async function pdfToPages(pdf: TextDocument, lowContrast: boolean): Promise<PdfP
   return pages;
 }
 
+/**
+ * Fuentes estándar de PDF.js (`pdfjs-dist/standard_fonts`) como RUTA del disco.
+ * Un PDF con fuentes estándar no incrustadas (Helvetica, Times…) se dibuja con
+ * ellas y no con las del servidor, que en Vercel no existen: sin esto la
+ * detección de texto sin contraste veía la página en blanco y se omitía en
+ * silencio. `unpdf` las pasa como URL `file://`, que la lectura de Node no
+ * acepta, y además pide las fuentes del sistema: por eso se fijan aquí
+ * (comprobado en un Linux sin fuentes el 19/11/2026). Si no están, se sigue
+ * como antes.
+ */
+let standardFontOptionsCache: { standardFontDataUrl: string; useSystemFonts: false } | null | undefined;
+function standardFontOptions(): { standardFontDataUrl: string; useSystemFonts: false } | null {
+  if (standardFontOptionsCache !== undefined) return standardFontOptionsCache;
+  const candidates = [join(process.cwd(), "node_modules", "pdfjs-dist", "standard_fonts")];
+  try {
+    candidates.push(join(dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")), "standard_fonts"));
+  } catch {
+    // Sin pdfjs-dist resoluble desde aquí: queda la ruta del proyecto.
+  }
+  const dir = candidates.find((d) => existsSync(join(d, "LiberationSans-Regular.ttf")));
+  // PDF.js exige que termine en «/» (también en Windows, donde Node acepta «C:/…»).
+  standardFontOptionsCache = dir ? { standardFontDataUrl: `${dir.split(sep).join("/")}/`, useSystemFonts: false } : null;
+  return standardFontOptionsCache;
+}
+
 async function extractPdfParts(bytes: Uint8Array, lowContrast: boolean): Promise<ExtractedParts> {
   // PDF.js 6 no evalúa código de fuentes; además se desactivan formularios XFA.
-  const pdf = (await getDocumentProxy(new Uint8Array(bytes), { enableXfa: false, stopAtErrors: false })) as unknown as TextDocument;
+  const pdf = (await getDocumentProxy(new Uint8Array(bytes), {
+    enableXfa: false,
+    stopAtErrors: false,
+    ...standardFontOptions(),
+  })) as unknown as TextDocument;
   try {
     const pages = await pdfToPages(pdf, lowContrast);
     return assembleVisibleText(pages);
