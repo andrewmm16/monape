@@ -1,0 +1,1596 @@
+{
+  "01_analista-atencion-cliente_fuerte.pdf": {
+    "vacante": "Analista de Atención al Cliente",
+    "nivel": "fuerte",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Bachiller en Administración de Empresas (U. Peruana del Norte, 2013-2017) y Técnico en Atención al Cliente (2012).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Asesora SAC 2018-2021 (~3 años) + Analista desde mar 2021 hasta nov 2026 (5a8m): ~8 años en contact center.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Resuelve reclamos de facturación y servicio técnico (92% en primer contacto); reclamos inbound 2018-2021.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Gestiona tickets en Zendesk (2021-actualidad) y registra casos en CRM Salesforce.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Seguimiento semanal de NPS y CSAT; su guion de cierre subió el CSAT de 4.1 a 4.5.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Capacitó a 14 asesores nuevos en gestión de reclamos; curso Formación de formadores (2023).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "acreditado",
+        "nota": "Inglés B2 certificado, nivel superior al intermedio pedido.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo declara 'Comunicación asertiva' en habilidades; es competencia blanda a verificar en entrevista.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Atención por teléfono, chat y correo; atención telefónica inbound; reconocimiento por calidad de llamada.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "02_analista-atencion-cliente_medio.pdf": {
+    "vacante": "Analista de Atención al Cliente",
+    "nivel": "medio",
+    "diseno": "computrabajo",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Administración de Empresas, 6to ciclo en curso (UTM, 2022-actualidad). Aún no es egresado ni titulado.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Asesor de Ventas y Atención jun 2021-nov 2026 ≈5a5m (clientes, devoluciones, reclamos) + call center feb 2020-mar 2021 ≈1a1m.",
+        "dudosa": true,
+        "motivo": "El cargo en tienda mezcla ventas con atención; algunos podrían no contarlo entero como atención al cliente."
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo «atención de reclamos simples» y devoluciones en tienda; no describe la gestión completa de reclamos.",
+        "dudosa": true,
+        "motivo": "Atender reclamos puede verse como gestión de reclamos o como evidencia parcial por ser «simples»."
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Indica «Sistema de tickets (uso básico)» sin nombrar herramienta ni uso en un cargo; dice querer aprender sistemas de atención.",
+        "dudosa": true,
+        "motivo": "La mención explícita de un sistema de tickets podría bastar, pues el requisito no exige nivel."
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Hizo encuestas de satisfacción por teléfono; no menciona NPS ni CSAT ni el manejo de indicadores.",
+        "dudosa": true,
+        "motivo": "Aplicar encuestas no equivale claramente a manejar indicadores; podría verse como sin evidencia."
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona capacitación de personal ni formación de equipos.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara inglés básico, por debajo del intermedio pedido.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo se autodeclara con «facilidad de palabra»; es una competencia blanda que se verifica en entrevista.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Llamadas outbound en call center, consultas por WhatsApp de la sucursal y atención telefónica en sus habilidades.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "03_analista-atencion-cliente_debil.pdf": {
+    "vacante": "Analista de Atención al Cliente",
+    "nivel": "debil",
+    "diseno": "word-clasico",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Egresada técnica en Secretariado Ejecutivo, Instituto Tecnológico San Ignacio (2022-2024).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Practicante set 2024-feb 2025 (~6 meses, recepción y llamadas) + vendedora dic 2023-ene 2024 (~2 meses): ~8 meses < 3 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona gestión de reclamos ni quejas.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "Solo Word y Excel básico; no menciona CRM, Zendesk, Freshdesk ni tickets.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona NPS, CSAT ni indicadores de calidad.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "No describe haber capacitado personal.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara inglés básico, por debajo del intermedio pedido.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "sin_evidencia",
+        "nota": "Solo se declara puntual y amable; no menciona comunicación asertiva.",
+        "dudosa": true,
+        "motivo": "Hay quien podría ver «amable» y la atención al público como un indicio de esta competencia."
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Atención de llamadas como practicante en el estudio jurídico; lista «Atención telefónica» entre sus habilidades.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "04_asistente-contable_fuerte.pdf": {
+    "vacante": "Asistente Contable",
+    "nivel": "fuerte",
+    "diseno": "word-clasico",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Bachiller en Contabilidad, Univ. Nacional Mayor de Lima Centro (2012–2017); título en trámite.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Auxiliar Contable ene.2018–mar.2020 (~2,2 a) + Asistente Contable abr.2020–nov.2026 (~6,6 a) ≈ 8,8 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Declaración mensual IGV-Renta con PDT 621, requerimientos SUNAT, detracciones; Diplomado en Tributación 2021.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Excel avanzado (tablas dinámicas, BUSCARX, macros básicas); curso Excel avanzado para finanzas 2019.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara 'Colegiada CCPL (habilitada)', pero su título está en trámite; la colegiatura exige título profesional.",
+        "dudosa": true,
+        "motivo": "Declara la colegiatura de forma expresa, pero no encaja con que el título siga en trámite."
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Digitación de asientos en Concar (2018–2020); curso SAP Business One 2022; ambos en habilidades.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "acreditado",
+        "nota": "Generación de PLE (Libros Electrónicos) y apoyo en PDT de planillas (PLAME) en el cargo actual.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "acreditado",
+        "nota": "Conciliaciones bancarias de 6 cuentas en Grupo Comercial Valle Verde.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Emisión y registro de facturas y boletas electrónicas en el cargo actual.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "05_asistente-contable_medio.pdf": {
+    "vacante": "Asistente Contable",
+    "nivel": "medio",
+    "diseno": "linkedin",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Estudiante de Contabilidad, 8vo ciclo en U. San Martín del Callao (2019-2026, en curso). Sin título ni bachiller.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Auxiliar Contable y Administrativo ene-2022 a nov-2026 ≈ 4 años 10 meses: registro de compras y ventas, PDT 621, caja y conciliación.",
+        "dudosa": true,
+        "motivo": "Es un cargo mixto administrativo-contable que apoya a un contador externo; puede no verse como contabilidad general completa."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Hace la declaración mensual PDT 621 (con apoyo del contador); menciona IGV, declaración de impuestos y atención a SUNAT.",
+        "dudosa": true,
+        "motivo": "Declara con apoyo del contador y dice que aún está aprendiendo tributación."
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Menciona Microsoft Excel sin nivel; registrar facturas en Excel no basta para deducir un nivel intermedio-avanzado.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona colegiatura; es estudiante en curso.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Concar (básico) solo figura en aptitudes, sin uso descrito en los cargos. No menciona SAP Business One.",
+        "dudosa": true,
+        "motivo": "El requisito no pide nivel, así que alguien podría dar por acreditada la mención de Concar."
+      },
+      "r7": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona PLE ni PLAME.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "acreditado",
+        "nota": "Hace conciliación bancaria simple en el cargo actual; también figura en aptitudes.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Registra facturas de compra y venta; facturación electrónica figura en aptitudes.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "06_asistente-contable_debil.pdf": {
+    "vacante": "Asistente Contable",
+    "nivel": "debil",
+    "diseno": "tablas",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Egresada de Contabilidad (U. Autónoma de Lima Este, 2020-2025); no indica bachiller ni título",
+        "dudosa": true,
+        "motivo": "Algunos evaluadores pueden suponer que una egresada ya tiene el bachiller automático."
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo prácticas contables set 2025-feb 2026 ≈ 0,5 años; muy por debajo de los 3 años pedidos",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Curso 'Introducción al IGV' (2025) y 'conocimientos básicos de tributación'; no menciona PDT 621 ni renta",
+        "dudosa": false,
+        "motivo": "",
+        "opus": "pendiente_verificacion",
+        "ajusteOmar": "Criterio de la empresa: sin nivel pedido, «conocimientos básicos» basta; de los ejemplos (IGV, renta, PDT 621) basta uno."
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Excel nivel intermedio (curso Ofimática Perú 2024) y registro de facturas en Excel; cumple el nivel mínimo pedido",
+        "dudosa": true,
+        "motivo": "El requisito dice intermedio-avanzado; algunos podrían exigir avanzado."
+      },
+      "r5": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona colegiatura; como egresada aún no podría colegiarse",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona SAP Business One ni Concar",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona PLE ni PLAME",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "pendiente_verificacion",
+        "nota": "'Apoyo en conciliaciones con supervisión' en prácticas; no especifica si son bancarias",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Registro de facturas en Excel y archivo de comprobantes en prácticas; no consta emisión",
+        "dudosa": true,
+        "motivo": "El registro de facturas podría considerarse suficiente para acreditar el requisito."
+      }
+    }
+  },
+  "07_asistente-planillas_fuerte.pdf": {
+    "vacante": "Asistente de Planillas",
+    "nivel": "fuerte",
+    "diseno": "computrabajo",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Bachiller en Administración, Universidad Peruana de Ciencias Empresariales (2014-2018).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Asistente de Planillas mar-2021 a nov-2026 ≈ 5 años 8 meses, más Auxiliar de Planillas 2019-2021. Supera los 2 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Declaración mensual en PLAME y altas/bajas/modificaciones en T-Registro en su cargo actual.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Calcula CTS, gratificaciones, vacaciones y liquidaciones. Diplomado en Gestión de Planillas y Legislación Laboral (2022).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Declara Excel avanzado, tiene un curso Excel Avanzado-Dashboards (2023) y hace reportes con tablas dinámicas y fórmulas.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Controla aportes a AFP y ONP y los concilia con las planillas. Curso de Seguridad social y AFP/ONP (2020).",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "08_asistente-planillas_medio.pdf": {
+    "vacante": "Asistente de Planillas",
+    "nivel": "medio",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Técnico en Administración de Empresas, SENATI (2017-2019), terminado.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Transportes Marítimos 2022-2025 (~3 años), pero solo apoya el cálculo de planilla; él mismo dice que su fuerte es asistencia y legajos.",
+        "dudosa": true,
+        "motivo": "Los años alcanzan el mínimo, pero no está claro si apoyar el cálculo cuenta como experiencia plena en planillas."
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara PLAME bajo supervisión (habilidades: «PLAME (apoyo)»). No menciona T-Registro.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo un curso de 30 h de planillas y beneficios sociales; no describe cálculo de CTS, gratificaciones ni liquidaciones.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Excel nivel intermedio (habilidades y curso), por debajo del avanzado pedido.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona AFP, ONP ni AFPnet; solo una revisión genérica de descuentos.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "09_asistente-planillas_debil.pdf": {
+    "vacante": "Asistente de Planillas",
+    "nivel": "debil",
+    "diseno": "europass",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Técnico en Gestión de RR.HH., estudios en curso (5.º ciclo de 6), Instituto Los Pinos, 2024-actualidad.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Practicante RR.HH. 01/09/2025-28/02/2026 ≈ 6 meses: apoyo en datos de planillas y boletas. Por debajo de 2 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo un curso introductorio de PLAME y T-Registro (2025); no hay experiencia declarando ni registrando.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Curso de Legislación laboral básica; no menciona CTS, gratificaciones ni liquidaciones.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Excel nivel básico-intermedio, por debajo del avanzado que se pide.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona aportes a AFP, ONP ni AFPnet.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "10_asistente-recursos-humanos_fuerte.pdf": {
+    "vacante": "Asistente de Recursos Humanos",
+    "nivel": "fuerte",
+    "diseno": "word-clasico",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Elabora planillas y remuneraciones mensuales desde ene 2022; maneja PLAME/T-Registro; curso de Planillas 2019.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Curso Excel avanzado (60 h, 2020), lo declara como habilidad y elabora reportes en Excel (rotación, ausentismo, headcount).",
+        "dudosa": true,
+        "motivo": "Los reportes descritos no demuestran por sí solos un nivel avanzado; el nivel se apoya en el curso y en lo que ella declara."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Apoya reclutamiento y selección: avisos, filtrado de CV y coordinación de entrevistas (2022-hoy); en 2019-2021, revisión de CV.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Da soporte en contratos y en el cumplimiento de la legislación laboral peruana; curso de Planillas y legislación laboral.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "RRHH de mar 2019 a nov 2026: unos 7,7 años (Auxiliar 2019-2021 + Asistente 2022-hoy). Supera el mínimo de 1 año.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "11_asistente-recursos-humanos_medio.pdf": {
+    "vacante": "Asistente de Recursos Humanos",
+    "nivel": "medio",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo 'elaboración de boletas con el contador' en Clínica Dental (2023-presente); no hay gestión integral de planillas ni de remuneraciones.",
+        "dudosa": true,
+        "motivo": "Las boletas son parte de la planilla, pero las hacía como apoyo al contador."
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Excel ★★★☆☆ y curso de Excel intermedio (2022); no hay evidencia de nivel avanzado ni de tablas dinámicas.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Apoyo en reclutamiento y selección: publicación de avisos y coordinación de entrevistas (Feb 2023-presente).",
+        "dudosa": true,
+        "motivo": "Su papel fue de apoyo operativo; no conducía la selección."
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona legislación laboral, SUNAFIL ni gestión de contratos.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Feb 2023-Nov 2026 ≈ 3 años 9 meses con funciones de personal: asistencia de 22 personas, legajos, boletas, reclutamiento.",
+        "dudosa": true,
+        "motivo": "El cargo es administrativo mixto y las funciones de RRHH no son su dedicación exclusiva."
+      }
+    }
+  },
+  "12_asistente-recursos-humanos_debil.pdf": {
+    "vacante": "Asistente de Recursos Humanos",
+    "nivel": "debil",
+    "diseno": "computrabajo",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona planillas, nómina ni remuneraciones en experiencia, cursos ni habilidades.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara Excel básico (curso y habilidad); registro de asistentes en hoja de cálculo. Nivel por debajo del avanzado pedido.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Taller 'Introducción a la selección de personal' (2025), habilidad de entrevista y convocatoria de voluntarios. Solo formación breve.",
+        "dudosa": false,
+        "motivo": "",
+        "opus": "pendiente_verificacion",
+        "ajusteOmar": "Criterio de la empresa: declara la habilidad (entrevistas, convocatorias), no solo el taller; sin nivel pedido, basta."
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona legislación laboral, SUNAFIL ni contratos.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "sin_evidencia",
+        "nota": "Sin cargos en RRHH; voluntariado 2024 (talleres, convocatoria de voluntarios) y atención en tienda no son experiencia de RRHH.",
+        "dudosa": true,
+        "motivo": "La convocatoria de voluntarios podría verse como apoyo parcial a funciones de personal, aunque no llegaría a 1 año."
+      }
+    }
+  },
+  "13_coordinador-logistica_fuerte.pdf": {
+    "vacante": "Coordinador de Logística",
+    "nivel": "fuerte",
+    "diseno": "linkedin",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Ingeniería Industrial, UNI (2010-2015), título profesional.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Sup. Almacén ene-2017 a feb-2020 + Coord. Logística mar-2020 a nov-2026 ≈ 9 años 10 meses (mín. 4).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Inventarios cíclicos con exactitud de 99.1% en un CD de 6,000 m2.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Reportes y tableros en Excel avanzado con Power Query y tablas dinámicas.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Lideró un equipo de 22 personas; antes fue Supervisor de Almacén (2017-2020).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Usa WMS y SAP MM en los inventarios cíclicos del cargo actual.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "acreditado",
+        "nota": "Negociación anual con transportistas y proveedores: ahorro de 8% en fletes.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Lo declara en el extracto (campañas de alta demanda); es competencia blanda, se verifica en entrevista.",
+        "dudosa": true,
+        "motivo": "El contexto de campañas de alta demanda podría verse como evidencia suficiente."
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Declara Inglés (B2) en idiomas.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "14_coordinador-logistica_medio.pdf": {
+    "vacante": "Coordinador de Logística",
+    "nivel": "medio",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Bachiller en Ingeniería Industrial, Universidad Ricardo Palma (2015-2021).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Asistente Almacén ene-ago 2022 (8 m) + Supervisora set 2022-nov 2026 (4a 2m) ≈ 4a 10m en almacén.",
+        "dudosa": true,
+        "motivo": "El perfil dice 3 años y medio, lo que contradice las fechas de los cargos."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Control de inventarios, ingresos/salidas y conteos mensuales como Supervisora de Almacén.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Excel nivel intermedio y curso Excel intermedio 2021; se pide avanzado.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Supervisora de Almacén con 7 operarios a cargo desde set 2022.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Usa a diario un ERP local; dice expresamente que no ha trabajado con SAP ni con WMS.",
+        "dudosa": true,
+        "motivo": "No está claro si un ERP que no es SAP cumple con «WMS o ERP (SAP)»."
+      },
+      "r7": {
+        "assessment": "no_cumplido",
+        "nota": "Indica expresamente: coordinación diaria con transportistas, «no negociación de tarifas».",
+        "dudosa": true,
+        "motivo": "Excluye la negociación con transportistas, pero no dice nada de proveedores."
+      },
+      "r8": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara «Trabajo bajo presión» en habilidades; competencia blanda a verificar en entrevista.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Inglés técnico básico; por debajo del B2 pedido.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "15_coordinador-logistica_debil.pdf": {
+    "vacante": "Coordinador de Logística",
+    "nivel": "debil",
+    "diseno": "word-clasico",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Técnico en Logística y Almacenes (egresado), SENATI 2021-2023.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Aux. Almacén 2024-2026 (≤2,9 a) + práctica mar-dic 2023 (0,8 a) ≈ 3,7 años < 4 exigidos.",
+        "dudosa": true,
+        "motivo": "Fechas solo con año y la práctica podría no computarse; aun así no alcanza 4 años."
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Conteo de inventarios con Excel y apoyo en control de existencias; declara nivel básico.",
+        "dudosa": true,
+        "motivo": "Ejecuta conteos, pero el nivel básico y el rol auxiliar no acreditan gestión."
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara Excel básico; se pide avanzado. Lo usa en conteos de inventario.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "no_cumplido",
+        "nota": "El CV indica expresamente: 'Sin experiencia en liderazgo de equipos'.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "no_cumplido",
+        "nota": "El CV indica expresamente 'Sin experiencia en SAP'; no menciona WMS.",
+        "dudosa": true,
+        "motivo": "Niega SAP pero no WMS; podría considerarse sin_evidencia para la alternativa WMS."
+      },
+      "r7": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona negociación con transportistas ni proveedores.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona trabajo bajo presión ni nada equivalente.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara inglés básico; se pide B2.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "16_desarrollador-full-stack_fuerte.pdf": {
+    "vacante": "Desarrollador Full Stack",
+    "nivel": "fuerte",
+    "diseno": "dos-columnas",
+    "idioma": "mixto",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Desarrolla interfaces web con React y TypeScript en Kuntur (jun 2021–presente); React/Next.js en skills.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "APIs REST con Node.js/Express y servicio en Laravel en Kuntur; PHP/Laravel en Agencia Inti 2019-2021.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Diseño y optimización de consultas PostgreSQL (reporte 70% más rápido); MySQL en Agencia Inti.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Usa TypeScript con React en Kuntur (jun 2021–presente); figura en skills.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Code reviews en GitHub y pipelines con GitHub Actions; Git/GitHub en skills.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Full Stack jun 2021–nov 2026 ≈5,4 años, más Web Developer 2019-2021; supera de sobra los 2 años.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "17_desarrollador-full-stack_medio.pdf": {
+    "vacante": "Desarrollador Full Stack",
+    "nivel": "medio",
+    "diseno": "linkedin",
+    "idioma": "en",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Frontend Developer en Aurora (ago 2023-actualidad): construyó componentes React reutilizables y un flujo de checkout. Curso de React en Udemy.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Corrigió bugs de backend en Node.js y creó herramientas internas pequeñas; además algo de PHP en Estudio Web Pacífico. Él mismo dice nivel básico.",
+        "dudosa": true,
+        "motivo": "El propio CV califica su Node.js de básico y su backend de parcial, aunque el requisito no pide un nivel."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Escribió consultas SQL básicas para reportes en PostgreSQL en su puesto actual.",
+        "dudosa": true,
+        "motivo": "Solo describe consultas básicas para reportes, sin diseño ni administración de bases de datos."
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo figura la certificación «TypeScript fundamentals (in progress)»; no hay uso en su experiencia.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Control de versiones con Git y pull requests diarios en Aurora.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Aurora ago 2023-nov 2026 (3a3m) + Estudio Web Pacífico ene 2022-jul 2023 (1a7m) = unos 4a10m de desarrollo web, más de 2.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "18_desarrollador-full-stack_debil.pdf": {
+    "vacante": "Desarrollador Full Stack",
+    "nivel": "debil",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Lista 'React (proyectos)' y lo usó en el proyecto académico de sistema de citas (2025).",
+        "dudosa": true,
+        "motivo": "Solo lo ha usado en proyectos académicos o personales, no en un trabajo."
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Corrigió errores en un sistema web en PHP durante sus prácticas (2025) y hizo una API en Node.js en el proyecto académico.",
+        "dudosa": true,
+        "motivo": "Él mismo declara su nivel de PHP como básico y Node.js solo aparece en el proyecto académico."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Hizo consultas en MySQL en sus prácticas, usó PostgreSQL en el proyecto y tiene un curso de SQL en Coursera.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "El CV no menciona TypeScript.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Lista Git, lo usó en equipo durante sus prácticas y tiene perfil en GitHub.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Prácticas de desarrollo web de jul-2025 a dic-2025: unos 6 meses de los 2 años pedidos. El proyecto académico no es experiencia laboral.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "19_desarrollador-web-full-stack_fuerte.pdf": {
+    "vacante": "Desarrollador Web Full Stack",
+    "nivel": "fuerte",
+    "diseno": "linkedin",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Full Stack Senior abr-2022–nov-2026 (~4a7m) + Desarrollador Web feb-2020–mar-2022 (2a2m) + Junior 8m ≈ 7,5 años",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "React usado en los cargos de 2020-2022 y de 2022 a la actualidad",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "TypeScript en el cargo actual; JavaScript desde 2019",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "APIs en Node.js en el cargo actual; Express (Node.js) en 2020-2022",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "PostgreSQL en el cargo actual y MySQL en 2020-2022",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Git con flujo GitFlow; GitHub Actions en el cargo actual",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "acreditado",
+        "nota": "Aplicaciones con Next.js y PostgreSQL en el cargo actual (2022-actualidad)",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "acreditado",
+        "nota": "Pruebas con Vitest y Playwright; CI/CD en GitHub Actions",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Inglés de nivel profesional completo; redacta documentación técnica en inglés para clientes",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "20_desarrollador-web-full-stack_medio.pdf": {
+    "vacante": "Desarrollador Web Full Stack",
+    "nivel": "medio",
+    "diseno": "word-clasico",
+    "idioma": "en",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Web Developer mar-2024–hoy (~2,7 años) + Junior PHP Developer jun-2022–feb-2024 (~1,7 años): ~4,4 años en total",
+        "dudosa": true,
+        "motivo": "El perfil dice 2,5 años, pero las fechas de los cargos dan más de 3 años"
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Front-ends en React para dashboards (hooks, Axios) en el cargo actual; nivel intermedio",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "JavaScript en habilidades, usado en el desarrollo con React",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Node.js básico, solo en proyectos personales; sin uso laboral",
+        "dudosa": true,
+        "motivo": "El requisito no pide nivel, pero la evidencia es solo básica y personal"
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Consultas MySQL, procedimientos almacenados y optimización de reportes en el cargo actual",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Control de versiones con Git/GitLab en el cargo actual",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "no_cumplido",
+        "nota": "Dice expresamente que no ha trabajado con Next.js; PostgreSQL solo nivel básico",
+        "dudosa": true,
+        "motivo": "Tiene PostgreSQL básico; podría verse como parcial"
+      },
+      "r8": {
+        "assessment": "no_cumplido",
+        "nota": "Dice que aún no ha hecho pruebas automatizadas en producción; no menciona CI/CD",
+        "dudosa": true,
+        "motivo": "La negación se limita a producción; fuera de producción podría tener algo"
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Inglés intermedio (B1–B2), lectura técnica",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "21_desarrollador-web-full-stack_debil.pdf": {
+    "vacante": "Desarrollador Web Full Stack",
+    "nivel": "debil",
+    "diseno": "tablas",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Freelance web 2024-actualidad: ~2-2,9 años (sin meses) < 3 mínimo. Soporte técnico no es desarrollo. Perfil: busca primera experiencia.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Tienda con React y Firebase hecha como freelance; curso React desde cero (Udemy, 2025); proyectos personales.",
+        "dudosa": true,
+        "motivo": "Un solo proyecto real con React; se podría ver como experiencia insuficiente."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "4 sitios en HTML, CSS y JavaScript como freelance; curso JavaScript Platzi 2024.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona Node.js; el backend del proyecto usó Firebase.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara 'SQL: lo básico', sin uso en proyectos.",
+        "dudosa": true,
+        "motivo": "El nivel básico declarado sin aplicación podría verse como suficiente o no."
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Git en habilidades; curso Git y GitHub (2024).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona Next.js ni PostgreSQL.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona pruebas automatizadas, Jest, Playwright ni CI/CD.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Inglés: lectura técnica básica, por debajo del intermedio pedido.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "22_ejecutivo-comercial-b2b_fuerte.pdf": {
+    "vacante": "Ejecutivo Comercial B2B",
+    "nivel": "fuerte",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Ejecutivo Comercial Senior ene-2019 a hoy (~7,9 años) y Asesor Comercial 2016-2018 (~3 años): ~10 años en ventas, mínimo 4",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "acreditado",
+        "nota": "Cartera de 40 clientes B2B (minería, cemento, pesca); venta consultiva a empresas; curso de cuentas clave",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Cumplimiento de meta del 108% (2023), 112% (2024) y 104% (2025); cuota cumplida 5 años seguidos",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "HubSpot (avanzado); gestiona oportunidades en HubSpot CRM",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Licenciado en Administración de Empresas, Universidad de Lima Este (2010-2015)",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Vende soluciones industriales a empresas mineras y del cemento desde 2019",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "acreditado",
+        "nota": "Negocia contratos marco anuales con compradores y áreas legales",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "acreditado",
+        "nota": "Inglés avanzado (C1); hace presentaciones técnico-comerciales en inglés",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Excel a nivel usuario avanzado; elabora reportes semanales en Excel",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "23_ejecutivo-comercial-b2b_medio.pdf": {
+    "vacante": "Ejecutivo Comercial B2B",
+    "nivel": "medio",
+    "diseno": "funcional",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Ejecutivo de Ventas 2021–2026 (~5 años) + Promotor de ventas 2019–2020 (~1 año): más de 4 años en ventas.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Ventas a pymes (cartera de ~60 pymes), pero según el resumen vende sobre todo a personas. Sin cuentas clave ni contratos marco.",
+        "dudosa": true,
+        "motivo": "Vender a pymes puede contarse como B2B, aunque el CV mezcla ventas a hogares y no muestra cuentas corporativas."
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "«Cumplí o superé la meta en la mayoría de los meses, a decir de mi supervisor»: sin cifras ni porcentajes que lo demuestren.",
+        "dudosa": true,
+        "motivo": "Habla de cumplir metas, pero no lo cuantifica y se apoya en lo que dice un tercero."
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Registra visitas en el CRM Sales Cloud (Salesforce).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Técnico en Marketing, Instituto Superior Cibertec (2017–2019).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "Su experiencia es en telecomunicaciones (internet y telefonía); no menciona sector industrial ni minero.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Negocia descuentos y renovaciones con pymes; no menciona negociación de contratos ni contratos marco.",
+        "dudosa": true,
+        "motivo": "Negociar renovaciones puede verse o no como negociación de contratos."
+      },
+      "r8": {
+        "assessment": "acreditado",
+        "nota": "Declara inglés intermedio.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Excel a nivel usuario, reportes mensuales y curso de Excel para ventas.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "24_ejecutivo-comercial-b2b_debil.pdf": {
+    "vacante": "Ejecutivo Comercial B2B",
+    "nivel": "debil",
+    "diseno": "computrabajo",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Asesora de Ventas sep-2022 a hoy (~4,2 años) + vendedora de campo 2021-2022: supera los 4 años en ventas.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Ventas sobre todo minoristas; solo 'algunas empresas pequeñas (oficinas)' y visitas a bodegas. Ella misma dice que busca dar el salto a B2B.",
+        "dudosa": true,
+        "motivo": "Las ventas a oficinas y bodegas podrían verse como B2B incipiente o como nada de B2B."
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Cumplió la meta mensual de la tienda en 8 de 12 meses: es parcial y no sostenida, y la meta es de tienda, no individual.",
+        "dudosa": true,
+        "motivo": "Hay un dato cuantificado de metas, pero no muestra un cumplimiento sostenido."
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara 'CRM (poco)', sin nombrar herramienta, y hace el seguimiento por WhatsApp: manejo limitado.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Técnico en Marketing truncado (4 ciclos, 2019-2021): estudios afines pero incompletos.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "sin_evidencia",
+        "nota": "Su experiencia es en muebles y bebidas; no menciona el sector industrial ni el minero.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r7": {
+        "assessment": "sin_evidencia",
+        "nota": "Solo hace cotizaciones; no menciona negociación de contratos.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r8": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Inglés básico: por debajo del nivel intermedio pedido.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r9": {
+        "assessment": "acreditado",
+        "nota": "Declara 'Excel básico', que equivale al nivel usuario pedido.",
+        "dudosa": true,
+        "motivo": "Algunos evaluadores podrían considerar que 'básico' queda por debajo del nivel usuario."
+      }
+    }
+  },
+  "25_enfermera-asistencial_fuerte.pdf": {
+    "vacante": "Enfermera(o) Asistencial",
+    "nivel": "fuerte",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Licenciada en Enfermería (titulada), Universidad Nacional San Marcos, 2014-2018.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "CEP N.º 000000 (vigente - habilitada) declarado en contacto.",
+        "dudosa": false,
+        "motivo": "",
+        "opus": "acreditado",
+        "ajusteOmar": "Decisión de Omar: la colegiatura se verifica siempre con documentos."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Enfermera UCI Hospital Nacional del Norte 2022-actualidad (~4 años) + Emergencia clínica 03/2020-12/2021 (1a10m). Supera 2 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "Enfermera de UCI desde 2022 y Enfermera de Emergencia 2020-2021 (triaje, tópico de urgencias).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "BLS y ACLS - AHA (2024); RCP en códigos azules en UCI.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "26_enfermera-asistencial_medio.pdf": {
+    "vacante": "Enfermera(o) Asistencial",
+    "nivel": "medio",
+    "diseno": "word-clasico",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Licenciado en Enfermería, Universidad Nacional del Centro Lima (2017-2022), título profesional obtenido en 2023.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Colegio de Enfermeros del Perú: colegiado, habilitado.",
+        "dudosa": false,
+        "motivo": "",
+        "opus": "acreditado",
+        "ajusteOmar": "Decisión de Omar: la colegiatura se verifica siempre con documentos."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Enfermero de hospitalización desde may-2024 hasta hoy (nov-2026): unos 2 años y 6 meses. El SERUMS fue atención primaria y no cuenta.",
+        "dudosa": true,
+        "motivo": "El perfil declara 1 año y 8 meses, lo que contradice las fechas del cargo; hay que confirmarlo."
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "No describe experiencia en UCI ni emergencia; solo dice tener interés en pasar a esos servicios.",
+        "dudosa": true,
+        "motivo": "El interés declarado da a entender que no la tiene, y alguien podría leerlo como no_cumplido."
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Certificación BLS (RCP básico) de 2024; además pone RCP básico en habilidades.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "27_enfermera-asistencial_debil.pdf": {
+    "vacante": "Enfermera(o) Asistencial",
+    "nivel": "debil",
+    "diseno": "linkedin",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Licenciatura en Enfermería en curso (7mo ciclo, UPN). Solo tiene el título de Técnica en Enfermería (San Camilo).",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona colegiatura en el Colegio de Enfermeros del Perú. Como aún no tiene la licenciatura, no podría estar colegiada.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Técnica de Enfermería en clínica privada desde mar 2023 (3 años y 8 meses), pero no como enfermera; no consta que haya sido hospitalización.",
+        "dudosa": true,
+        "motivo": "Supera los años pedidos, pero en un cargo técnico de apoyo, no como enfermera asistencial."
+      },
+      "r4": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona UCI, cuidados intensivos ni emergencia. Su experiencia es en clínica de maternidad y en un centro de salud.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Certificación en RCP básico (Cruz Roja local, 2023) y RCP básico entre sus aptitudes principales.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "28_residente-de-obra_fuerte.pdf": {
+    "vacante": "Residente de Obra (Ingeniería Civil)",
+    "nivel": "fuerte",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "alto",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Ingeniero Civil (título profesional), Universidad Nacional de Ingeniería, 2009-2014.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara 'CIP vigente (habilitado)' y 'titulado y colegiado'. No figura el número de CIP.",
+        "dudosa": false,
+        "motivo": "",
+        "opus": "acreditado",
+        "ajusteOmar": "Decisión de Omar: la colegiatura se verifica siempre con documentos."
+      },
+      "r3": {
+        "assessment": "acreditado",
+        "nota": "Residente jun 2020-nov 2026 (6a5m) + Ing. de Campo ene 2017-may 2020 (3a4m) = ~9a9m ≥ 5 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "acreditado",
+        "nota": "'AutoCAD avanzado' en habilidades; planos y metrados en AutoCAD (nivel avanzado) como Residente.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "Programación, valorizaciones y control de costos en S10 y MS Project como Residente de Obra.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Coordinación de seguridad (Ley 29783, IPERC, charlas diarias); curso Prevencionista de riesgos 2018.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  },
+  "29_residente-de-obra_medio.pdf": {
+    "vacante": "Residente de Obra (Ingeniería Civil)",
+    "nivel": "medio",
+    "diseno": "dos-columnas",
+    "idioma": "es",
+    "ajuste": "medio",
+    "casillas": {
+      "r1": {
+        "assessment": "acreditado",
+        "nota": "Ingeniero Civil, título profesional 2022, Universidad Ricardo Palma.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "pendiente_verificacion",
+        "nota": "El CV indica «CIP en trámite»: todavía no tiene la colegiatura vigente.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Asistente de residente feb 2023-nov 2026 (~3,8 a) + supervisor de campo 2022-2023 (≤1 a): menos de 5 años. El perfil dice 3 años.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Declara AutoCAD «intermedio-avanzado» y hace planos de detalle. No confirma un nivel avanzado pleno.",
+        "dudosa": true,
+        "motivo": "El nivel «intermedio-avanzado» puede leerse como que alcanza o que no alcanza el avanzado."
+      },
+      "r5": {
+        "assessment": "acreditado",
+        "nota": "S10 (básico, con curso de costos 2022) y MS Project (uso básico). Tiene las dos y no se pide nivel.",
+        "dudosa": true,
+        "motivo": "Con nivel básico en ambas, algunos lo considerarían solo parcial."
+      },
+      "r6": {
+        "assessment": "acreditado",
+        "nota": "Curso de Seguridad en obra - Ley 29783 (40 h) y revisión de seguridad en obra en su cargo actual.",
+        "dudosa": true,
+        "motivo": "La experiencia se apoya sobre todo en un curso de 40 h."
+      }
+    }
+  },
+  "30_residente-de-obra_debil.pdf": {
+    "vacante": "Residente de Obra (Ingeniería Civil)",
+    "nivel": "debil",
+    "diseno": "linkedin",
+    "idioma": "es",
+    "ajuste": "bajo",
+    "casillas": {
+      "r1": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Bachiller en Ingeniería Civil (2019-2025); el CV indica 'En trámite el título profesional'.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r2": {
+        "assessment": "sin_evidencia",
+        "nota": "No menciona colegiatura ni número CIP; sin título aún, no consta habilitación.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r3": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Solo prácticas pre-profesionales sept 2025-feb 2026 (~6 meses) en obra; muy por debajo de 5 años.",
+        "dudosa": true,
+        "motivo": "Se puede discutir si unas prácticas cuentan como experiencia en ejecución de obras."
+      },
+      "r4": {
+        "assessment": "pendiente_verificacion",
+        "nota": "Certificación AutoCAD 2D y 3D (2024) y dibujo de planos en prácticas; no declara nivel avanzado.",
+        "dudosa": true,
+        "motivo": "La certificación 2D/3D podría tomarse como indicio de nivel avanzado."
+      },
+      "r5": {
+        "assessment": "pendiente_verificacion",
+        "nota": "S10 solo en nivel básico (curso 2025); MS Project no aparece.",
+        "dudosa": false,
+        "motivo": ""
+      },
+      "r6": {
+        "assessment": "pendiente_verificacion",
+        "nota": "'Seguridad en obra' aparece solo como aptitud declarada; no menciona la Ley 29783 ni funciones o formación en el tema.",
+        "dudosa": false,
+        "motivo": ""
+      }
+    }
+  }
+}

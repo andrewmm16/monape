@@ -305,7 +305,7 @@ Al reconstruir una evaluación tras una verificación de RRHH, que no vuelve a l
 
 ### Cómo se mide el motor
 
-Cinco bancos, los cinco deterministas y sin red ni base de datos:
+Seis bancos, los seis deterministas y sin red ni base de datos:
 
 | Comando | Qué mide | Estado |
 |---|---|---|
@@ -314,12 +314,13 @@ Cinco bancos, los cinco deterministas y sin red ni base de datos:
 | `npm run medir:motor:legitimo` | 47 textos que SÍ demuestran el requisito y debe acreditar | 47 de 47 |
 | `npm run medir:motor:escaneado` | Los mismos 32 CV llegados **escaneados**, por la ruta real de OCR | 8 de 8 puestos, 0 INFLA |
 | `npm run medir:motor:docx` | Los mismos 32 CV en **.docx**, la otra ruta de extracción | 8 de 8 puestos, 0 cambios |
+| `npm run medir:motor:ciego` | **Banco ciego** (`cv-prueba-ciego/`): 30 CV en PDF que el motor no había visto, escritos por un agente que no lo conocía (dos columnas, LinkedIn, Computrabajo…), con la vara de Opus a ciegas y 5 casillas ajustadas a los criterios de Omar. Falla si el motor acredita de más, pierde méritos o desordena candidatos más que su línea base | 96,5 % (laxo), 0 de más, 3 méritos perdidos, 1 inversión |
 
 Los dos últimos comparten el criterio y el informe (`comparacion.ts`): la referencia de cada requisito es el PDF con capa de texto, y lo inaceptable es que la fuente **INFLE** —que acredite algo que el PDF no acreditaba, porque cambiar el formato de un archivo no puede inventar evidencia— o que se rompa el orden dentro de la vacante.
 
-**`npm run verificar:motor`** corre los cuatro bancos rápidos de un tirón y **devuelve error si alguno falla**, que es lo que permite usarlos como puerta antes de confirmar cambios. `npm run verificar:motor:completo` añade los dos perfiles de escaneado (varios minutos: el OCR va de uno en uno).
+**`npm run verificar:motor`** corre los cinco bancos rápidos de un tirón y **devuelve error si alguno falla**, que es lo que permite usarlos como puerta antes de confirmar cambios. `npm run verificar:motor:completo` añade los dos perfiles de escaneado (varios minutos: el OCR va de uno en uno).
 
-Los cinco devuelven código de salida distinto de cero cuando fallan, y eso está comprobado invirtiendo a propósito la verdad de referencia. Importa decirlo porque no fue así desde el principio: `medir:motor` imprimía «orden INCORRECTO» y terminaba con éxito, de modo que el banco que comprueba el orden de 32 candidatos no podía frenar nada. Una medición que no puede fallar es decoración, no una prueba.
+Los seis devuelven código de salida distinto de cero cuando fallan, y eso está comprobado invirtiendo a propósito la verdad de referencia. Importa decirlo porque no fue así desde el principio: `medir:motor` imprimía «orden INCORRECTO» y terminaba con éxito, de modo que el banco que comprueba el orden de 32 candidatos no podía frenar nada. Una medición que no puede fallar es decoración, no una prueba.
 
 Los CV se regeneran con `npx tsx scripts/generar-cv-prueba.ts`. Los tres puestos añadidos después de los cinco originales (enfermería, planillas y residente de obra) no llevan expectativa de puntaje: su referencia es el orden entre candidatos. Cargan contra lo que los primeros no tocaban —requisitos legales, grados académicos del Perú, siglas cortas— y dos de sus CV llevan defectos de maquetación reales (títulos espaciados letra por letra y formación en una línea con barras) que pasan por pdf.js de verdad. Esos dos son los que descubrieron el límite del espaciado y el corte de línea de la negación: ninguna prueba con texto escrito a mano los habría encontrado.
 

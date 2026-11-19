@@ -56,7 +56,7 @@ jobs:
       - name: Pruebas unitarias
         run: npm run test:unit
 
-      # Bancos del motor con los PDF versionados de cv-prueba/ (fallan si hay regresiones).
+      # Bancos del motor con los PDF versionados de cv-prueba/ y cv-prueba-ciego/ (fallan si hay regresiones).
       - name: Motor · orden de los candidatos
         run: npm run medir:motor
       - name: Motor · banco adversario
@@ -65,3 +65,5 @@ jobs:
         run: npm run medir:motor:legitimo
       - name: Motor · vara
         run: npm run gold:motor
+      - name: Motor · banco ciego
+        run: npm run medir:motor:ciego

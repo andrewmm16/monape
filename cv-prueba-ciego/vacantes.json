@@ -1,0 +1,1053 @@
+{
+  "Analista de Atención al Cliente": {
+    "descripcion": "Vacante de demostración con datos ficticios: Analista de Atención al Cliente. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Estudios técnicos o universitarios",
+        "keywords": [
+          "Título profesional",
+          "Administración",
+          "egresado",
+          "Secretariado"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 3 años de experiencia en atención al cliente o contact center",
+        "keywords": [
+          "atención al cliente",
+          "servicio al cliente",
+          "contact center"
+        ],
+        "weight": 9,
+        "minYears": 3,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Gestión de reclamos",
+        "keywords": [
+          "gestión de reclamos",
+          "gestión de quejas"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Manejo de CRM o sistema de tickets",
+        "keywords": [
+          "Zendesk",
+          "Freshdesk"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Indicadores de calidad (NPS, CSAT)",
+        "keywords": [
+          "NPS",
+          "CSAT"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "experiencia",
+        "priority": "deseable",
+        "description": "Experiencia capacitando equipos",
+        "keywords": [
+          "Capacité",
+          "Capacitación de personal"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "idioma",
+        "priority": "deseable",
+        "description": "Inglés intermedio",
+        "keywords": [
+          "Inglés intermedio"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Comunicación asertiva",
+        "keywords": [
+          "Comunicación asertiva"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r9",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Atención de llamadas y consultas por teléfono o chat",
+        "keywords": [
+          "llamadas",
+          "atención telefónica",
+          "chat"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Asistente Contable": {
+    "descripcion": "Vacante de demostración con datos ficticios: Asistente Contable. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Título o bachiller en Contabilidad",
+        "keywords": [
+          "Bachiller en Contabilidad",
+          "Contadora Pública",
+          "Contador Público",
+          "Contabilidad"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 3 años de experiencia en contabilidad general",
+        "keywords": [
+          "contabilidad general",
+          "asistente contable",
+          "auxiliar contable"
+        ],
+        "weight": 9,
+        "minYears": 3,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Conocimiento de tributación peruana (IGV, renta mensual, PDT 621)",
+        "keywords": [
+          "IGV",
+          "PDT 621",
+          "SUNAT",
+          "tributación"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Excel intermedio-avanzado",
+        "keywords": [
+          "Excel avanzado",
+          "Excel intermedio"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "certificacion",
+        "priority": "deseable",
+        "description": "Colegiatura vigente en el Colegio de Contadores",
+        "keywords": [
+          "Colegiada",
+          "Colegiado",
+          "Colegio de Contadores"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r6",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Experiencia con SAP Business One o Concar",
+        "keywords": [
+          "SAP Business One",
+          "Concar"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Manejo de PLE y PLAME",
+        "keywords": [
+          "PLE",
+          "PLAME"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Conciliaciones bancarias",
+        "keywords": [
+          "conciliaciones bancarias",
+          "conciliación bancaria"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r9",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Emisión y registro de comprobantes de pago (facturas y boletas)",
+        "keywords": [
+          "facturas",
+          "comprobantes",
+          "facturación electrónica"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Asistente de Planillas": {
+    "descripcion": "Vacante de demostración con datos ficticios: Asistente de Planillas. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Estudios técnicos o universitarios en Administración, Contabilidad o Recursos Humanos",
+        "keywords": [
+          "Administración",
+          "Contabilidad",
+          "Recursos Humanos"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 2 años de experiencia en planillas y remuneraciones",
+        "keywords": [
+          "planillas",
+          "remuneraciones"
+        ],
+        "weight": 9,
+        "minYears": 2,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Declaración de PLAME y registro en T-Registro",
+        "keywords": [
+          "PLAME",
+          "T-Registro"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Conocimiento de legislación laboral peruana (CTS, gratificaciones, liquidaciones)",
+        "keywords": [
+          "legislación laboral",
+          "CTS",
+          "liquidaciones",
+          "gratificaciones"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Excel nivel avanzado",
+        "keywords": [
+          "Excel"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Aportes a AFP y ONP",
+        "keywords": [
+          "AFP",
+          "ONP",
+          "AFPnet"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Asistente de Recursos Humanos": {
+    "descripcion": "Buscamos un(a) Asistente de Recursos Humanos para apoyar la gestión de planillas, el reclutamiento y la administración del personal. Dará soporte en el cálculo de remuneraciones, el filtrado de CV, la coordinación de entrevistas y el mantenimiento de los legajos. Puesto presencial en Lima, con trato directo con todas las áreas de la empresa.",
+    "funciones": "• Elaborar las planillas y remuneraciones mensuales del personal.\n• Apoyar el reclutamiento y la selección: avisos, filtrado de CV y coordinación de entrevistas.\n• Mantener actualizados los legajos y la documentación del personal.\n• Dar soporte en contratos y en el cumplimiento de la legislación laboral peruana.\n• Elaborar reportes del área en Excel.",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Gestión de planillas",
+        "keywords": [
+          "planillas",
+          "nómina",
+          "remuneraciones"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Excel avanzado",
+        "keywords": [
+          "excel",
+          "hojas de cálculo",
+          "tablas dinámicas"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Reclutamiento y selección",
+        "keywords": [
+          "reclutamiento",
+          "selección",
+          "entrevistas"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Legislación laboral peruana",
+        "keywords": [
+          "legislación laboral",
+          "sunafil",
+          "contratos"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Experiencia en RRHH",
+        "keywords": [
+          "recursos humanos",
+          "rrhh",
+          "personal"
+        ],
+        "weight": 6,
+        "minYears": 1,
+        "isEssential": false
+      }
+    ]
+  },
+  "Coordinador de Logística": {
+    "descripcion": "Vacante de demostración con datos ficticios: Coordinador de Logística. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Estudios técnicos o universitarios en Ingeniería Industrial, Logística o afines",
+        "keywords": [
+          "Ingeniería Industrial",
+          "Administración y Logística",
+          "Cadena de Suministro"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 4 años de experiencia en almacén o distribución",
+        "keywords": [
+          "almacén",
+          "almacenes",
+          "distribución",
+          "logística"
+        ],
+        "weight": 9,
+        "minYears": 4,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Gestión de inventarios",
+        "keywords": [
+          "inventarios",
+          "inventario",
+          "conteos cíclicos"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Excel avanzado",
+        "keywords": [
+          "Excel"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "experiencia",
+        "priority": "deseable",
+        "description": "Experiencia liderando equipos",
+        "keywords": [
+          "Dirigí un equipo",
+          "Supervisor de Almacén"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Manejo de WMS o ERP (SAP)",
+        "keywords": [
+          "WMS",
+          "SAP MM",
+          "SAP"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Negociación con transportistas y proveedores",
+        "keywords": [
+          "Negociación con proveedores",
+          "renegociando"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "competencia",
+        "priority": "deseable",
+        "description": "Trabajo bajo presión",
+        "keywords": [
+          "bajo presión"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r9",
+        "category": "idioma",
+        "priority": "deseable",
+        "description": "Inglés intermedio-alto (nivel B2)",
+        "keywords": [
+          "Inglés intermedio (B2)",
+          "B2"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Desarrollador Full Stack": {
+    "descripcion": "Buscamos un(a) Desarrollador(a) Full Stack para construir y mantener las aplicaciones web internas de la empresa, de punta a punta (frontend y backend). Trabajará junto al equipo de Tecnología en el desarrollo de nuevas funcionalidades, la mejora de los sistemas existentes y la integración con bases de datos y servicios internos. Modalidad híbrida desde Lima.",
+    "funciones": "• Desarrollar interfaces web con React y mantener componentes reutilizables.\n• Construir y consumir APIs (Node.js/Express o Laravel/PHP).\n• Diseñar y optimizar consultas a bases de datos SQL (PostgreSQL o MySQL).\n• Versionar el código con Git y participar en revisiones de código.\n• Colaborar con el equipo en estimaciones, pruebas y despliegues.",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "React",
+        "keywords": [
+          "react",
+          "reactjs"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Node.js o Laravel/PHP",
+        "keywords": [
+          "node",
+          "nodejs",
+          "laravel",
+          "php",
+          "express"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Bases de datos SQL",
+        "keywords": [
+          "sql",
+          "postgresql",
+          "mysql",
+          "base de datos"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "TypeScript",
+        "keywords": [
+          "typescript",
+          "ts"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Git",
+        "keywords": [
+          "git",
+          "github",
+          "gitlab"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Experiencia en desarrollo web",
+        "keywords": [
+          "desarrollo web",
+          "full stack",
+          "frontend",
+          "backend"
+        ],
+        "weight": 6,
+        "minYears": 2,
+        "isEssential": false
+      }
+    ]
+  },
+  "Desarrollador Web Full Stack": {
+    "descripcion": "Vacante de demostración con datos ficticios: Desarrollador Web Full Stack. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 3 años de experiencia como desarrollador web",
+        "keywords": [
+          "desarrollador",
+          "desarrolladora",
+          "full stack"
+        ],
+        "weight": 9,
+        "minYears": 3,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "React",
+        "keywords": [
+          "React"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "JavaScript o TypeScript",
+        "keywords": [
+          "JavaScript",
+          "TypeScript"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Node.js",
+        "keywords": [
+          "Node.js"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Bases de datos SQL",
+        "keywords": [
+          "SQL",
+          "PostgreSQL",
+          "MySQL"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Git",
+        "keywords": [
+          "Git",
+          "GitHub"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Next.js y PostgreSQL",
+        "keywords": [
+          "Next.js",
+          "PostgreSQL"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Pruebas automatizadas y CI/CD",
+        "keywords": [
+          "Jest",
+          "Playwright",
+          "CI/CD",
+          "GitHub Actions"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r9",
+        "category": "idioma",
+        "priority": "deseable",
+        "description": "Inglés técnico intermedio o superior",
+        "keywords": [
+          "Inglés avanzado",
+          "Inglés intermedio"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Ejecutivo Comercial B2B": {
+    "descripcion": "Vacante de demostración con datos ficticios: Ejecutivo Comercial B2B. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 4 años de experiencia en ventas",
+        "keywords": [
+          "ventas",
+          "ejecutiva comercial",
+          "asesor comercial",
+          "vendedor"
+        ],
+        "weight": 9,
+        "minYears": 4,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Experiencia en ventas B2B a empresas",
+        "keywords": [
+          "B2B",
+          "cuentas clave",
+          "contratos marco"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r3",
+        "category": "habilidad_tecnica",
+        "priority": "obligatorio",
+        "description": "Cumplimiento demostrable de metas comerciales",
+        "keywords": [
+          "meta anual",
+          "meta trimestral",
+          "cumplimiento sostenido de metas",
+          "superé la meta",
+          "cumplí"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "Manejo de CRM",
+        "keywords": [
+          "CRM",
+          "HubSpot",
+          "Salesforce",
+          "Zoho"
+        ],
+        "weight": 6,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Estudios técnicos o universitarios en Administración, Marketing o afines",
+        "keywords": [
+          "Administración de Empresas",
+          "Marketing",
+          "Administración"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "experiencia",
+        "priority": "deseable",
+        "description": "Experiencia en sector industrial o minero",
+        "keywords": [
+          "industrial",
+          "minero",
+          "minería"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r7",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Negociación de contratos",
+        "keywords": [
+          "negociación de contratos",
+          "contratos marco"
+        ],
+        "weight": 3,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r8",
+        "category": "idioma",
+        "priority": "deseable",
+        "description": "Inglés intermedio o superior",
+        "keywords": [
+          "Inglés avanzado",
+          "Inglés intermedio"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r9",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "Excel a nivel usuario",
+        "keywords": [
+          "Excel"
+        ],
+        "weight": 2,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Enfermera(o) Asistencial": {
+    "descripcion": "Vacante de demostración con datos ficticios: Enfermera(o) Asistencial. Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Título profesional de licenciatura en Enfermería",
+        "keywords": [
+          "Enfermería"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Colegiatura vigente en el Colegio de Enfermeros del Perú",
+        "keywords": [
+          "colegiada",
+          "colegiado",
+          "Colegio de Enfermeros"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r3",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 2 años de experiencia en atención hospitalaria",
+        "keywords": [
+          "enfermera asistencial",
+          "enfermero asistencial",
+          "hospitalización"
+        ],
+        "weight": 8,
+        "minYears": 2,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Experiencia en UCI o emergencia",
+        "keywords": [
+          "UCI",
+          "cuidados intensivos",
+          "emergencia"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Soporte vital básico (RCP)",
+        "keywords": [
+          "RCP",
+          "soporte vital"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  },
+  "Residente de Obra (Ingeniería Civil)": {
+    "descripcion": "Vacante de demostración con datos ficticios: Residente de Obra (Ingeniería Civil). Sirve para probar el motor de reglas y la IA con CV de prueba.",
+    "funciones": "",
+    "requisitos": [
+      {
+        "id": "r1",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Título profesional de Ingeniero Civil",
+        "keywords": [
+          "Ingeniería Civil",
+          "Ingeniero Civil"
+        ],
+        "weight": 9,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r2",
+        "category": "formacion",
+        "priority": "obligatorio",
+        "description": "Colegiatura vigente en el Colegio de Ingenieros del Perú",
+        "keywords": [
+          "CIP",
+          "Colegio de Ingenieros",
+          "colegiado"
+        ],
+        "weight": 8,
+        "minYears": null,
+        "isEssential": true
+      },
+      {
+        "id": "r3",
+        "category": "experiencia",
+        "priority": "obligatorio",
+        "description": "Mínimo 5 años de experiencia en ejecución o supervisión de obras",
+        "keywords": [
+          "residente de obra",
+          "supervisor de obra",
+          "ingeniero de campo"
+        ],
+        "weight": 9,
+        "minYears": 5,
+        "isEssential": false
+      },
+      {
+        "id": "r4",
+        "category": "herramienta",
+        "priority": "obligatorio",
+        "description": "AutoCAD nivel avanzado",
+        "keywords": [
+          "AutoCAD"
+        ],
+        "weight": 7,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r5",
+        "category": "herramienta",
+        "priority": "deseable",
+        "description": "S10 y MS Project",
+        "keywords": [
+          "S10",
+          "MS Project"
+        ],
+        "weight": 5,
+        "minYears": null,
+        "isEssential": false
+      },
+      {
+        "id": "r6",
+        "category": "habilidad_tecnica",
+        "priority": "deseable",
+        "description": "Seguridad y salud en obra (Ley 29783)",
+        "keywords": [
+          "seguridad y salud",
+          "Ley 29783"
+        ],
+        "weight": 4,
+        "minYears": null,
+        "isEssential": false
+      }
+    ]
+  }
+}

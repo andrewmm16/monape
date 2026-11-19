@@ -52,9 +52,10 @@
     "medir:motor:legitimo": "tsx scripts/medir-motor/legitimo.ts",
     "medir:motor:escaneado": "tsx --conditions=react-server scripts/medir-motor/escaneado.ts",
     "medir:motor:docx": "tsx scripts/medir-motor/docx.ts",
+    "medir:motor:ciego": "tsx scripts/medir-motor/ciego.ts",
     "auditar:vacantes": "tsx scripts/medir-motor/auditar.ts",
     "verificar:extraccion": "tsx scripts/verificar-extraccion-oculta.ts",
-    "verificar:motor": "npm run medir:motor && npm run medir:motor:adversario && npm run medir:motor:legitimo && npm run medir:motor:docx",
+    "verificar:motor": "npm run medir:motor && npm run medir:motor:adversario && npm run medir:motor:legitimo && npm run medir:motor:ciego && npm run medir:motor:docx",
     "verificar:motor:completo": "npm run verificar:motor && npm run medir:motor:escaneado -- --desde oficina && npm run medir:motor:escaneado -- --desde foto"
   },
   "dependencies": {
