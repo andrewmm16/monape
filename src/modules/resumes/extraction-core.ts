@@ -130,7 +130,9 @@ async function pdfToPages(pdf: TextDocument, lowContrast: boolean): Promise<PdfP
     const raw = content.items.filter(isTextItem);
     const items: PdfItem[] = raw.map((item) => {
       const t = item.transform;
-      return { str: item.str, x: t[4]!, y: t[5]!, fontSize: Math.hypot(t[2]!, t[3]!), hasEOL: Boolean(item.hasEOL) };
+      // Sin ancho (no se reubica) el texto girado: su ancho no corre en horizontal.
+      const width = Math.abs(t[1]!) > 0.01 ? 0 : (item.width ?? 0);
+      return { str: item.str, x: t[4]!, y: t[5]!, fontSize: Math.hypot(t[2]!, t[3]!), hasEOL: Boolean(item.hasEOL), width };
     });
     const remaining = deadline - Date.now();
     if (n <= CONTRAST_MAX_PAGES && remaining > 0 && raw.some((item) => item.str.trim() !== "")) {

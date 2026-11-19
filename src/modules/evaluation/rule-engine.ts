@@ -178,8 +178,26 @@ import type { Evidence, ItemAssessment, RequirementInput } from "./types";
  *    límites estrictos: ver findLooseTermOccurrences (text.ts).
  *  - Un requisito legal encontrado fuera de una frase de estudios («CEP N.º …»)
  *    se explica como legal (verificar con documentos), no como «puede estar en curso».
+ *
+ * Novedades de reglas-v15 (banco ciego 2 del 19/11/2026: 30 CV de puestos
+ * operativos —almacén, reparto, caja, vigilancia…— y vacantes redactadas por
+ * otra persona; el motor bajaba al 69 %):
+ *  - Secundaria terminada: «Secundaria completa», «Sec. completa», «5to de
+ *    secundaria»; «secundaria incompleta» no la acredita.
+ *  - «Técnico titulado» pide el título: un egresado o alguien a quien le «falta
+ *    sustentar» queda pendiente.
+ *  - Un certificado de idioma (TOEFL, Cambridge, ICPNA) no se acredita con
+ *    mencionar el idioma.
+ *  - Si el puesto pide «intermedio-avanzado» o «intermedio alto», un CV que dice
+ *    «intermedio» a secas no alcanza («Inglés intermedio (B2)» sigue igual).
+ *  - Encabezado «Cursos y conocimientos»: lo que enumera no es solo formación.
+ *  - Equivalencias de cargos de almacén y de facturación electrónica.
+ *  - Negaciones: «sin certificación…», «licencia en trámite» (la IA confirma).
+ *  - Fechas: el encabezado de experiencia pegado a la primera entrada (Europass a
+ *    dos columnas) y, en la lectura del PDF, las fechas alineadas a la derecha que
+ *    el PDF guardaba fuera de orden (pdf-reading-order.ts).
  */
-export const RULE_ENGINE_VERSION = "reglas-v14";
+export const RULE_ENGINE_VERSION = "reglas-v15";
 
 const MAX_EVIDENCE = 3;
 const YEARS_WINDOW = 160;
@@ -411,8 +429,18 @@ function formatDate(date: Date): string {
 }
 
 // Estudios sin terminar o título aún no obtenido: no acreditan la formación.
-const IN_PROGRESS = /\b(?:en curso|cursando|ciclo|semestre|estudiante|actualmente estudiando|trunc[oa]s?|inconclus[oa]s?|en tramite|en proceso|por obtener)\b/;
+// reglas-v15: «secundaria incompleta» y el título que falta sustentar («egresado, falta sustentar»).
+const IN_PROGRESS =
+  /\b(?:en curso|cursando|ciclo|semestre|estudiante|actualmente estudiando|trunc[oa]s?|inconclus[oa]s?|incomplet[oa]s?|en tramite|en proceso|por obtener|faltan? (?:sustentar|titular(?:me|se)?|el titulo)|por titular(?:me|se)|pendiente de titulacion)\b/;
 const STUDY_CUES = /\b(?:bachiller|titul[oa]d[oa]?|titulo|licenciad[oa]|egresad[oa]|graduad[oa]|colegiad[oa]|colegiatura|grado|maestria|magister|doctorad[oa]|diplomado|especializacion|posgrado|universidad|instituto|tecnic[oa]|ingenier[oa]|carrera|estudios?|facultad)\b/;
+/**
+ * Secundaria terminada (reglas-v15), la formación que más piden los puestos
+ * operativos: «Secundaria completa», «Sec. completa», «secundaria concluida»,
+ * «5to de secundaria». La palabra de término va pegada al nivel: «completo»
+ * suelto («tiempo completo») no dice nada de estudios.
+ */
+const SCHOOL_COMPLETED =
+  /\b(?:(?:secundaria|sec\.?|estudios secundarios|educacion secundaria)\s*:?\s*(?:complet[ao]s?|concluid[ao]s?|culminad[ao]s?|terminad[ao]s?)|(?:5to|5[°º]|quinto)\s+(?:ano\s+)?(?:de\s+)?secundaria)\b/;
 
 /**
  * Escalera de nivel declarado para habilidades y herramientas (no idiomas), de
@@ -613,7 +641,9 @@ export const DEGREE_NAMES: Record<number, string> = {
  * importa es el menor que la empresa acepta. Null si no nombra ninguno.
  */
 export function requiredDegree(description: string): number | null {
-  const texto = normalizeTerm(description);
+  // «Técnico titulado» es UN grado (el título técnico), no la alternativa «técnico
+  // o titulado»: sin esto, un egresado sin título lo cumplía (reglas-v15).
+  const texto = normalizeTerm(description).replace(/\btecnic[oa]s?\s+(?=titulad[oa]s?\b)/g, "");
   let minimo: number | null = null;
   for (const [rango, patron] of DEGREE_LADDER) {
     if (patron.test(texto) && (minimo === null || rango < minimo)) minimo = rango;
@@ -746,6 +776,13 @@ function skillBaseTerms(requirement: RequirementInput, terms: string[]): string[
 const CEFR_TIER = (c: number): number => (c <= 2 ? 1 : c <= 4 ? 2 : 3);
 
 /**
+ * Nivel entre intermedio y avanzado (reglas-v15). En el REQUISITO pide más que
+ * «intermedio»; en el CV, «intermedio alto» lo alcanza y «intermedio-avanzado»
+ * ya cuenta como avanzado (decisión de RRHH, ver straddlesFromBasic).
+ */
+const UPPER_INTERMEDIATE = /\b(?:intermedi[oa][- ]?(?:avanzad[oa]|alt[oa]|superior)|upper[- ]intermediate)\b/;
+
+/**
  * Para idiomas: el CV ALCANZA el nivel pedido. Compara por el marco europeo (A2 <
  * B2) cuando ambos lados lo usan, para no perder B1 < B2; si no, lleva ambos a los
  * 3 peldaños (mezclando palabra y código). Si el CV no declara nivel, no alcanza.
@@ -757,6 +794,9 @@ function languageMeets(reqDesc: string, text: string): boolean {
   const reqTier = reqCefr !== null ? CEFR_TIER(reqCefr) : requiredSkillLevel(reqDesc);
   const cvTier = cvCefr !== null ? CEFR_TIER(cvCefr) : declaredSkillLevel(text);
   if (reqTier === null || cvTier === null) return false;
+  // reglas-v15: el puesto pide «intermedio-avanzado» o «intermedio alto», un peldaño
+  // y medio: «intermedio» a secas no llega (sí «intermedio alto» o «avanzado»).
+  if (cvCefr === null && cvTier === 2 && UPPER_INTERMEDIATE.test(reqDesc) && !UPPER_INTERMEDIATE.test(text)) return false;
   // «Inglés básico-intermedio» frente a «intermedio»: lo cumple a medias (ver straddlesFromBasic).
   if (cvCefr === null && straddlesFromBasic(text, reqTier)) return false;
   return cvTier >= reqTier;
@@ -809,6 +849,21 @@ function formationAbbreviations(term: string): string[] {
   }
   const bachiller = /^bachiller(?:ato)?\s+en\s+(.+)$/i.exec(t);
   if (bachiller) return [`Bach. en ${bachiller[1]!}`, `Bach. ${bachiller[1]!}`];
+  // reglas-v15: la secundaria como la escribe la gente («Sec. completa», «5to de secundaria»).
+  if (/^(?:educaci[oó]n\s+)?secundaria(?:\s+complet[ao])?$/i.test(t)) {
+    return [
+      "Sec. completa",
+      "Sec completa",
+      "secundaria concluida",
+      "secundaria culminada",
+      "secundaria terminada",
+      "estudios secundarios completos",
+      "5to de secundaria",
+      "5to año de secundaria",
+      "quinto de secundaria",
+      "quinto año de secundaria",
+    ];
+  }
   return [];
 }
 
@@ -960,7 +1015,9 @@ export function evaluateRequirement(
   // Idiomas: añade el idioma a secas, porque el término configurado suele traer el
   // nivel pegado y así un «Inglés básico (A2)» no coincidiría (ver languageWordsIn).
   if (isLanguageRequirement(requirement)) {
-    for (const idioma of languageWordsIn(requirement)) {
+    // reglas-v15: un CERTIFICADO de idioma («TOEFL, Cambridge, ICPNA») no se
+    // acredita con mencionar el idioma: hacen falta sus propios términos.
+    if (requirement.category !== "certificacion") for (const idioma of languageWordsIn(requirement)) {
       if (!terms.some((t) => normalizeTerm(t) === normalizeTerm(idioma))) terms.push(idioma);
     }
   } else {
@@ -1081,7 +1138,7 @@ export function evaluateRequirement(
     let alcanzado: number | null = null;
     const studied = matches.filter((m) => {
       const { pista, linea } = formationViews(original, haystack, m);
-      if (!STUDY_CUES.test(pista) || IN_PROGRESS.test(linea)) return false;
+      if (!(STUDY_CUES.test(pista) || SCHOOL_COMPLETED.test(pista)) || IN_PROGRESS.test(linea)) return false;
       // El grado se lee en la vista ANCHA: así un grado mayor que esté en otra
       // parte de la línea protege al candidato de que lo bloquee uno menor.
       const grado = evidencedDegree(linea);

@@ -45,6 +45,39 @@ export const EQUIVALENCE_GROUPS: ReadonlyArray<{
     concepto: "PLE",
     equivalentes: ["PLE", "libros electrónicos", "programa de libros electrónicos"],
   },
+  // reglas-v15 (banco ciego 2, puestos operativos): el mismo trabajo de almacén
+  // con otro nombre de cargo. Jefe o supervisor de almacén NO entran: es otro
+  // nivel de responsabilidad (ver related.ts).
+  {
+    concepto: "operario de almacén",
+    equivalentes: [
+      "operario de almacén",
+      "operaria de almacén",
+      "auxiliar de almacén",
+      "asistente de almacén",
+      "ayudante de almacén",
+      "almacenero",
+      "almacenera",
+    ],
+  },
+  // Quien trabajó de vendedor tiene experiencia en ventas (no al revés: «ventas»
+  // puede ser el área). «Comercial» sigue sin contar (ver arriba).
+  {
+    concepto: "ventas",
+    equivalentes: ["ventas"],
+    implicados: ["vendedor", "vendedora", "asesor de ventas", "asesora de ventas"],
+  },
+  // Emitir comprobantes electrónicos ES usar la facturación electrónica de SUNAT.
+  {
+    concepto: "facturación electrónica",
+    equivalentes: [
+      "facturación electrónica",
+      "facturas electrónicas",
+      "boletas electrónicas",
+      "comprobantes electrónicos",
+      "comprobantes de pago electrónicos",
+    ],
+  },
   // reglas-v14: siglas de los colegios profesionales del Perú («CEP N.º 000000»).
   // La colegiatura es un requisito legal: la sigla la encuentra, pero el motor la
   // deja para verificar con documentos, como el nombre completo. Se omiten las

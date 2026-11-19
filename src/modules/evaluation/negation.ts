@@ -22,10 +22,19 @@ export type ExplicitNegation = {
 
 // Sobre texto normalizado (minúsculas, sin tildes). Lo negado va hasta la próxima
 // puntuación o «pero/aunque» (cada «ni en X» es su propia negación).
+// reglas-v15: también «sin certificación ITIL», «sin licencia», «sin curso de…».
 const NEGATION = new RegExp(
-  String.raw`(?:^|[^a-z0-9])(?:sin (?:experiencia|conocimientos?|manejo|formacion|estudios|practica)|no (?:cuento con|tengo|manejo|domino|conozco|he (?:trabajado|usado|manejado|tenido|llevado))|ni (?:en|con|de)|desconozco|carezco de)\b([^.;:,()\n•]{2,80})`,
+  String.raw`(?:^|[^a-z0-9])(?:sin (?:experiencia|conocimientos?|manejo|formacion|estudios|practica|certificacion(?:es)?|certificados?|licencia|carne|cursos?|titulo)|no (?:cuento con|tengo|manejo|domino|conozco|he (?:trabajado|usado|manejado|tenido|llevado))|ni (?:en|con|de)|desconozco|carezco de)\b([^.;:,()\n•]{2,80})`,
   "g",
 );
+/**
+ * Un documento que aún no se tiene («Licencia A-IIb en trámite», «carné SUCAMEC
+ * en trámite, aún no lo tengo») (reglas-v15). Lo negado es el documento: la
+ * frase suele cerrar con un pronombre («aún no cuento con ella») que no nombra
+ * el requisito.
+ */
+const PENDING_DOCUMENT =
+  /\b((?:licencia|brevete|carne|certificado|certificacion|colegiatura|titulo)\b[^.;:,()\n•]{0,40}?)\s+(?:esta\s+)?en tramite\b/g;
 const CLAUSE_END = /\s(?:pero|aunque|sin embargo|salvo|excepto)\s.*$/;
 
 /** Palabras que no identifican un requisito («experiencia en», «nivel», «gestión»…). */
@@ -57,6 +66,11 @@ export function findExplicitNegations(original: string): ExplicitNegation[] {
   const joined = original.replace(/[^\S\r\n]*\r?\n[^\S\r\n]*(?=\p{Ll})/gu, " ");
   for (const line of joined.split(/\r?\n/)) {
     const normalized = normalizeTerm(line);
+    PENDING_DOCUMENT.lastIndex = 0;
+    for (let m = PENDING_DOCUMENT.exec(normalized); m !== null; m = PENDING_DOCUMENT.exec(normalized)) {
+      const words = tokens(m[1]!, 3);
+      if (words.length > 0) found.push({ quote: line.trim().slice(0, 200), words });
+    }
     if (!/\b(?:sin|no|ni|desconozco|carezco)\b/.test(normalized)) continue;
     NEGATION.lastIndex = 0;
     for (let m = NEGATION.exec(normalized); m !== null; m = NEGATION.exec(normalized)) {

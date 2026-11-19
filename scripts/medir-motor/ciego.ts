@@ -33,7 +33,7 @@ import { extractRawText } from "../../src/modules/resumes/extraction-core";
 const RAIZ = resolve(import.meta.dirname, "..", "..", "cv-prueba-ciego");
 const FECHA_REFERENCIA = new Date("2026-11-19T12:00:00Z");
 
-/** Línea base (reglas-v14, 19/11/2026). Si el motor mejora, bájela en el mismo commit. */
+/** Línea base (reglas-v14 y reglas-v15, 19/11/2026). Si el motor mejora, bájela en el mismo commit. */
 const BASE = { deMas: 0, meritoPerdido: 3, inversiones: 1 };
 
 type Celda = {

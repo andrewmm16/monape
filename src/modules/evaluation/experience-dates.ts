@@ -36,6 +36,13 @@ import type { Evidence } from "./types";
  * el fin de la sección, con un tope de 12 líneas tras la línea de fecha y
  * cortada ante una línea de cierre (ver abajo). Así incluye también la
  * descripción que va debajo sin absorber bloques posteriores.
+ *
+ * reglas-v15: si TODAS las fechas de la sección van en la misma línea que su
+ * cargo («Cajera | Supermercados La Canasta   Mar 2018 – Presente», el formato
+ * de Word con la fecha a la derecha), cada entrada empieza en su línea de fecha
+ * y llega hasta la línea anterior a la siguiente fecha: ya no hace falta
+ * reservar las dos líneas de arriba para el cargo, y reservarlas le quitaba la
+ * descripción a la entrada anterior.
  */
 
 const MAX_QUOTES = 3;
@@ -218,13 +225,33 @@ function breaksEntry(line: Line): boolean {
   return first !== undefined && STRONG_PREFIXES.has(first);
 }
 
+/**
+ * Encabezado de experiencia pegado a la primera entrada en la misma línea, como
+ * en el Europass a dos columnas, donde el rótulo de la izquierda queda a la
+ * altura del primer cargo: «EXPERIENCIA LABORAL Supervisora de SST | …»
+ * (reglas-v15). Solo si el rótulo está en MAYÚSCULAS y lo que sigue no: así
+ * «Experiencia laboral en ventas» sigue siendo una frase.
+ */
+function startsWithExperienceHeading(text: string): boolean {
+  const rotulo = /^([\p{Lu}][\p{Lu}\s]{4,40}?)\s+(?=\p{Lu}\p{Ll})/u.exec(text)?.[1];
+  if (!rotulo) return false;
+  return EXPERIENCE_HEADINGS.has(normalizeForSearch(rotulo).text.replace(/[^\p{L}\p{N}]+/gu, " ").trim());
+}
+
 /** Rangos de líneas [primera, última] (sin el encabezado) de cada sección de experiencia. */
 function experienceSections(lines: Line[]): Array<[number, number]> {
   const sections: Array<[number, number]> = [];
   let start: number | null = null;
   lines.forEach((line, index) => {
     const kind = headingKind(line.normalized, line.letterspaced);
-    if (kind === null) return;
+    if (kind === null) {
+      // El rótulo pegado abre la sección en su misma línea, que ya es contenido.
+      if (startsWithExperienceHeading(line.text)) {
+        if (start !== null && start <= index - 1) sections.push([start, index - 1]);
+        start = index;
+      }
+      return;
+    }
     if (start !== null && start <= index - 1) sections.push([start, index - 1]);
     start = kind === "experience" ? index + 1 : null;
   });
@@ -307,6 +334,26 @@ function unionMonths(intervals: Array<[number, number]>): number {
 
 type Entry = { lineIndex: number; periods: Period[]; haystack: NormalizedText };
 
+/**
+ * Palabras que acompañan a una fecha sin ser un cargo: la duración de LinkedIn
+ * («· 4 años 3 meses»), los meses y los rótulos («Periodo:», «desde», «hasta»).
+ */
+const DATE_WORDS = new Set(
+  (
+    "ano anos mes meses dia dias year years yr yrs month months mos de del la el fecha actualidad presente hoy actual " +
+    "desde hasta periodo duracion aprox aproximadamente present current now to from " +
+    "enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre noviembre diciembre " +
+    "ene feb mar abr may jun jul ago sep set oct nov dic january february march april june july august " +
+    "september october november december jan apr aug dec"
+  ).split(" "),
+);
+
+/** La línea de fecha trae también el cargo: quitando los rangos y lo que acompaña a una fecha, quedan dos palabras. */
+function hasTitleBesideDate(normalized: string): boolean {
+  const resto = normalized.replace(RANGE, " ").replace(/[^\p{L}]+/gu, " ").trim();
+  return resto.split(" ").filter((w) => w.length >= 3 && !DATE_WORDS.has(w)).length >= 2;
+}
+
 function sectionEntries(lines: Line[], [first, last]: [number, number], referenceDate: Date): Entry[] {
   const dated: Array<{ lineIndex: number; periods: Period[] }> = [];
   for (let i = first; i <= last; i++) {
@@ -315,9 +362,11 @@ function sectionEntries(lines: Line[], [first, last]: [number, number], referenc
   }
   const entries: Entry[] = [];
   let previousEnd = first - 1;
+  // ¿El cargo va en la misma línea que la fecha, en todas las entradas? (ver arriba)
+  const inline = dated.length > 0 && dated.every((item) => hasTitleBesideDate(lines[item.lineIndex]!.normalized));
   dated.forEach((item, position) => {
     const next = dated[position + 1];
-    let lastLine = next ? Math.max(next.lineIndex - 3, item.lineIndex) : last;
+    let lastLine = next ? Math.max(next.lineIndex - (inline ? 1 : 3), item.lineIndex) : last;
     lastLine = Math.min(lastLine, item.lineIndex + MAX_ENTRY_LINES_AFTER_DATE);
     for (let i = item.lineIndex + 1; i <= lastLine; i++) {
       if (breaksEntry(lines[i]!)) {
@@ -325,7 +374,7 @@ function sectionEntries(lines: Line[], [first, last]: [number, number], referenc
         break;
       }
     }
-    const firstLine = Math.max(previousEnd + 1, item.lineIndex - 2, first);
+    const firstLine = Math.max(previousEnd + 1, item.lineIndex - (inline ? 0 : 2), first);
     const haystack = normalizeForSearch(
       lines
         .slice(firstLine, lastLine + 1)

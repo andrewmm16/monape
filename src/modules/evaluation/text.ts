@@ -598,6 +598,12 @@ const IN_PROGRESS_NOTE = /\(\s*(?:in progress|ongoing|en curso|en progreso|cursa
 /** Encabezados de secciones de formación complementaria. */
 const TRAINING_HEADING =
   /^(?:cursos|capacitaciones|seminarios|talleres|diplomados|formacion complementaria|estudios complementarios|cursos y capacitaciones|courses|training|trainings|workshops)\b/;
+/**
+ * Encabezado que junta cursos con lo que la persona sabe hacer («CURSOS Y
+ * CONOCIMIENTOS», «Cursos y habilidades»): lo que enumera no es solo formación
+ * (reglas-v15). Lo que diga «Curso de…» en la propia línea sigue contando como curso.
+ */
+const MIXED_HEADING = /\b(?:conocimientos?|habilidades|aptitudes|competencias|skills|herramientas|informatica)\b/;
 /** Línea con aspecto de encabezado: corta y toda en mayúsculas. */
 function isHeadingLine(line: string): boolean {
   const letters = line.replace(/[^\p{L}]/gu, "");
@@ -626,7 +632,10 @@ export function isTrainingMention(original: string, haystack: NormalizedText, ma
   for (let i = 0; i < 30 && cursor > 0; i++) {
     const previous = lineAround(original, cursor);
     const text = original.slice(previous.from, previous.to);
-    if (isHeadingLine(text)) return TRAINING_HEADING.test(normalizeForSearch(text.trim()).text);
+    if (isHeadingLine(text)) {
+      const heading = normalizeForSearch(text.trim()).text;
+      return TRAINING_HEADING.test(heading) && !MIXED_HEADING.test(heading);
+    }
     cursor = previous.from - 1;
   }
   return false;

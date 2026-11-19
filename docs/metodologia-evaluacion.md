@@ -26,9 +26,9 @@ Cada vacante define requisitos con:
 | **Sin evidencia suficiente** | El CV no lo menciona. **No implica que la persona no lo cumpla.** |
 | **Pendiente de verificación** | Hay indicios que requieren verificación humana (entrevista, documentos). |
 
-### Motor de reglas (`reglas-v14`; antes `reglas-v13` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
+### Motor de reglas (`reglas-v15`; antes `reglas-v14` … `reglas-v2`, `src/modules/evaluation/rule-engine.ts`)
 
-Las novedades de reglas-v6 a reglas-v14 se resumen en «Cambios de reglas-v6 a reglas-v14», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
+Las novedades de reglas-v6 a reglas-v15 se resumen en «Cambios de reglas-v6 a reglas-v15», más abajo; el detalle de cada versión está en el comentario de cabecera de `rule-engine.ts`.
 
 Determinista: con el mismo texto, los mismos criterios y la misma fecha de evaluación, da el mismo resultado. La fecha importa solo para los empleos «a la actualidad» (regla 5). Las evaluaciones anteriores al 28/10/2026 indican `reglas-v1`, que no calculaba años por fechas.
 
@@ -203,7 +203,7 @@ Los umbrales están en `src/modules/evaluation/scoring.ts` (`LEVEL_RULES`). Camb
 
 **Equivalencias en un solo sentido (reglas-v11).** Un grupo puede tener `implicados`: expresiones que demuestran el concepto pero no al revés. «Contador» demuestra contabilidad, pero quien hace tareas contables no es contador; pedir «contador» no se expande al grupo.
 
-## Cambios de reglas-v6 a reglas-v14
+## Cambios de reglas-v6 a reglas-v15
 
 Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* en lugar de *acreditado*, o *por confirmar* en lugar de *sin evidencia*. Se miden contra la vara de 248 casillas revisadas a mano (`npm run gold:motor`) y los bancos (`npm run verificar:motor`).
 
@@ -216,6 +216,28 @@ Ninguno de estos cambios rechaza: a lo sumo dejan un requisito *por confirmar* e
 - **v12. Negación explícita** con otras palabras («sin experiencia en reclamos»): marca la duda para la IA (ver «Prueba de punta a punta en la app y calibración»).
 - **v13. Años de dos dígitos** junto a un mes («01/19 – 12/23», «15/03/19», «Ene-19», «Jan '19»), con el siglo deducido del año de la evaluación («98» → 1998). Antes esos periodos no se leían y el requisito de años quedaba pendiente; ahora cuentan igual que con el año completo, así que pueden acreditar. Sin cambios en la vara ni en los bancos, y sin falsos positivos en los 73 CV de la base local.
 - **v14. Puntos ciegos del banco ciego** (ver «Banco ciego», abajo): la lista «Cursos: A, B», «Curso: X» y los encabezados en inglés («Courses», «Training») cuentan como formación; un curso o certificación «(in progress)» o «(en curso)», aunque el PDF parta el paréntesis en dos líneas, queda como *solo capacitación*; «poco», «escaso» y «limitado» declaran un conocimiento mínimo, como «nociones»; se leen los niveles de idioma de LinkedIn («competencia profesional completa» y «bilingüe» → avanzado; «básica profesional» y «básica limitada» → intermedio) y las siglas de los colegios profesionales (CEP, CIP, CMP, CCPL, CPsP, CQFP, CTMP) en formación y certificación; y una palabra clave escrita como verbo en primera persona del pretérito («Capacité», «Dirigí un equipo») encuentra también sus conjugaciones («capacitó», «dirigía», «capacitando»; `verb-forms.ts`), sin los sustantivos («recibí capacitación en Excel» no es capacitar a otros); y la palabra clave también se encuentra con palabras intercaladas en la misma frase y en el mismo orden («Negociación anual con transportistas y proveedores» para «Negociación con proveedores»): hasta 2 palabras tras una palabra con contenido, y tras una preposición solo un artículo y una coordinación («con transportistas y proveedores»), de modo que «Supervisor de seguridad en obra» no cuenta como «Supervisor de obra»; nunca con una negación o un nivel en medio ni en palabras clave que llevan nivel. Vara y bancos sin cambios; en los 73 CV de la base local apareció 1 coincidencia nueva, correcta («gestión de reclamos y quejas»).
+
+- **v15. Puntos ciegos del banco ciego 2** (puestos operativos; ver «Banco ciego 2», abajo):
+  - **Secundaria terminada:** acreditan «Sec. completa», «secundaria concluida» y «5to de secundaria»; «secundaria incompleta» no.
+  - **Título técnico:** «Técnico titulado» pide el título, así que un egresado o alguien a quien le «falta sustentar» queda por confirmar.
+  - **Certificado de idioma** (TOEFL, Cambridge, ICPNA): no se acredita con solo mencionar el idioma.
+  - **Nivel de idioma:** un puesto que pide «intermedio-avanzado» o «intermedio alto» no se cumple con un «intermedio» a secas. «Inglés intermedio (B2)» con un CV «intermedio» sigue acreditando, como desde reglas-v4.
+  - **Encabezados mixtos:** «Cursos y conocimientos» o «Cursos y habilidades» no convierten en curso lo que enumeran.
+  - **Equivalencias nuevas:**
+    - auxiliar, asistente o ayudante de almacén por «operario de almacén»;
+    - facturas o boletas electrónicas por «facturación electrónica»;
+    - «vendedor» demuestra «ventas» (pero no al revés).
+  - **Negaciones nuevas:** «sin certificación…», «sin licencia» y «licencia o carné en trámite» marcan la duda para la IA, como desde reglas-v12.
+  - **Fechas en la línea del cargo** (Word con la fecha a la derecha): la descripción de abajo pertenece a ese cargo y no al siguiente.
+  - **Europass a dos columnas:** el encabezado «EXPERIENCIA LABORAL» pegado al primer cargo abre la sección.
+  - **Orden de lectura del PDF** (`pdf-reading-order.ts`): en los CV hechos en HTML, la fecha flotante a la derecha del cargo quedaba al principio de la página, y sin ella no se calculaban los años. Ahora vuelve a su línea. Las condiciones son estrictas:
+    - una línea corta, alineada al margen derecho;
+    - un destino a su misma altura, a su izquierda y posterior en el PDF;
+    - ningún borde de columna en medio.
+
+    En los 110 PDF de los demás bancos el texto no cambió; en el banco 2 cambiaron los 12 CV con fechas flotantes, todos bien.
+
+  La vara de 248 casillas sigue en 238/248, y el banco ciego 1 y los demás bancos siguen sin cambios.
 
 **Límite conocido.** El motor no entiende paráfrasis sin palabras clave («atendí llamadas y resolví quejas» para atención al cliente): queda *sin evidencia*. Es uno de los casos previstos para la segunda opinión con IA.
 
@@ -256,6 +278,43 @@ Ojo: después de afinar el motor con estos 30 CV, también se convirtieron en un
 | Banco ciego · si la IA bajara el «cumple» (laxo) | 97,6 % | 97,6 % · 97,1 % |
 
 Con v6, bajar el «cumple» ya no gana nada en el banco ciego (Haiku coincide con el motor en esos casos al aplicar los criterios de la empresa) y en el de 32 sigue costando 1 o 2 casillas: **se descartó** y el relevo sigue como estaba. Lo que sí queda es v6. Haiku varía de una corrida a otra (91,5-94,8 % solo); las diferencias de 1 o 2 casillas están dentro de esa variación.
+
+### Banco ciego 2: puestos operativos (19/11/2026)
+
+El primer banco ciego ya era un examen conocido. Para comprobar si su 97 % se mantenía con otro tipo de puesto, se armó otro igual de ciego, pero más exigente:
+
+- **Vacantes** redactadas por un agente que hacía de analista de RRHH y no conocía el motor. Fueron 10 puestos operativos: almacén con montacargas, reparto, tienda, caja, electricista, SST, mesa de ayuda, recepción bilingüe, compras y vigilancia SUCAMEC. Pueden traer términos de búsqueda imperfectos, como pasa en la vida real.
+- **30 CV** escritos por otro agente que solo vio el **aviso público**, sin los términos de búsqueda. Son cortos (unas 140 palabras), como los de estos puestos:
+  - Word a una columna, Computrabajo, Canva a dos columnas, LinkedIn, tablas, Europass y funcional;
+  - faltas de ortografía, frases negativas («aún no cuento con…», «en trámite») y 3 CV que copian el aviso.
+- **Vara de Opus a ciegas.** 7 casillas de requisitos legales (licencia, carné SUCAMEC, récord, antecedentes, certificados) se ajustaron al criterio de Omar: se verifican con documentos aunque el CV diga que los tiene.
+
+Resultados, con la misma vara y la IA corrida de nuevo con las notas de cada versión (143 casillas firmes, contando *pendiente* = *sin evidencia*):
+
+| | reglas-v14 | **reglas-v15** |
+|---|---:|---:|
+| Motor solo | 72,0 % · 9 de más · 7 méritos perdidos | **90,2 % · 5 · 1** |
+| Vigente (motor + IA) | 80,4 % · 10 · 4 | **95,8 % · 5 · 0** |
+| Haiku solo (en los CV que recibe) | 91,9 % | 97,6 % |
+| Candidatos fuera de orden (25 pares), vigente | 3 | 1 |
+
+Qué se aprendió:
+
+- **El 97 % del primer banco no se trasladaba a otro tipo de puesto.** Dos causas explicaban casi todo:
+  - la secundaria («Sec. completa»): 13 casillas;
+  - las fechas alineadas a la derecha, que el PDF guardaba fuera de orden: el motor no podía sumar los años.
+
+  Las dos se corrigieron en reglas-v15 sin tocar los demás bancos.
+- **Lo que queda «de más» es casi todo de configuración, no de lectura:**
+  - 3 requisitos que unen dos cosas con «y» («primeros auxilios y uso de extintores»), donde basta una. El formulario ya avisa que conviene separarlos; se mantuvo así.
+  - 2 términos muy amplios puestos por RRHH: «inventario» para «control de stock» y «disponibilidad» para «turnos rotativos».
+- **Lo que queda por confirmar y la vara acredita:**
+  - una competencia con un logro concreto, que se verifica en entrevista por decisión de RRHH;
+  - un estudiante de 8.º ciclo para «últimos ciclos»;
+  - un CV en inglés;
+  - un término que RRHH no puso («almacén»).
+
+Este banco sigue en el scratchpad de la sesión (no versionado). Después de este ajuste también es un examen conocido.
 
 ### Notas del CV para la entrevista
 
