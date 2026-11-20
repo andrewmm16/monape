@@ -4,6 +4,7 @@ import { AssessmentBadge } from "@/components/common/badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeepDiveSection, type DeepDiveSectionProps } from "@/components/applications/deep-dive-section";
 import type { GuideQuestion } from "@/modules/evaluation/interview-guide";
 import type { InterviewTopic } from "@/modules/evaluation/interview-topics";
 
@@ -18,15 +19,26 @@ function plural(count: number, one: string, many: string) {
  * Aviso bajo el encabezado de la postulación: se ve sin desplazarse y lleva a
  * la tarjeta de preguntas. Solo aparece si hay algo que preguntar.
  */
-export function InterviewQuestionsCallout({ pending, topics, href }: { pending: number; topics: number; href: string }) {
-  const total = pending + topics;
+export function InterviewQuestionsCallout({
+  pending,
+  topics,
+  deepen = 0,
+  href,
+}: {
+  pending: number;
+  topics: number;
+  /** Preguntas para profundizar (solo cuando se muestran completas). */
+  deepen?: number;
+  href: string;
+}) {
+  const total = pending + topics + deepen;
   if (total === 0) return null;
-  const detail = [
+  const parts = [
     pending > 0 ? plural(pending, "requisito por confirmar", "requisitos por confirmar") : null,
     topics > 0 ? plural(topics, "punto por aclarar", "puntos por aclarar") : null,
-  ]
-    .filter(Boolean)
-    .join(" y ");
+    deepen > 0 ? `${deepen} para profundizar` : null,
+  ].filter(Boolean);
+  const detail = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}` : parts[0];
   return (
     <div
       role="note"
@@ -37,7 +49,9 @@ export function InterviewQuestionsCallout({ pending, topics, href }: { pending: 
         <MessageCircleQuestionIcon className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
         <div className="space-y-0.5">
           <p className="font-medium">
-            {total === 1 ? "1 pregunta recomendada" : `${total} preguntas recomendadas`} para la entrevista
+            {pending + topics === 0
+              ? `${deepen} ${deepen === 1 ? "pregunta" : "preguntas"} para profundizar en la entrevista`
+              : `${total === 1 ? "1 pregunta recomendada" : `${total} preguntas recomendadas`} para la entrevista`}
           </p>
           <p className="text-sm text-muted-foreground">Según su CV y lo que respondió al postular: {detail}.</p>
         </div>
@@ -60,11 +74,22 @@ export function InterviewQuestionsCallout({ pending, topics, href }: { pending: 
  *
  * `guide` es null si el CV aún no tiene evaluación.
  */
-export function InterviewGuideCard({ guide, topics }: { guide: GuideQuestion[] | null; topics: InterviewTopic[] }) {
+export function InterviewGuideCard({
+  guide,
+  topics,
+  deepDive = null,
+}: {
+  guide: GuideQuestion[] | null;
+  topics: InterviewTopic[];
+  /** «Para profundizar» (null sin evaluación del CV). */
+  deepDive?: DeepDiveSectionProps | null;
+}) {
   const pending = guide?.length ?? 0;
+  const deepen = deepDive?.mode === "completa" ? deepDive.questions.length : 0;
   const counts = [
     pending > 0 ? plural(pending, "requisito por confirmar", "requisitos por confirmar") : null,
     topics.length > 0 ? plural(topics.length, "punto por aclarar", "puntos por aclarar") : null,
+    deepen > 0 ? `${deepen} para profundizar` : null,
   ].filter(Boolean);
   return (
     <Card id={INTERVIEW_GUIDE_ANCHOR} data-testid="interview-guide" className="scroll-mt-20 border-t-4 border-t-brand">
@@ -161,6 +186,8 @@ export function InterviewGuideCard({ guide, topics }: { guide: GuideQuestion[] |
             </ul>
           </section>
         ) : null}
+
+        {deepDive ? <DeepDiveSection {...deepDive} /> : null}
       </CardContent>
     </Card>
   );

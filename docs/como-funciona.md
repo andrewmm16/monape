@@ -268,6 +268,13 @@ Las personas descartadas («No seleccionado» o «Retirado») no entran en la co
 
 La postulación pasa a «Entrevista programada».
 
+**Preguntas para la entrevista.** La pestaña «Preguntas para la entrevista» de la postulación las agrupa en tres partes:
+- **Requisitos por confirmar:** lo que el CV no acredita.
+- **Otros puntos para aclarar:** respuestas eliminatorias que no cumplen y fechas del historial que no cuadran.
+- **Para profundizar:** lo que el CV **ya** acredita. Hay una pregunta por requisito, apoyada en la frase del CV, que pide un caso concreto (qué tenía que resolver, qué hizo, qué resultado tuvo), y debajo está **qué escuchar** en la respuesta.
+
+Al pasar a «Entrevista programada», la IA prepara en unos minutos las preguntas para profundizar y reescribe para esa persona las de «por confirmar» que eran genéricas. Mientras tanto, o si la IA no está disponible, se muestran preguntas base. En otros estados la sección solo se anuncia, con el botón «Generar preguntas con IA» para pedirlas antes. Estas preguntas no cambian la puntuación.
+
 **La página «Entrevistas»** (en el menú) reúne todas las entrevistas en tres partes:
 - **Pendientes de resultado:** ya pasó la hora y nadie registró cómo fue.
 - **Próximas:** agrupadas por «Hoy», «Mañana» y las demás fechas.

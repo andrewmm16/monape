@@ -29,6 +29,7 @@ export const AI_JOB_ERROR_LABELS: Record<string, string> = {
   rechazo: "el modelo declinó evaluar este CV",
   demasiados_intentos: "se agotaron los reintentos",
   cli_timeout: "el modelo tardó demasiado en responder",
+  evaluacion_desactualizada: "la evaluación del CV está desactualizada: vuelva a evaluarlo",
 };
 
 export function describeAiJobError(code: string | null): string {
@@ -87,6 +88,23 @@ export async function autoEnqueueAfterRules(
     if (error) throw error;
   } catch (error) {
     logServerError("evaluations.ai_auto_enqueue", error);
+  }
+}
+
+/**
+ * Al pasar a «Entrevista programada»: encola las preguntas para profundizar
+ * (deep-dive.ts) con la IA disponible y en cola, salvo AI_AUTO_ENQUEUE=off. La
+ * base no lo repite con el mismo CV y criterios. Nunca hace fallar la acción.
+ */
+export async function autoEnqueueDeepDive(supabase: AnyClient, applicationId: string): Promise<void> {
+  try {
+    const env = getServerEnv();
+    const availability = getAiAvailability(env);
+    if (!availability.available || !availability.queued || env.AI_AUTO_ENQUEUE === "off") return;
+    const { error } = await supabase.rpc("request_interview_deep_dive", { p_application_id: applicationId, p_automatic: true });
+    if (error) throw error;
+  } catch (error) {
+    logServerError("evaluations.deep_dive_enqueue", error);
   }
 }
 

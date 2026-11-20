@@ -127,6 +127,21 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   const observation = await page.getByLabel("Nueva observación").inputValue();
   expect(observation.match(/Resumen de la evaluación/g)).toHaveLength(1);
 
+  // Preguntas para profundizar (20/11): antes de la entrevista solo se anuncian; al pasar a
+  // entrevista se muestran (aquí sin IA: preguntas base) y el aviso de arriba las cuenta.
+  const applicationUrl = page.url().split(/[?#]/)[0]!;
+  await page.goto(`${applicationUrl}?vista=preguntas`);
+  await expect(page.getByText("Se preparan al programar la entrevista.")).toBeVisible();
+  await page.goto(applicationUrl);
+  await page.getByRole("button", { name: "Actualizar estado" }).click();
+  await expect(page.getByText("Estado actualizado y registrado en el historial.")).toBeVisible();
+  await page.goto(`${applicationUrl}?vista=preguntas`);
+  await expect(page.getByRole("heading", { name: "Para profundizar" })).toBeVisible();
+  await expect(page.getByText("(pregunta base)").first()).toBeVisible();
+  // El aviso de arriba vive en la vista de evaluación.
+  await page.goto(applicationUrl);
+  await expect(page.getByTestId("interview-questions-callout")).toContainText("para profundizar");
+
   // Listado completo en la vacante
   await page.goto(`${vacancyUrl}?tab=candidatos`);
   await expect(page.getByRole("link", { name: `Persona Ficticia ${suffix}` })).toBeVisible();

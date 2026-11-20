@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { AppError, logServerError, toAppError } from "@/lib/errors";
 import { APPLICATION_STATUS_LABELS, VERIFICATION_SOURCE_LABELS } from "@/lib/labels";
 import { createSupabaseServerClient, type AppSupabaseClient } from "@/lib/supabase/server";
+import { autoEnqueueDeepDive } from "@/modules/evaluation/ai-queue";
 import { learnFromVerifications } from "@/modules/evaluation/learning";
 import { reevaluateAfterVerification } from "@/modules/evaluation/reevaluate";
 import { limaToIso } from "./datetime";
@@ -84,6 +85,8 @@ export async function scheduleInterview(input: ScheduleInterviewInput): Promise<
         p_instructions: values.instructions || null,
       });
       if (error) throw toAppError(error);
+      // Va a entrevista: la IA prepara las preguntas (no hace fallar la programación).
+      await autoEnqueueDeepDive(supabase, values.applicationId);
       const point = coordinatesOf(values);
       if (point) {
         // La entrevista ya existe: si solo falla el punto del mapa no se repite el alta (quedaría duplicada).

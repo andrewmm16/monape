@@ -22,6 +22,12 @@ const mocks = vi.hoisted(() => ({
   recordAssembled: vi.fn(),
   /** Filas insertadas con el cliente de administración (vigilancia semanal). */
   inserts: [] as { table: string; row: Record<string, unknown> }[],
+  /** Trabajo de preguntas para profundizar reservado (tabla interview_deep_dives), o null. */
+  deepDive: null as Record<string, unknown> | null,
+  /** Postulación leída por el worker de preguntas. */
+  application: null as Record<string, unknown> | null,
+  /** Ítems de la guía por postulación (loadGuideItems). */
+  guideItems: new Map<string, unknown>(),
 }));
 
 vi.mock("@/lib/env", () => ({ getServerEnv: () => mocks.env }));
@@ -33,6 +39,9 @@ vi.mock("@/modules/evaluation/service", () => ({
 vi.mock("@/modules/evaluation/context", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/evaluation/context")>()),
   loadEvaluationContext: (...args: unknown[]) => mocks.load(...args),
+}));
+vi.mock("@/modules/evaluation/interview-guide-data", () => ({
+  loadGuideItems: async () => mocks.guideItems,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({
@@ -47,7 +56,17 @@ vi.mock("@/lib/supabase/admin", () => ({
         mocks.inserts.push({ table, row });
         return { error: null };
       };
-      chain.maybeSingle = async () => ({ data: table === "learned_equivalences" ? mocks.judgment : mocks.job, error: null });
+      chain.maybeSingle = async () => ({
+        data:
+          table === "learned_equivalences"
+            ? mocks.judgment
+            : table === "interview_deep_dives"
+              ? mocks.deepDive
+              : table === "applications"
+                ? mocks.application
+                : mocks.job,
+        error: null,
+      });
       // Reglas aprendidas activas: ninguna en estas pruebas.
       if (table === "learned_equivalences") chain.then = (resolve: (value: unknown) => void) => resolve({ data: [], error: null });
       // Lista de administradores (alertas): la consulta se espera directamente.
@@ -57,11 +76,13 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-import { AI_WORKER_OFFLINE_MS, describeAiJob, describeAiWorker } from "@/modules/evaluation/ai-queue";
+import { AI_WORKER_OFFLINE_MS, autoEnqueueDeepDive, describeAiJob, describeAiJobError, describeAiWorker } from "@/modules/evaluation/ai-queue";
 import { claimAiJob, reportAiJob, reportAiQualityCheck, reportAiWorkerStatus } from "@/modules/evaluation/ai-worker-api";
 import { getAiAvailability } from "@/modules/evaluation/ai/availability";
 import { isDoubtful } from "@/modules/evaluation/ai/doubtful";
 import { AI_OUTPUT_JSON_SCHEMA, buildAiInput } from "@/modules/evaluation/ai/input";
+import { DEEP_DIVE_JSON_SCHEMA } from "@/modules/evaluation/ai/deep-dive-prompt";
+import type { GuideItemInput } from "@/modules/evaluation/interview-guide";
 import { PROMPT_VERSION } from "@/modules/evaluation/ai/prompt";
 import { RULE_ENGINE_VERSION } from "@/modules/evaluation/rule-engine";
 import { ResumeTextUnavailableError } from "@/modules/evaluation/context";
@@ -113,6 +134,9 @@ beforeEach(() => {
   };
   mocks.job = null;
   mocks.judgment = null;
+  mocks.deepDive = null;
+  mocks.application = null;
+  mocks.guideItems = new Map();
   mocks.recordAssembled.mockReset().mockResolvedValue("eval-reglas-relevo");
   mocks.admins = [];
   mocks.inserts = [];
@@ -608,5 +632,224 @@ describe("API del worker: vigilancia semanal de la IA", () => {
     expect((await reportAiQualityCheck(req("/api/ia/vigilancia", { modelo: "x" }))).status).toBe(422);
     expect((await reportAiQualityCheck(req("/api/ia/vigilancia", report(good), "otro"))).status).toBe(404);
     expect(mocks.inserts).toEqual([]);
+  });
+});
+
+describe("preguntas para profundizar: encolado", () => {
+  const rpc = vi.fn();
+  const supabase = { rpc } as unknown as Parameters<typeof autoEnqueueDeepDive>[0];
+
+  beforeEach(() => {
+    rpc.mockReset().mockResolvedValue({ data: "deep-1", error: null });
+  });
+
+  it("encola en automático solo con la IA disponible y en cola", async () => {
+    await autoEnqueueDeepDive(supabase, APP);
+    expect(rpc).toHaveBeenCalledWith("request_interview_deep_dive", { p_application_id: APP, p_automatic: true });
+
+    rpc.mockClear();
+    mocks.env.AI_EXTERNAL_PROCESSING_APPROVED = false;
+    await autoEnqueueDeepDive(supabase, APP);
+    expect(rpc).not.toHaveBeenCalled();
+
+    mocks.env = { ...mocks.env, AI_EXTERNAL_PROCESSING_APPROVED: true, AI_PROVIDER: "anthropic", AI_API_KEY: "k" };
+    await autoEnqueueDeepDive(supabase, APP);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("una evaluación desactualizada se explica en palabras de RRHH", () => {
+    expect(describeAiJobError("evaluacion_desactualizada")).toMatch(/vuelva a evaluar/i);
+  });
+
+  it("con AI_AUTO_ENQUEUE=off no encola", async () => {
+    mocks.env.AI_AUTO_ENQUEUE = "off";
+    await autoEnqueueDeepDive(supabase, APP);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("un error al encolar no se propaga", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "falla", code: "XX000" } });
+    await expect(autoEnqueueDeepDive(supabase, APP)).resolves.toBeUndefined();
+    rpc.mockRejectedValue(new Error("red caída"));
+    await expect(autoEnqueueDeepDive(supabase, APP)).resolves.toBeUndefined();
+  });
+});
+
+describe("API del worker: preguntas para profundizar", () => {
+  const guideItem = (overrides: Partial<GuideItemInput>): GuideItemInput => ({
+    requirementId: R1,
+    description: "Excel avanzado",
+    category: "habilidad_tecnica",
+    priority: "obligatorio",
+    weight: 5,
+    isEssential: false,
+    minYears: null,
+    position: 0,
+    assessment: "acreditado",
+    rationale: "Lo declara.",
+    evidence: [{ quote: "Excel avanzado y tablas dinámicas. Contacto: ana.ficticia@correo.test" }],
+    verified: false,
+    ...overrides,
+  });
+  const bundle = (overrides: Record<string, unknown> = {}) => ({
+    evaluationId: "ev-1",
+    resumeId: "res-1",
+    criteriaVersion: 2,
+    items: [
+      guideItem({}),
+      guideItem({
+        requirementId: R2,
+        description: "Inglés intermedio",
+        category: "idioma",
+        priority: "deseable",
+        assessment: "sin_evidencia",
+        evidence: [],
+        position: 1,
+      }),
+    ],
+    ...overrides,
+  });
+  const claimedDeepDive = [{ deep_dive_id: JOB, application_id: APP, attempts: 1, claim_token: TOKEN }];
+
+  /** Cola de CV vacía (o con un CV) y una tarea de preguntas la primera vez. */
+  function queue(options: { cvJob?: boolean } = {}) {
+    let deepClaims = 0;
+    mocks.rpc.mockImplementation(async (name: string) => {
+      if (name === "ai_claim_job")
+        return { data: options.cvJob ? [{ job_id: JOB, application_id: APP, attempts: 1, claim_token: TOKEN }] : [], error: null };
+      if (name === "deep_dive_claim") return { data: deepClaims++ === 0 ? claimedDeepDive : [], error: null };
+      if (name === "learn_claim_judgment") return { data: [], error: null };
+      if (name === "deep_dive_release") return { data: "error", error: null };
+      return { data: null, error: null };
+    });
+  }
+
+  beforeEach(() => {
+    mocks.env.AI_LEARN_MIN_CONFIRMATIONS = 1;
+    mocks.application = { id: APP, vacancy_id: "vac-1", latest_evaluation_id: "ev-1" };
+    mocks.guideItems = new Map([[APP, bundle()]]);
+  });
+
+  it("sin CV en cola entrega las preguntas antes que el juez", async () => {
+    queue();
+    const body = (await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json()) as { job: Record<string, unknown> };
+    expect(body.job).toMatchObject({ id: JOB, claimToken: TOKEN, attempt: 1, model: "claude-opus-5-5", effort: "medium" });
+    expect(body.job.schema).toEqual(DEEP_DIVE_JSON_SCHEMA);
+    const prompt = String(body.job.prompt);
+    expect(prompt).toContain(`id: ${R1}`);
+    expect(prompt).toContain(`id: ${R2}`);
+    expect(prompt).not.toContain("ana.ficticia@correo.test");
+    expect(rpcCalls("deep_dive_start")).toEqual([
+      {
+        p_id: JOB,
+        p_token: TOKEN,
+        p_evaluation_id: "ev-1",
+        p_resume_id: "res-1",
+        p_criteria_version: 2,
+        p_requested_items: [
+          { requirement_id: R1, kind: "profundizar" },
+          { requirement_id: R2, kind: "confirmar" },
+        ],
+      },
+    ]);
+    expect(rpcCalls("learn_claim_judgment")).toEqual([]);
+  });
+
+  it("con CV en cola entrega primero el CV", async () => {
+    queue({ cvJob: true });
+    const body = (await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json()) as { job: Record<string, unknown> };
+    expect(body.job.schema).toEqual(AI_OUTPUT_JSON_SCHEMA);
+    expect(rpcCalls("deep_dive_claim")).toEqual([]);
+  });
+
+  it("si la evaluación vigente es de otro CV o criterios, cierra con evaluacion_desactualizada y sigue", async () => {
+    queue();
+    mocks.guideItems = new Map([[APP, bundle({ resumeId: "res-viejo" })]]);
+    const body = await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json();
+    expect(body).toEqual({ job: null });
+    expect(rpcCalls("deep_dive_release")).toEqual([
+      { p_id: JOB, p_token: TOKEN, p_outcome: "error", p_error_code: "evaluacion_desactualizada", p_retry_at: undefined },
+    ]);
+  });
+
+  it("si no hay nada que preguntar, cierra con sin_preguntas sin llamar a la IA", async () => {
+    queue();
+    mocks.guideItems = new Map([[APP, bundle({ items: [guideItem({ verified: true })] })]]);
+    const body = await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json();
+    expect(body).toEqual({ job: null });
+    expect(rpcCalls("deep_dive_release")).toEqual([
+      { p_id: JOB, p_token: TOKEN, p_outcome: "error", p_error_code: "sin_preguntas", p_retry_at: undefined },
+    ]);
+    expect(rpcCalls("deep_dive_start")).toEqual([]);
+  });
+
+  describe("resultado", () => {
+    beforeEach(() => {
+      mocks.deepDive = { id: JOB, status: "procesando", claim_token: TOKEN };
+      mocks.rpc.mockImplementation(async (name: string) => {
+        if (name === "deep_dive_complete") return { data: 1, error: null };
+        if (name === "deep_dive_release") return { data: "pendiente", error: null };
+        return { data: null, error: null };
+      });
+    });
+
+    it("el resultado válido se guarda con deep_dive_complete, el modelo y la versión del prompt", async () => {
+      const output = {
+        questions: [{ requirement_id: R1, kind: "profundizar", question: "¿Qué tablas dinámicas armó?", listen_for: "Pasos concretos." }],
+      };
+      const response = await reportAiJob(req("/x", { outcome: "ok", claimToken: TOKEN, output, model: "claude-haiku-5-5" }), JOB);
+      expect(await response.json()).toEqual({ status: "completado", saved: 1 });
+      expect(rpcCalls("deep_dive_complete")).toEqual([
+        {
+          p_id: JOB,
+          p_token: TOKEN,
+          p_questions: [{ requirement_id: R1, kind: "profundizar", question: "¿Qué tablas dinámicas armó?", listen_for: "Pasos concretos." }],
+          p_model: "claude-haiku-5-5",
+          p_prompt_version: "ia-preguntas-v1",
+        },
+      ]);
+      expect(rpcCalls("ai_complete_job")).toEqual([]);
+    });
+
+    it("una salida inválida se reintenta con respuesta_invalida", async () => {
+      await reportAiJob(req("/x", { outcome: "ok", claimToken: TOKEN, output: "texto libre" }), JOB);
+      expect(rpcCalls("deep_dive_release")).toEqual([
+        { p_id: JOB, p_token: TOKEN, p_outcome: "reintentar", p_error_code: "respuesta_invalida", p_retry_at: undefined },
+      ]);
+    });
+
+    it("si la base rechaza todas las preguntas (RH422), se reintenta con respuesta_invalida", async () => {
+      mocks.rpc.mockImplementation(async (name: string) =>
+        name === "deep_dive_complete"
+          ? { data: null, error: { code: "RH422", message: "La respuesta no trae ninguna pregunta válida" } }
+          : { data: "pendiente", error: null },
+      );
+      const output = { questions: [{ requirement_id: "otro", kind: "profundizar", question: "¿?", listen_for: "" }] };
+      await reportAiJob(req("/x", { outcome: "ok", claimToken: TOKEN, output }), JOB);
+      expect(rpcCalls("deep_dive_release")).toEqual([
+        { p_id: JOB, p_token: TOKEN, p_outcome: "reintentar", p_error_code: "respuesta_invalida", p_retry_at: undefined },
+      ]);
+    });
+
+    it("límite y error se liberan con deep_dive_release", async () => {
+      await reportAiJob(
+        req("/x", { outcome: "limite", claimToken: TOKEN, errorCode: "limite_plan", retryAt: "2026-11-20T15:00:00Z" }),
+        JOB,
+      );
+      await reportAiJob(req("/x", { outcome: "error", claimToken: TOKEN, errorCode: "cli_timeout", retryable: false }), JOB);
+      expect(rpcCalls("deep_dive_release")).toEqual([
+        { p_id: JOB, p_token: TOKEN, p_outcome: "limite", p_error_code: "limite_plan", p_retry_at: "2026-11-20T15:00:00Z" },
+        { p_id: JOB, p_token: TOKEN, p_outcome: "error", p_error_code: "cli_timeout", p_retry_at: undefined },
+      ]);
+      expect(rpcCalls("ai_release_job")).toEqual([]);
+    });
+  });
+
+  it("un id que no es de preguntas sigue al flujo del CV como antes", async () => {
+    mocks.deepDive = null;
+    mocks.job = { id: JOB, application_id: APP, status: "procesando", claim_token: TOKEN, input_sha256: sentSha(), criteria_version: 2 };
+    await reportAiJob(req("/x", { outcome: "limite", claimToken: TOKEN, errorCode: "limite_plan" }), JOB);
+    expect(rpcCalls("deep_dive_release")).toEqual([]);
+    expect(rpcCalls("ai_release_job")).toHaveLength(1);
   });
 });

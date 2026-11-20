@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { getServerEnv } from "@/lib/env";
-import { AppError, logServerError } from "@/lib/errors";
+import { logServerError } from "@/lib/errors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 import { safeEqual } from "@/modules/integrations/talent-apply/token";
@@ -18,14 +18,8 @@ import { PROMPT_VERSION } from "./ai/prompt";
 import { assessQuality, qualityReportSchema } from "./ai/quality";
 import { hasRelayedItems, relayToAi } from "./ai/relay";
 import { extractEquivalenceVotes, interpretAiResponse, InvalidAiResponseError } from "./ai/response";
-import {
-  APPLICATION_NOT_FOUND_MESSAGE,
-  CRITERIA_NOT_APPROVED_MESSAGE,
-  loadEvaluationContext,
-  NO_REQUIREMENTS_MESSAGE,
-  ResumeTextUnavailableError,
-  type EvaluationContext,
-} from "./context";
+import { contextErrorCode, loadEvaluationContext, type EvaluationContext } from "./context";
+import { claimDeepDive, reportDeepDive } from "./deep-dive-worker";
 import { detectEvaluationSignalNotes } from "./signal-notes";
 import { loadActiveLearnedRules, recordEquivalenceVotes } from "./learning";
 import { evaluateWithRules, RULE_ENGINE_VERSION } from "./rule-engine";
@@ -243,15 +237,7 @@ async function readJson(request: Request): Promise<unknown> {
 }
 
 /** Código de cierre de un fallo de preparación que no se arregla reintentando, o null si es transitorio. */
-function permanentCode(error: unknown): string | null {
-  if (error instanceof ResumeTextUnavailableError) return "sin_texto";
-  if (error instanceof AppError) {
-    if (error.message === CRITERIA_NOT_APPROVED_MESSAGE) return "criterios_no_aprobados";
-    if (error.message === APPLICATION_NOT_FOUND_MESSAGE) return "postulacion_no_encontrada";
-    if (error.message === NO_REQUIREMENTS_MESSAGE) return "sin_requisitos";
-  }
-  return null;
-}
+const permanentCode = contextErrorCode;
 
 async function release(
   admin: AdminClient,
@@ -429,7 +415,10 @@ export async function claimAiJob(request: Request): Promise<Response> {
       if (error) throw error;
       const job = data?.[0];
       if (!job?.job_id || !job.application_id || !job.claim_token) {
-        // Sin CV en cola: si hay una regla aprendida esperando al segundo juez, se entrega esa.
+        // Sin CV en cola: primero las preguntas para la entrevista de quien va a entrevista.
+        const deepDive = await claimDeepDive(admin, { model: availability.model, effort: AI_EFFORT, maxChars: env.AI_MAX_INPUT_CHARS });
+        if (deepDive) return json(200, { job: deepDive });
+        // Después, si hay una regla aprendida esperando al segundo juez, se entrega esa.
         const judgment = env.AI_LEARN_MIN_CONFIRMATIONS >= 1 ? await claimJudgment(admin, env.AI_JUDGE_MODEL) : null;
         return json(200, { job: judgment });
       }
@@ -488,6 +477,10 @@ export async function reportAiJob(request: Request, jobId: string): Promise<Resp
     const admin = createSupabaseAdminClient();
     const report = body.data;
     const token = report.claimToken;
+
+    // ¿Es una tarea de preguntas para la entrevista y no un CV?
+    const deepDive = await reportDeepDive(admin, jobId, report);
+    if (deepDive) return deepDive;
 
     // ¿Es una tarea del segundo juez (regla aprendida) y no un CV?
     const judged = await reportJudgment(admin, jobId, report);

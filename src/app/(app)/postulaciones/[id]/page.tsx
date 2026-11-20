@@ -39,7 +39,7 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { linkCurrentResume, requestAiEvaluationAction, runEvaluation } from "@/modules/applications/actions";
 import { AiJobStatus } from "@/components/applications/ai-job-status";
-import { describeAiJob, describeAiWorker, getAiWorkerStatus, getLatestAiJob } from "@/modules/evaluation/ai-queue";
+import { describeAiJob, describeAiJobError, describeAiWorker, getAiWorkerStatus, getLatestAiJob } from "@/modules/evaluation/ai-queue";
 import {
   getApplicationDetail,
   getCurrentResume,
@@ -54,7 +54,17 @@ import { formatInterviewDateTime } from "@/modules/interviews/datetime";
 import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
 import { getAiStatus } from "@/modules/evaluation/service";
-import { loadInterviewGuide } from "@/modules/evaluation/interview-guide-data";
+import { loadGuideItems } from "@/modules/evaluation/interview-guide-data";
+import { buildInterviewGuide } from "@/modules/evaluation/interview-guide";
+import {
+  applyConfirmQuestions,
+  buildDeepDive,
+  deepDiveHasWork,
+  FULL_DEEP_DIVE_STATUSES,
+  isEvaluationCurrent,
+} from "@/modules/evaluation/deep-dive";
+import { loadDeepDiveState } from "@/modules/evaluation/deep-dive-data";
+import type { DeepDiveSectionProps } from "@/components/applications/deep-dive-section";
 import { buildInterviewTopics } from "@/modules/evaluation/interview-topics";
 
 export const metadata: Metadata = { title: "Postulación" };
@@ -165,16 +175,58 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const aiJob = aiQueued ? describeAiJob(await getLatestAiJob(supabase, application.id), formatDateTime) : null;
   // Con un trabajo abierto, avisa si el worker no está atendiendo la cola (caído o en pausa).
   const aiWorkerNotice = aiJob?.active ? describeAiWorker(await getAiWorkerStatus(supabase), formatDateTime) : null;
-  // Preguntas para la entrevista: los requisitos que falta confirmar (null sin
-  // evaluación o si falla, y la página sigue) y otros puntos por aclarar.
-  const interviewGuide = canManage
-    ? await loadInterviewGuide(supabase, application.id).catch((error: unknown) => {
-        logServerError("applications.interview_guide", error);
-        return null;
-      })
+  // Preguntas para la entrevista (null sin evaluación o si falla, y la página sigue):
+  // los requisitos que falta confirmar, otros puntos por aclarar y, de lo que el CV
+  // ya acredita, las preguntas para profundizar. La IA reescribe las de plantilla.
+  const guideBundle = canManage
+    ? await loadGuideItems(supabase, [
+        { id: application.id, vacancy_id: application.vacancy.id, latest_evaluation_id: application.latest_evaluation_id },
+      ])
+        .then((bundles) => bundles.get(application.id) ?? null)
+        .catch((error: unknown) => {
+          logServerError("applications.interview_guide", error);
+          return null;
+        })
     : null;
+  const deepDiveState = guideBundle
+    ? await loadDeepDiveState(supabase, application.id, { resumeId: guideBundle.resumeId, criteriaVersion: guideBundle.criteriaVersion }).catch(
+        (error: unknown) => {
+          logServerError("applications.deep_dive", error);
+          return null;
+        },
+      )
+    : null;
+  const aiQuestions = deepDiveState?.aiQuestions ?? [];
+  const interviewGuide = guideBundle ? applyConfirmQuestions(buildInterviewGuide(guideBundle.items), aiQuestions) : null;
+  const deepDiveFailure = deepDiveState?.lastError?.error_code ?? null;
+  const deepDive: DeepDiveSectionProps | null = guideBundle
+    ? {
+        mode:
+          (FULL_DEEP_DIVE_STATUSES as readonly string[]).includes(application.status ?? "") || deepDiveState?.open || deepDiveState?.current
+            ? "completa"
+            : "resumida",
+        questions: buildDeepDive(guideBundle.items, aiQuestions),
+        // Sin IA disponible: solo las preguntas base, sin avisos.
+        status: !aiQueued
+          ? null
+          : deepDiveState?.open
+            ? { message: "La IA está preparando preguntas para esta persona. Mientras tanto se muestran preguntas base.", tone: "info", active: true }
+            : deepDiveState?.lastError
+              ? { message: `No se pudieron generar con IA: ${describeAiJobError(deepDiveFailure)}.`, tone: "warning", active: false }
+              : null,
+        // Con criterios o CV nuevos sin evaluar, antes hay que volver a evaluar (la base tampoco lo encola).
+        canRequest:
+          aiQueued &&
+          !deepDiveState?.open &&
+          !deepDiveState?.current &&
+          deepDiveHasWork(guideBundle.items) &&
+          isEvaluationCurrent(guideBundle, { resumeId: application.resume?.id ?? null, criteriaVersion: application.vacancy.criteria_version }),
+        applicationId: application.id,
+      }
+    : null;
+  const deepenCount = deepDive?.mode === "completa" ? deepDive.questions.length : 0;
   const interviewTopics = canManage ? buildInterviewTopics({ killerAnswers, limitations: main?.limitations ?? [] }) : [];
-  const interviewQuestionCount = (interviewGuide?.length ?? 0) + interviewTopics.length;
+  const interviewQuestionCount = (interviewGuide?.length ?? 0) + interviewTopics.length + deepenCount;
   // Columna izquierda con dos pestañas (por la URL, sin JS): la evaluación del CV y las preguntas para la entrevista.
   const view = canManage && search.vista === "preguntas" ? "preguntas" : "evaluacion";
   const evaluationHref = typeof search.evaluacion === "string" ? `?evaluacion=${encodeURIComponent(search.evaluacion)}` : "?";
@@ -285,7 +337,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       />
 
       {canManage && view === "evaluacion" ? (
-        <InterviewQuestionsCallout pending={interviewGuide?.length ?? 0} topics={interviewTopics.length} href={questionsHref} />
+        <InterviewQuestionsCallout
+          pending={interviewGuide?.length ?? 0}
+          topics={interviewTopics.length}
+          deepen={deepenCount}
+          href={questionsHref}
+        />
       ) : null}
 
       {/* Pantalla ancha: a la izquierda lo que dice la evaluación; a la derecha la decisión y el seguimiento. */}
@@ -323,7 +380,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             </nav>
           ) : null}
 
-          {view === "preguntas" ? <InterviewGuideCard guide={interviewGuide} topics={interviewTopics} /> : null}
+          {view === "preguntas" ? <InterviewGuideCard guide={interviewGuide} topics={interviewTopics} deepDive={deepDive} /> : null}
 
 
           {view === "evaluacion" ? (

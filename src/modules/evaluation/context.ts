@@ -23,6 +23,21 @@ export class ResumeTextUnavailableError extends AppError {
   }
 }
 
+/**
+ * Código de cierre de un fallo al cargar el contexto que no se arregla
+ * reintentando (sin texto, criterios sin aprobar…), o null si es transitorio.
+ * Lo usan los trabajos del worker de IA.
+ */
+export function contextErrorCode(error: unknown): string | null {
+  if (error instanceof ResumeTextUnavailableError) return "sin_texto";
+  if (error instanceof AppError) {
+    if (error.message === CRITERIA_NOT_APPROVED_MESSAGE) return "criterios_no_aprobados";
+    if (error.message === APPLICATION_NOT_FOUND_MESSAGE) return "postulacion_no_encontrada";
+    if (error.message === NO_REQUIREMENTS_MESSAGE) return "sin_requisitos";
+  }
+  return null;
+}
+
 /** Todo lo que se necesita para evaluar una postulación, leído de la base de datos. */
 export type EvaluationContext = {
   applicationId: string;

@@ -15,7 +15,8 @@ import {
   ResumeTextUnavailableError,
 } from "@/modules/evaluation/service";
 import { VERIFICATION_SOURCE_LABELS } from "@/lib/labels";
-import { requestAiEvaluation } from "@/modules/evaluation/ai-queue";
+import { autoEnqueueDeepDive, requestAiEvaluation } from "@/modules/evaluation/ai-queue";
+import { requestDeepDive } from "@/modules/evaluation/deep-dive-data";
 import { learnFromVerifications } from "@/modules/evaluation/learning";
 import { reevaluateAfterVerification, type ReevaluationOutcome } from "@/modules/evaluation/reevaluate";
 import { sendEmail } from "@/modules/notifications/email/client";
@@ -58,6 +59,8 @@ export async function changeApplicationStatus(input: ChangeStatusInput): Promise
         p_note: values.note || null,
       });
       if (error) throw toAppError(error);
+      // Va a entrevista: la IA prepara las preguntas (no hace fallar el cambio de estado).
+      if (values.status === "entrevista_programada") await autoEnqueueDeepDive(supabase, values.applicationId);
       // Aviso opcional (decide RRHH): informa, no cambia nada. Solo estados comunicables.
       if (values.notifyCandidate) scheduleApplicationStatusEmail(supabase, values.applicationId, values.status);
       revalidateApplication(values.applicationId);
@@ -234,6 +237,28 @@ export async function requestAiEvaluationAction(applicationId: string): Promise<
       return { id };
     },
     "Evaluación con IA en cola. El resultado aparecerá en esta página en unos minutos.",
+  );
+}
+
+/**
+ * «Generar preguntas con IA» (preguntas para profundizar en la entrevista): encola
+ * la postulación; el worker las escribe y aparecen en la pestaña de preguntas.
+ */
+export async function requestDeepDiveAction(applicationId: string): Promise<ActionResult<{ id: string }>> {
+  return runAction(
+    "evaluations.deep_dive_request",
+    async () => {
+      await requirePermission("evaluations:run");
+      const values = parseInput(z.object({ applicationId: z.uuid() }), { applicationId });
+      const status = getAiStatus();
+      if (!status.available) throw new AppError(status.reason, "unavailable");
+      if (!status.queued) throw new AppError("En esta instalación la IA no usa la cola.", "conflict");
+      const supabase = await createSupabaseServerClient();
+      const id = await requestDeepDive(supabase, values.applicationId);
+      revalidateApplication(values.applicationId);
+      return { id };
+    },
+    "La IA está preparando las preguntas. Aparecerán en esta pestaña en unos minutos.",
   );
 }
 

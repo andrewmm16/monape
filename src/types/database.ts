@@ -1390,6 +1390,104 @@ export type Database = {
           },
         ]
       }
+      interview_deep_dives: {
+        Row: {
+          application_id: string
+          attempts: number
+          available_at: string
+          claim_token: string | null
+          claimed_at: string | null
+          criteria_version: number | null
+          error_code: string | null
+          evaluation_id: string | null
+          finished_at: string | null
+          id: string
+          model: string | null
+          origin: Database["public"]["Enums"]["ai_job_origin"]
+          prompt_version: string | null
+          questions: Json
+          requested_at: string
+          requested_by: string | null
+          requested_items: Json
+          resume_id: string | null
+          status: Database["public"]["Enums"]["ai_job_status"]
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          attempts?: number
+          available_at?: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          criteria_version?: number | null
+          error_code?: string | null
+          evaluation_id?: string | null
+          finished_at?: string | null
+          id?: string
+          model?: string | null
+          origin: Database["public"]["Enums"]["ai_job_origin"]
+          prompt_version?: string | null
+          questions?: Json
+          requested_at?: string
+          requested_by?: string | null
+          requested_items?: Json
+          resume_id?: string | null
+          status?: Database["public"]["Enums"]["ai_job_status"]
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          attempts?: number
+          available_at?: string
+          claim_token?: string | null
+          claimed_at?: string | null
+          criteria_version?: number | null
+          error_code?: string | null
+          evaluation_id?: string | null
+          finished_at?: string | null
+          id?: string
+          model?: string | null
+          origin?: Database["public"]["Enums"]["ai_job_origin"]
+          prompt_version?: string | null
+          questions?: Json
+          requested_at?: string
+          requested_by?: string | null
+          requested_items?: Json
+          resume_id?: string | null
+          status?: Database["public"]["Enums"]["ai_job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_deep_dives_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_deep_dives_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_deep_dives_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_deep_dives_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_reminders: {
         Row: {
           created_at: string
@@ -2905,6 +3003,46 @@ export type Database = {
           effective_from: string | null
         }[]
       }
+      deep_dive_claim: {
+        Args: never
+        Returns: {
+          deep_dive_id: string | null
+          application_id: string | null
+          attempts: number | null
+          claim_token: string | null
+        }[]
+      }
+      deep_dive_complete: {
+        Args: {
+          p_id: string | null
+          p_token: string | null
+          p_questions: Json | null
+          p_model: string | null
+          p_prompt_version: string | null
+        }
+        Returns: number
+      }
+      deep_dive_release: {
+        Args: {
+          p_id: string | null
+          p_token: string | null
+          p_outcome: string | null
+          p_error_code?: string | null
+          p_retry_at?: string | null
+        }
+        Returns: Database["public"]["Enums"]["ai_job_status"]
+      }
+      deep_dive_start: {
+        Args: {
+          p_id: string | null
+          p_token: string | null
+          p_evaluation_id: string | null
+          p_resume_id: string | null
+          p_criteria_version: number | null
+          p_requested_items: Json | null
+        }
+        Returns: undefined
+      }
       delete_archived_vacancy: {
         Args: {
           p_vacancy_id: string | null
@@ -3288,6 +3426,13 @@ export type Database = {
         Returns: undefined
       }
       request_ai_evaluation: {
+        Args: {
+          p_application_id: string | null
+          p_automatic?: boolean | null
+        }
+        Returns: string
+      }
+      request_interview_deep_dive: {
         Args: {
           p_application_id: string | null
           p_automatic?: boolean | null
