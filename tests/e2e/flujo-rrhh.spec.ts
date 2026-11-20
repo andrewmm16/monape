@@ -71,6 +71,20 @@ test("RRHH crea una vacante, aprueba criterios, registra un candidato, carga su 
   await expect(page.getByText("Publicada", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Publicada", { exact: true })).toBeVisible();
 
+  // Volver a abrir Portales estando en Portales no duplica la lista de portales, y la
+  // lista no queda colgada en otra pestaña (claves repetidas en PortalsPanel, 20/11).
+  const vacancyTabs = page.getByRole("navigation", { name: "Secciones de la vacante" });
+  const portalPicker = page.locator("#portales-todos");
+  await expect(portalPicker).toHaveCount(1);
+  await vacancyTabs.getByRole("link", { name: "Portales", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await vacancyTabs.getByRole("link", { name: "Detalle", exact: true }).click();
+  await expect(page.getByText("Información de la vacante")).toBeVisible();
+  await expect(portalPicker).toHaveCount(0);
+  await vacancyTabs.getByRole("link", { name: "Portales", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(portalPicker).toHaveCount(1);
+
   // Candidato
   await page.goto("/candidatos/nuevo");
   await page.getByLabel("Nombre completo").fill(`Persona Ficticia ${suffix}`);

@@ -40,15 +40,17 @@ export function PortalsPanel({
       <p className="text-sm text-muted-foreground">
         Marque los portales donde debe estar la vacante y desmarque los que quiera retirar; los cambios se aplican con «Guardar cambios». Los que dicen «Robot aún no disponible» se publican a mano por ahora.
       </p>
-      {/* La clave reinicia la selección cuando el robot cambia el estado de algún portal. */}
+      {/* La clave reinicia la selección cuando el robot cambia el estado de algún portal. Cada
+          hermano lleva su prefijo: sin publicaciones, las dos claves daban «-,-,-…» y React
+          duplicaba la lista al volver a renderizar y la dejaba colgada en otras pestañas. */}
       <PortalPicker
-        key={rows.map((row) => row.publication?.status ?? "-").join()}
+        key={`selector:${rows.map((row) => row.publication?.status ?? "-").join()}`}
         vacancyId={vacancyId}
         canPublish={vacancyStatus === "publicada"}
         rows={rows.map((row) => ({ ...row, logo: portalLogo(row.portal.name) }))}
       />
       <ManualPublication
-        key={rows.map((row) => `${row.publication?.status ?? "-"}${row.publication?.manual ? "m" : ""}`).join()}
+        key={`manual:${rows.map((row) => `${row.publication?.status ?? "-"}${row.publication?.manual ? "m" : ""}`).join()}`}
         vacancyId={vacancyId}
         canPublish={vacancyStatus === "publicada"}
         rows={rows}
