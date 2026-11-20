@@ -41,32 +41,46 @@ export function killerAnswerText(answer: Pick<KillerAnswerInput, "answer_boolean
 
 type NoteKind = keyof typeof DATE_NOTE_PREFIX | "copia_aviso";
 
-/** Cada nota de señal, reconocida por su inicio fijo, con su título y su pregunta. */
-const NOTE_TOPICS: { kind: NoteKind; prefix: string; title: string; question: string }[] = [
+/** Lo que la nota cita entre «» (puestos, fechas o frases del CV), para nombrarlo en la pregunta. */
+function quotesOf(note: string): string[] {
+  return [...note.matchAll(/«([^»]+)»/g)].map((m) => `«${m[1]!.trim()}»`);
+}
+
+/** Cada nota de señal, reconocida por su inicio fijo, con su título y su pregunta (que nombra lo citado). */
+const NOTE_TOPICS: { kind: NoteKind; prefix: string; title: string; question: (quotes: string[]) => string }[] = [
   {
     kind: "solapamiento",
     prefix: DATE_NOTE_PREFIX.solapamiento,
     title: "Fechas de trabajo que se superponen",
-    question: "¿Trabajó en esos puestos al mismo tiempo? Repase con la persona las fechas de inicio y fin de cada uno.",
+    question: ([first, second]) =>
+      first && second
+        ? `¿Trabajó en ${first} y en ${second} al mismo tiempo? Repase con la persona las fechas de inicio y fin de cada uno.`
+        : "¿Trabajó en los dos puestos que se superponen al mismo tiempo? Repase con la persona las fechas de inicio y fin de cada uno.",
   },
   {
     kind: "fecha_imposible",
     prefix: DATE_NOTE_PREFIX.fecha_imposible,
     title: "Una fecha del historial que no cuadra",
-    question: "Confirme las fechas de ese puesto: ¿cuándo empezó y cuándo terminó?",
+    question: ([quote]) =>
+      quote
+        ? `Confirme las fechas de ${quote}: ¿cuándo empezó y cuándo terminó?`
+        : "Confirme las fechas del puesto que no cuadran: ¿cuándo empezó y cuándo terminó?",
   },
   {
     kind: "rotacion",
     prefix: DATE_NOTE_PREFIX.rotacion,
     title: "Varios empleos de corta duración",
-    question:
+    question: () =>
       "Pídale que le cuente su trayectoria: qué hacía en cada puesto y qué buscaba con cada cambio. No pregunte por motivos personales ni de salud.",
   },
   {
     kind: "copia_aviso",
     prefix: VACANCY_COPY_NOTE_PREFIX,
     title: "Partes del CV copiadas del aviso",
-    question: "Pídale que le cuente, con sus palabras y con un ejemplo concreto, cómo hacía esas funciones y en qué puesto.",
+    question: ([quote]) =>
+      quote
+        ? `Pídale que le cuente, con sus palabras y con un ejemplo concreto, cómo hacía ${quote} y en qué puesto.`
+        : "Pídale que le cuente, con sus palabras y con un ejemplo concreto, cómo hacía las funciones que su CV copia del aviso y en qué puesto.",
   },
 ];
 
@@ -88,7 +102,7 @@ export function buildInterviewTopics(input: { killerAnswers: KillerAnswerInput[]
   const notes = input.limitations.flatMap((note, index): InterviewTopic[] => {
     const topic = NOTE_TOPICS.find((t) => note.startsWith(t.prefix));
     if (!topic) return [];
-    return [{ id: `${topic.kind}-${index}`, kind: topic.kind, title: topic.title, reason: note, question: topic.question }];
+    return [{ id: `${topic.kind}-${index}`, kind: topic.kind, title: topic.title, reason: note, question: topic.question(quotesOf(note)) }];
   });
 
   return [...killer, ...notes];

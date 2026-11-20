@@ -96,20 +96,31 @@ describe("preguntas para profundizar: qué pregunta se muestra", () => {
       quote: "Analista de planillas en Comercial Andina, 2019-2022",
     });
     expect(questions[1]!.source).toBe("base");
-    expect(questions[1]!.question).toBe("¿Qué es lo más complejo que ha hecho con esto? Descríbalo paso a paso.");
+    expect(questions[1]!.question).toBe("¿Qué es lo más complejo que ha hecho con «Excel»? Descríbalo paso a paso.");
     expect(questions[1]!.quote!.length).toBeLessThanOrEqual(200);
+  });
+
+  it("ninguna pregunta base es vaga: siempre nombra el requisito", () => {
+    const VAGUE = /\b(esto|eso)\b|lo pedido|algo parecido|esta experiencia|lo demostró|lo que pide el puesto/i;
+    const categories = ["formacion", "experiencia", "habilidad_tecnica", "herramienta", "certificacion", "competencia", "idioma", "otro"] as const;
+    for (const input of [...categories.map((category) => item({ category })), item({ isEssential: true })]) {
+      const [q] = buildDeepDive([input], []);
+      expect(q!.question, input.category).not.toMatch(VAGUE);
+      expect(q!.listenFor, input.category).not.toMatch(VAGUE);
+      expect(q!.question, input.category).toContain("«Gestión de planillas»");
+    }
   });
 
   it("la pregunta base de un requisito esencial pide el documento", () => {
     const [question] = buildDeepDive([item({ isEssential: true, category: "experiencia" })], []);
-    expect(question!.question).toBe("Pida el documento vigente. ¿En qué trabajo lo ha aplicado?");
+    expect(question!.question).toBe("Pida el documento vigente de «Gestión de planillas». ¿En qué trabajo lo ha aplicado?");
   });
 
   it("una pregunta de la IA sin «qué escuchar» usa el de la pregunta base", () => {
     const [question] = buildDeepDive([item()], [ai({ listenFor: null })]);
     expect(question!.source).toBe("ia");
     expect(question!.listenFor).toBe(
-      "Detalles concretos (cifras, herramientas, fechas que coinciden con el CV) y lo que hizo la persona, no solo «el equipo».",
+      "Detalles concretos de «Gestión de planillas» (cifras, herramientas, fechas que coinciden con el CV) y lo que hizo la persona, no solo «el equipo».",
     );
   });
 

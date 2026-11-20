@@ -755,6 +755,32 @@ describe("API del worker: preguntas para profundizar", () => {
     expect(rpcCalls("learn_claim_judgment")).toEqual([]);
   });
 
+  it("si falla la cola de preguntas, igual se entrega al segundo juez", async () => {
+    mocks.rpc.mockImplementation(async (name: string) => {
+      if (name === "ai_claim_job") return { data: [], error: null };
+      if (name === "deep_dive_claim") return { data: null, error: { code: "XX000", message: "falla de la base" } };
+      if (name === "learn_claim_judgment")
+        return {
+          data: [
+            {
+              equivalence_id: JOB,
+              judge_token: TOKEN,
+              attempts: 1,
+              requirement_category: "experiencia",
+              requirement_description: "Supervisión de obras",
+              cv_term_display: "Asistente de Residencia",
+            },
+          ],
+          error: null,
+        };
+      return { data: null, error: null };
+    });
+    const response = await claimAiJob(req("/api/ia/trabajos/siguiente"));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: Record<string, unknown> };
+    expect(String(body.job.prompt)).toContain("«Asistente de Residencia»");
+  });
+
   it("con CV en cola entrega primero el CV", async () => {
     queue({ cvJob: true });
     const body = (await (await claimAiJob(req("/api/ia/trabajos/siguiente"))).json()) as { job: Record<string, unknown> };
@@ -805,7 +831,7 @@ describe("API del worker: preguntas para profundizar", () => {
           p_token: TOKEN,
           p_questions: [{ requirement_id: R1, kind: "profundizar", question: "¿Qué tablas dinámicas armó?", listen_for: "Pasos concretos." }],
           p_model: "claude-haiku-5-5",
-          p_prompt_version: "ia-preguntas-v1",
+          p_prompt_version: "ia-preguntas-v2",
         },
       ]);
       expect(rpcCalls("ai_complete_job")).toEqual([]);

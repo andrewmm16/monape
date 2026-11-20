@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeImpossibleRanges, describeJobHopping, detectDateSignalNotes } from "@/modules/evaluation/date-consistency";
+import { DATE_NOTE_PREFIX, describeImpossibleRanges, describeJobHopping, detectDateSignalNotes } from "@/modules/evaluation/date-consistency";
 import { buildInterviewTopics, killerAnswerText, type KillerAnswerInput } from "@/modules/evaluation/interview-topics";
 import { VACANCY_COPY_NOTE_PREFIX } from "@/modules/evaluation/vacancy-copy";
 
@@ -62,6 +62,18 @@ describe("otros puntos para aclarar en la entrevista", () => {
     const [topic, ...rest] = buildInterviewTopics({ killerAnswers: [], limitations: [note] });
     expect(rest).toEqual([]);
     expect(topic).toMatchObject({ kind: "copia_aviso", reason: note });
+  });
+
+  it("las preguntas nombran los puestos y las frases que cita la nota, no «ese puesto»", () => {
+    const overlap = `${DATE_NOTE_PREFIX.solapamiento}: el CV declara periodos que coinciden en el tiempo («Analista contable - Empresa A (2018 - 2021)» y «Asistente contable - Empresa B (2019 - 2022)»). Puede ser pluriempleo legítimo o un error de fechas; conviene aclararlo en la entrevista.`;
+    const impossible = describeImpossibleRanges([{ quote: "2025 - 2019 Analista", start: 0, end: 20, reason: "fin_antes_inicio" }]);
+    const copy = `${VACANCY_COPY_NOTE_PREFIX} (2, 31 palabras), por ejemplo: «elaborar las planillas y remuneraciones mensuales del personal». No es un motivo de descarte.`;
+    const [a, b, c] = buildInterviewTopics({ killerAnswers: [], limitations: [overlap, ...impossible, copy] });
+    expect(a!.question).toContain("«Analista contable - Empresa A (2018 - 2021)»");
+    expect(a!.question).toContain("«Asistente contable - Empresa B (2019 - 2022)»");
+    expect(b!.question).toContain("«2025 - 2019 Analista»");
+    expect(c!.question).toContain("«elaborar las planillas y remuneraciones mensuales del personal»");
+    for (const topic of [a, b, c]) expect(topic!.question).not.toMatch(/\bese puesto\b|\besos puestos\b|\besas funciones\b/);
   });
 
   it("las preguntas sobre la trayectoria no invitan a hablar de salud ni de motivos personales", () => {

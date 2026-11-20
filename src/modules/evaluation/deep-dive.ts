@@ -1,5 +1,5 @@
 import type { Enums, Tables } from "@/types/database";
-import { buildInterviewGuide, type GuideItemInput, type GuideQuestion } from "./interview-guide";
+import { buildInterviewGuide, requirementTopic, type GuideItemInput, type GuideQuestion } from "./interview-guide";
 
 /**
  * Preguntas para profundizar en la entrevista
@@ -82,44 +82,55 @@ export function deepDiveHasWork(items: GuideItemInput[]): boolean {
 
 type BaseQuestion = { question: string; listenFor: string };
 
-const EXPERIENCE: BaseQuestion = {
-  question: "Su CV menciona esta experiencia. Cuénteme un caso concreto: qué tenía que resolver, qué hizo usted y qué resultado tuvo.",
-  listenFor: "Detalles concretos (cifras, herramientas, fechas que coinciden con el CV) y lo que hizo la persona, no solo «el equipo».",
-};
-const TOOL: BaseQuestion = {
-  question: "¿Qué es lo más complejo que ha hecho con esto? Descríbalo paso a paso.",
-  listenFor: "Pasos concretos y del nivel que pide el puesto; sabe explicar por qué lo hizo así.",
-};
-const DOCUMENT: BaseQuestion = {
-  question: "Pida el documento vigente. ¿En qué trabajo lo ha aplicado?",
-  listenFor: "Presenta el documento y da un ejemplo de uso real.",
-};
-
-const BASE_BY_CATEGORY: Record<Enums<"requirement_category">, BaseQuestion> = {
-  experiencia: EXPERIENCE,
-  herramienta: TOOL,
-  habilidad_tecnica: TOOL,
-  idioma: {
-    question: "Haga una parte de la entrevista en ese idioma.",
-    listenFor: "Se comunica con el nivel que pide el puesto.",
-  },
-  certificacion: DOCUMENT,
-  formacion: {
-    question: "¿Qué de lo que estudió aplica hoy en su trabajo? Pida el documento si es clave.",
-    listenFor: "Relaciona lo estudiado con tareas concretas.",
-  },
-  competencia: {
-    question: "Cuénteme una situación en que lo demostró: qué pasó, qué hizo y qué resultado tuvo.",
-    listenFor: "Un ejemplo propio y concreto, no una opinión general.",
-  },
-  otro: {
-    question: "Cuénteme un ejemplo concreto o muestre un documento que lo respalde.",
-    listenFor: "Un ejemplo o documento verificable.",
-  },
-};
-
+/**
+ * Pregunta base por categoría (sin IA). Siempre nombra el requisito tal como lo
+ * escribió RRHH, nunca «esto» ni «lo pedido»: la cita del CV va encima.
+ */
 function baseQuestion(item: GuideItemInput): BaseQuestion {
-  return item.isEssential ? DOCUMENT : BASE_BY_CATEGORY[item.category];
+  const req = `«${requirementTopic(item.description)}»`;
+  if (item.isEssential || item.category === "certificacion") {
+    return {
+      question: `Pida el documento vigente de ${req}. ¿En qué trabajo lo ha aplicado?`,
+      listenFor: `Presenta el documento de ${req} y da un ejemplo de uso real.`,
+    };
+  }
+  switch (item.category) {
+    case "experiencia":
+      return {
+        question: `Cuénteme un caso concreto de su experiencia en ${req}: qué tenía que resolver, qué hizo usted y qué resultado tuvo.`,
+        listenFor: `Detalles concretos de ${req} (cifras, herramientas, fechas que coinciden con el CV) y lo que hizo la persona, no solo «el equipo».`,
+      };
+    case "herramienta":
+      return {
+        question: `¿Qué es lo más complejo que ha hecho con ${req}? Descríbalo paso a paso.`,
+        listenFor: `Pasos concretos con ${req}, al nivel pedido; sabe explicar por qué lo hizo así.`,
+      };
+    case "habilidad_tecnica":
+      return {
+        question: `¿Qué es lo más complejo que ha hecho en ${req}? Descríbalo paso a paso.`,
+        listenFor: `Pasos concretos de ${req}, al nivel pedido; sabe explicar por qué lo hizo así.`,
+      };
+    case "idioma":
+      return {
+        question: `El puesto pide ${req}: haga una parte de la entrevista en ese idioma y pídale que describa su trabajo actual.`,
+        listenFor: `Se comunica con el nivel que pide ${req}.`,
+      };
+    case "formacion":
+      return {
+        question: `Su CV acredita ${req}. ¿Qué de lo que estudió aplica hoy en su trabajo? Pida el documento si es clave.`,
+        listenFor: `Relaciona lo estudiado para ${req} con tareas concretas de su trabajo.`,
+      };
+    case "competencia":
+      return {
+        question: `Cuénteme una situación en que demostró ${req}: qué pasó, qué hizo usted y qué resultado tuvo.`,
+        listenFor: `Un ejemplo propio y concreto de ${req}, no una opinión general.`,
+      };
+    default:
+      return {
+        question: `¿Cómo respalda ${req}? Cuénteme un ejemplo concreto o muestre un documento.`,
+        listenFor: `Un ejemplo o un documento verificable de ${req}.`,
+      };
+  }
 }
 
 function aiFor(ai: DeepDiveAiQuestion[], requirementId: string, kind: DeepDiveKind): DeepDiveAiQuestion | undefined {

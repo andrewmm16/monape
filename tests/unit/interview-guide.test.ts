@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AI_OUTPUT_JSON_SCHEMA } from "@/modules/evaluation/ai/input";
 import { interpretAiResponse } from "@/modules/evaluation/ai/response";
-import { buildInterviewGuide, type GuideItemInput } from "@/modules/evaluation/interview-guide";
+import { buildInterviewGuide, requirementTopic, type GuideItemInput } from "@/modules/evaluation/interview-guide";
 import { evaluateWithRules } from "@/modules/evaluation/rule-engine";
 import type { RequirementInput } from "@/modules/evaluation/types";
 
@@ -91,24 +91,76 @@ describe("guía de entrevista: la pregunta", () => {
         evidence: [{ quote: "Asistente de Personal — 2021 a 2024", matched: ["Asistente de Personal"] }],
       }),
     ]);
-    expect(cargo!.question).toBe("En su puesto de Asistente de Personal, ¿qué tareas de este tipo hacía usted y durante cuánto tiempo?");
+    expect(cargo!.question).toBe("En su puesto de «Asistente de Personal», ¿qué tareas de «Gestión de planillas» hacía usted y durante cuánto tiempo?");
     expect(cargo!.passIf).toMatch(/durante al menos 2 años/);
     expect(cargo!.source).toBe("motor");
 
     const [fechas] = buildInterviewGuide([item({ assessment: "pendiente_verificacion", signal: "fechas_no_cuadran", minYears: 3 })]);
-    expect(fechas!.passIf).toBe("Las fechas suman al menos 3 años.");
+    expect(fechas!.passIf).toBe("Las fechas suman al menos 3 años en «Gestión de planillas».");
   });
 
   it("«no cumple» pide confirmar la negación; un requisito legal pide el documento", () => {
     const [negado] = buildInterviewGuide([item({ assessment: "no_cumplido" })]);
-    expect(negado!.question).toMatch(/Su CV indica que no tiene esto/);
+    expect(negado!.question).toMatch(/Su CV indica que no tiene «Gestión de planillas»/);
     const [legal] = buildInterviewGuide([item({ isEssential: true, category: "certificacion", assessment: "pendiente_verificacion" })]);
     expect(legal!.question).toMatch(/documento/);
   });
 
+  it("las preguntas nombran el tema del requisito, sin «Mínimo N años de experiencia en» ni «Manejo de»", () => {
+    expect(requirementTopic("Mínimo 2 años de experiencia en RRHH")).toBe("RRHH");
+    expect(requirementTopic("Mínimo 3 años de experiencia en contabilidad general")).toBe("contabilidad general");
+    expect(requirementTopic("Experiencia con SAP Business One o Concar")).toBe("SAP Business One o Concar");
+    expect(requirementTopic("Manejo de PLE y PLAME")).toBe("PLE y PLAME");
+    expect(requirementTopic("Conocimiento de tributación peruana (IGV, renta mensual, PDT 621)")).toBe("tributación peruana (IGV, renta mensual, PDT 621)");
+    expect(requirementTopic("Excel intermedio-avanzado")).toBe("Excel intermedio-avanzado");
+    expect(requirementTopic("Experiencia")).toBe("Experiencia");
+
+    const [plame] = buildInterviewGuide([item({ description: "Manejo de PLAME", category: "herramienta" })]);
+    expect(plame!.question).toBe("¿Ha usado «PLAME»? ¿Para qué y con qué frecuencia? Pida un ejemplo.");
+    const [rrhh] = buildInterviewGuide([item({ description: "Mínimo 2 años de experiencia en RRHH", minYears: 2 })]);
+    expect(rrhh!.question).toBe("¿Ha trabajado en «RRHH»? ¿Dónde, haciendo qué y durante cuánto tiempo?");
+    expect(rrhh!.passIf).toBe("Describe experiencia propia en «RRHH» durante al menos 2 años.");
+  });
+
+  it("ninguna plantilla es vaga: siempre nombra el requisito o lo que dice el CV", () => {
+    const VAGUE = /\b(esto|eso)\b|lo pedido|algo parecido|algo relacionado|de este tipo|esta experiencia|lo que pide el puesto/i;
+    const signals = [
+      "negacion_explicita",
+      "nivel_inferior",
+      "nivel_no_declarado",
+      "cargo_relacionado",
+      "habilidad_relacionada",
+      "mencion_dudosa",
+      "fechas_no_cuadran",
+      "solo_capacitacion",
+      "posible_errata",
+    ] as const;
+    const categories = ["formacion", "experiencia", "habilidad_tecnica", "herramienta", "certificacion", "competencia", "idioma", "otro"] as const;
+    const cases: GuideItemInput[] = [
+      ...signals.flatMap((signal) => [
+        item({ assessment: "pendiente_verificacion", signal, evidence: [{ quote: "Asistente de Personal", matched: ["Asistente de Personal"] }] }),
+        item({ assessment: "pendiente_verificacion", signal }),
+      ]),
+      ...categories.flatMap((category) => [
+        item({ category }),
+        item({ category, assessment: "pendiente_verificacion" }),
+        item({ category, minYears: 2 }),
+      ]),
+      item({ isEssential: true, category: "certificacion" }),
+      item({ assessment: "no_cumplido" }),
+    ];
+    for (const input of cases) {
+      const [q] = buildInterviewGuide([input]);
+      const label = `${input.signal ?? input.category}/${input.assessment}`;
+      expect(q!.question, label).not.toMatch(VAGUE);
+      expect(q!.passIf, label).not.toMatch(VAGUE);
+      expect(q!.question, label).toMatch(/«Gestión de planillas»|«Asistente de Personal»/);
+    }
+  });
+
   it("lo que no aparece en el CV se explica en corto; los motivos largos se recortan", () => {
     const [vacio] = buildInterviewGuide([item()]);
-    expect(vacio!.reason).toBe("Su CV no lo menciona.");
+    expect(vacio!.reason).toBe("Su CV no menciona «Gestión de planillas».");
     const [largo] = buildInterviewGuide([item({ assessment: "pendiente_verificacion", rationale: "palabra ".repeat(100) })]);
     expect(largo!.reason.length).toBeLessThanOrEqual(240);
     expect(largo!.reason.endsWith("…")).toBe(true);
@@ -142,8 +194,8 @@ describe("guía de entrevista con el motor real", () => {
       }),
     );
     const excel = guide.find((q) => q.requirementId === "excel")!;
-    expect(excel.question).toMatch(/nivel menor .* con Excel\?/);
-    expect(guide.find((q) => q.requirementId === "planillas")!.reason).toBe("Su CV no lo menciona.");
+    expect(excel.question).toMatch(/nivel menor .* con «Excel»\?/);
+    expect(guide.find((q) => q.requirementId === "planillas")!.reason).toBe("Su CV no menciona «Gestión de planillas».");
   });
 });
 

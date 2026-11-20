@@ -77,67 +77,97 @@ function cvTerm(evidence: Evidence[]): string | null {
 
 type Template = { question: string; passIf: string };
 
+/** «Mínimo 3 años de experiencia en», «Manejo de», «Conocimiento de»…: lo que sobra al nombrar el tema. */
+const TOPIC_LEAD =
+  /^(?:(?:un\s+)?m[ií]nimo\s+(?:de\s+)?\d+(?:[.,]\d+)?\s+años?\s+de\s+)?(?:experiencia|conocimientos?|manejo|dominio|uso)\s+(?:en|de|con|como|sobre)\s+/i;
+
+/**
+ * El tema de un requisito para nombrarlo en una pregunta: «Mínimo 2 años de
+ * experiencia en RRHH» → «RRHH», «Manejo de PLAME» → «PLAME». Los años y el
+ * nivel siguen en el «Cumple si». Si no queda nada, el requisito completo.
+ */
+export function requirementTopic(description: string): string {
+  const clean = description.replace(/\s+/g, " ").trim();
+  const topic = clean.replace(TOPIC_LEAD, "").trim();
+  return topic.length > 0 ? topic : clean;
+}
+
+/** El tema del requisito entre comillas: las preguntas siempre lo nombran (nunca «esto» ni «lo pedido»). */
+function named(item: GuideItemInput): string {
+  return `«${requirementTopic(item.description)}»`;
+}
+
 function fromSignal(item: GuideItemInput, signal: EngineSignal): Template {
-  const term = cvTerm(item.evidence);
+  const req = named(item);
+  const found = cvTerm(item.evidence);
+  const term = found ? `«${found}»` : null;
   const years = item.minYears !== null ? ` durante al menos ${yearsText(item.minYears)}` : "";
   switch (signal) {
     case "negacion_explicita":
       return {
-        question: "Su CV indica que no tiene esto. ¿Lo ha practicado después o de alguna otra forma? ¿Dónde?",
-        passIf: "Describe una experiencia propia y concreta con lo pedido.",
+        question: `Su CV indica que no tiene ${req}. ¿Lo ha practicado después o de alguna otra forma? ¿Dónde y haciendo qué?`,
+        passIf: `Describe una experiencia propia y concreta en ${req}.`,
       };
     case "nivel_inferior":
       return {
-        question: `Su CV declara un nivel menor del que pide el puesto. ¿Qué es lo más avanzado que ha hecho${term ? ` con ${term}` : ""}? Pida un ejemplo concreto.`,
-        passIf: "El ejemplo corresponde al nivel que pide el puesto.",
+        question: `Su CV declara un nivel menor del que pide ${req}. ¿Qué es lo más avanzado que ha hecho con ${term ?? req}? Pida un ejemplo concreto.`,
+        passIf: `El ejemplo corresponde al nivel que pide ${req}.`,
       };
     case "nivel_no_declarado":
       return {
-        question: `¿Qué nivel${term ? ` de ${term}` : ""} maneja? Pida un ejemplo de algo que haya hecho.`,
-        passIf: "El ejemplo corresponde al nivel que pide el puesto.",
+        question: `¿Qué nivel maneja de ${term ?? req}? Pida un ejemplo de algo que haya hecho.`,
+        passIf: `El ejemplo corresponde al nivel que pide ${req}.`,
       };
     case "cargo_relacionado":
       return {
-        question: `${term ? `En su puesto de ${term}` : "En su puesto más parecido"}, ¿qué tareas de este tipo hacía usted y durante cuánto tiempo?`,
-        passIf: `Las tareas que describe son las que pide el puesto${years}, no solo parecidas.`,
+        question: `${term ? `En su puesto de ${term}` : "En su puesto más parecido"}, ¿qué tareas de ${req} hacía usted y durante cuánto tiempo?`,
+        passIf: `Las tareas que describe son de ${req}${years}, no solo parecidas.`,
       };
     case "habilidad_relacionada":
       return {
-        question: `Su CV menciona ${term ? `«${term}»` : "algo relacionado"}, no exactamente lo pedido. ¿Ha trabajado directamente con lo que pide el puesto? ¿En qué tarea o proyecto?`,
-        passIf: "Describe un uso propio de lo pedido, no solo de algo parecido.",
+        question: term
+          ? `Su CV menciona ${term}, no exactamente ${req}. ¿Ha trabajado directamente con ${req}? ¿En qué tarea o proyecto?`
+          : `Su CV no menciona ${req} de forma directa. ¿Ha trabajado con ${req}? ¿En qué tarea o proyecto?`,
+        passIf: `Describe un uso propio de ${req}${term ? `, no solo de ${term}` : ""}.`,
       };
     case "mencion_dudosa":
       return {
-        question: `¿Ha usado ${term ? `«${term}»` : "esto"} personalmente en su trabajo o estudios? ¿Dónde y para qué?`,
-        passIf: "Lo usó personalmente; no es solo una mención o un interés.",
+        question: `¿Ha usado ${term ?? req} personalmente en su trabajo o estudios? ¿Dónde y para qué?`,
+        passIf: `Usó ${term ?? req} personalmente; no es solo una mención o un interés.`,
       };
     case "fechas_no_cuadran":
       return {
-        question: "Repase con la persona las fechas de inicio y fin de cada puesto relacionado: ¿cuánto tiempo trabajó en esto?",
-        passIf: item.minYears !== null ? `Las fechas suman al menos ${yearsText(item.minYears)}.` : "Las fechas respaldan lo que declara el CV.",
+        question: `Repase con la persona las fechas de inicio y fin de cada puesto con ${req}: ¿cuánto tiempo suma en total?`,
+        passIf:
+          item.minYears !== null
+            ? `Las fechas suman al menos ${yearsText(item.minYears)} en ${req}.`
+            : `Las fechas respaldan lo que declara el CV sobre ${req}.`,
       };
     case "solo_capacitacion":
       return {
-        question: "Su CV lo muestra en un curso o capacitación. ¿Lo ha aplicado en un trabajo real? Pida un ejemplo.",
-        passIf: "Lo usó en un trabajo o proyecto real, no solo en el curso.",
+        question: `Su CV muestra ${term ?? req} solo en un curso o capacitación. ¿Lo ha aplicado en un trabajo real? Pida un ejemplo.`,
+        passIf: `Usó ${req} en un trabajo o proyecto real, no solo en el curso.`,
       };
     case "posible_errata":
       return {
-        question: `Su CV dice ${term ? `«${term}»` : "algo parecido"}. ¿Se refiere a lo que pide el puesto? ¿En qué lo ha usado?`,
-        passIf: "Confirma experiencia propia con lo pedido.",
+        question: term
+          ? `Su CV dice ${term}. ¿Se refiere a ${req}? ¿En qué lo ha usado?`
+          : `Su CV parece mencionar ${req} con otra escritura. ¿Lo ha usado? ¿En qué?`,
+        passIf: `Confirma experiencia propia con ${req}.`,
       };
   }
 }
 
 function fromCategory(item: GuideItemInput): Template {
+  const req = named(item);
   const years = item.minYears !== null ? ` durante al menos ${yearsText(item.minYears)}` : "";
   if (item.isEssential) {
-    return { question: "Pida el documento que lo acredite (vigente).", passIf: "Presenta el documento vigente." };
+    return { question: `Pida el documento vigente que acredite ${req}.`, passIf: `Presenta el documento vigente de ${req}.` };
   }
   if (item.category === "competencia") {
     return {
-      question: "Pida un ejemplo concreto en que lo haya demostrado: qué pasó, qué hizo y qué resultado tuvo.",
-      passIf: "Da un ejemplo propio y concreto, no una opinión general.",
+      question: `Pida un ejemplo concreto en que haya demostrado ${req}: qué pasó, qué hizo y qué resultado tuvo.`,
+      passIf: `Da un ejemplo propio y concreto de ${req}, no una opinión general.`,
     };
   }
   // Hay indicios en el CV (por confirmar, o acreditado que la IA dejó en duda): se pide precisar.
@@ -145,42 +175,42 @@ function fromCategory(item: GuideItemInput): Template {
   if (item.minYears !== null || item.category === "experiencia") {
     return {
       question: partial
-        ? "¿Cuánto tiempo ha trabajado en esto y haciendo qué? Pida las fechas de inicio y fin de cada puesto."
-        : "¿Ha trabajado en esto? ¿Dónde, haciendo qué y durante cuánto tiempo?",
-      passIf: `Describe experiencia propia en lo pedido${years}.`,
+        ? `¿Cuánto tiempo ha trabajado en ${req} y haciendo qué? Pida las fechas de inicio y fin de cada puesto.`
+        : `¿Ha trabajado en ${req}? ¿Dónde, haciendo qué y durante cuánto tiempo?`,
+      passIf: `Describe experiencia propia en ${req}${years}.`,
     };
   }
   switch (item.category) {
     case "herramienta":
       return {
         question: partial
-          ? "Su CV lo muestra solo en parte. ¿Qué ha hecho con esta herramienta? Pida un ejemplo concreto."
-          : "¿Ha usado esta herramienta? ¿Para qué y con qué frecuencia? Pida un ejemplo.",
-        passIf: "La ha usado en un trabajo o proyecto real, al nivel que pide el puesto.",
+          ? `Su CV muestra ${req} solo en parte. ¿Qué ha hecho con ${req}? Pida un ejemplo concreto.`
+          : `¿Ha usado ${req}? ¿Para qué y con qué frecuencia? Pida un ejemplo.`,
+        passIf: `Ha usado ${req} en un trabajo o proyecto real, al nivel pedido.`,
       };
     case "formacion":
       return {
-        question: "¿Qué estudios tiene relacionados con esto? ¿Están concluidos? Pida el documento si es clave.",
-        passIf: "Tiene la formación que pide el puesto.",
+        question: `El puesto pide ${req}. ¿Qué estudios tiene, en qué institución y están concluidos? Pida el documento si es clave.`,
+        passIf: `Acredita ${req} con estudios concluidos o el documento.`,
       };
     case "idioma":
       return {
-        question: "¿Qué nivel tiene? Si es clave para el puesto, haga una parte de la entrevista en ese idioma.",
-        passIf: "Se comunica con el nivel que pide el puesto.",
+        question: `El puesto pide ${req}. ¿Qué nivel tiene? Si es clave, haga una parte de la entrevista en ese idioma.`,
+        passIf: `Se comunica con el nivel que pide ${req}.`,
       };
     case "certificacion":
-      return { question: "¿Cuenta con esta certificación? Pida el documento.", passIf: "Presenta el documento vigente." };
+      return { question: `¿Cuenta con ${req}? Pida el documento.`, passIf: `Presenta el documento vigente de ${req}.` };
     case "habilidad_tecnica":
       return {
         question: partial
-          ? "Su CV lo muestra solo en parte. Pida un ejemplo concreto de algo que haya hecho en esto."
-          : "¿Ha hecho esto en algún trabajo? Pida un ejemplo concreto de algo que haya hecho.",
-        passIf: "Da un ejemplo propio y concreto, al nivel que pide el puesto.",
+          ? `Su CV muestra ${req} solo en parte. Pida un ejemplo concreto de algo que haya hecho en ${req}.`
+          : `¿Ha trabajado en ${req}? Pida un ejemplo concreto de algo que haya hecho.`,
+        passIf: `Da un ejemplo propio y concreto de ${req}, al nivel pedido.`,
       };
     default:
       return {
-        question: "¿Cumple con esto? Pida un ejemplo o el documento que lo respalde.",
-        passIf: "Lo respalda con un ejemplo o un documento.",
+        question: `¿Cómo acredita ${req}? Pida un ejemplo o el documento que lo respalde.`,
+        passIf: `Respalda ${req} con un ejemplo o un documento.`,
       };
   }
 }
@@ -213,7 +243,7 @@ export function buildInterviewGuide(items: GuideItemInput[]): GuideQuestion[] {
         : aiQuestion && item.ai?.rationale
           ? item.ai.rationale
           : item.assessment === "sin_evidencia" && !item.signal
-            ? "Su CV no lo menciona."
+            ? `Su CV no menciona ${named(item)}.`
             : item.rationale;
     return [
       {

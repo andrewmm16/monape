@@ -416,7 +416,13 @@ export async function claimAiJob(request: Request): Promise<Response> {
       const job = data?.[0];
       if (!job?.job_id || !job.application_id || !job.claim_token) {
         // Sin CV en cola: primero las preguntas para la entrevista de quien va a entrevista.
-        const deepDive = await claimDeepDive(admin, { model: availability.model, effort: AI_EFFORT, maxChars: env.AI_MAX_INPUT_CHARS });
+        // Un fallo de esta cola no debe dejar sin atender al segundo juez: se registra y se sigue.
+        const deepDive = await claimDeepDive(admin, { model: availability.model, effort: AI_EFFORT, maxChars: env.AI_MAX_INPUT_CHARS }).catch(
+          (deepDiveError: unknown) => {
+            logServerError("ai_worker.deep_dive_claim", deepDiveError);
+            return null;
+          },
+        );
         if (deepDive) return json(200, { job: deepDive });
         // Después, si hay una regla aprendida esperando al segundo juez, se entrega esa.
         const judgment = env.AI_LEARN_MIN_CONFIRMATIONS >= 1 ? await claimJudgment(admin, env.AI_JUDGE_MODEL) : null;

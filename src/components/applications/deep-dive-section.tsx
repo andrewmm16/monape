@@ -37,6 +37,7 @@ export function DeepDiveSection({ mode, questions, status, canRequest, applicati
             Preguntas sobre lo que su CV ya acredita, para conocer en detalle su experiencia.{" "}
             <span>Se preparan al programar la entrevista.</span>
           </p>
+          {status ? <AiJobStatus message={status.message} tone={status.tone} active={status.active} /> : null}
           {request}
         </>
       ) : (
@@ -46,7 +47,7 @@ export function DeepDiveSection({ mode, questions, status, canRequest, applicati
           </p>
           {status ? <AiJobStatus message={status.message} tone={status.tone} active={status.active} /> : null}
           {questions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">El CV todavía no acredita ningún requisito: no hay nada que profundizar.</p>
+            <p className="text-sm text-muted-foreground">No hay requisitos acreditados pendientes de profundizar.</p>
           ) : (
             <ol className="space-y-3">
               {questions.map((q, index) => (
