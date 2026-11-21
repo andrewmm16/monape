@@ -3,14 +3,15 @@ import { formatCityRegion } from "@/components/vacancies/format-location";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { PencilIcon, UploadIcon } from "lucide-react";
 import { z } from "zod";
 import { VacancyStatusBadge } from "@/components/common/badges";
 import { PageHeader } from "@/components/common/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { VacancySuggestions } from "@/components/talent/vacancy-suggestions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TalentSuggestionsCard, TalentSuggestionsSkeleton } from "@/components/talent/talent-suggestions-card";
 import { PublicLink } from "@/components/vacancies/public-listing-notice";
 import { ApplicationsBoard } from "@/components/vacancies/applications-board";
 import { ApplicationsTable } from "@/components/vacancies/applications-table";
@@ -43,9 +44,7 @@ import {
   rankVacancyApplications,
 } from "@/modules/applications/queries";
 import { applicationListParamsSchema } from "@/modules/applications/schemas";
-import { getEmailReplyTo } from "@/modules/email-templates/queries";
 import { loadVacancyInbox } from "@/modules/evaluation/inbox-data";
-import { suggestCandidatesForVacancy } from "@/modules/talent-pool/matching";
 import { portalLogo } from "@/modules/portals/logos";
 import { listPortalPublications } from "@/modules/portals/queries";
 import { getVacancy, listKillerQuestions, listRequirements } from "@/modules/vacancies/queries";
@@ -193,27 +192,12 @@ export default async function VacancyPage({ params, searchParams }: PageProps<"/
     // Sugerencias de la base de talentos: solo si RRHH puede gestionar candidatos y la vacante admite postulaciones.
     const showSuggestions =
       can(user.role, "candidates:manage") && (vacancy.status === "borrador" || vacancy.status === "publicada");
-    const [suggestedCandidates, replyTo] = showSuggestions
-      ? await Promise.all([
-          suggestCandidatesForVacancy(supabase, vacancy.id),
-          // Un fallo al leerlo solo deja el botón de invitar bloqueado, no rompe la página.
-          getEmailReplyTo(supabase).catch(() => null),
-        ])
-      : [null, null];
-    const suggestions =
-      !suggestedCandidates || suggestedCandidates.length === 0 ? null : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Candidatos de la base de talentos que encajan</CardTitle>
-            <CardDescription>
-              Perfiles del histórico que coinciden con los requisitos y están disponibles para reactivar.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <VacancySuggestions vacancyId={vacancy.id} candidates={suggestedCandidates} replyToConfigured={Boolean(replyTo)} />
-          </CardContent>
-        </Card>
-      );
+    // Se evalúa la base de talentos con el motor: carga aparte para no demorar la página.
+    const suggestions = showSuggestions ? (
+      <Suspense fallback={<TalentSuggestionsSkeleton />}>
+        <TalentSuggestionsCard vacancyId={vacancy.id} />
+      </Suspense>
+    ) : null;
     const toggleLink = (target: "tabla" | "tablero", label: string) => (
       <Link
         href={target === "tablero" ? `/vacantes/${vacancy.id}?tab=candidatos&modo=tablero` : `/vacantes/${vacancy.id}?tab=candidatos`}

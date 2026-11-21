@@ -14,11 +14,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TalentConsentBadge } from "@/components/talent/talent-consent-badge";
+import { CompatibilityBadge } from "@/components/common/badges";
 import { formatDate } from "@/lib/format";
 import { addCandidatesToVacancy, inviteCandidatesToVacancy, type BatchInviteResult } from "@/modules/talent-pool/actions";
 import type { SuggestedCandidate } from "@/modules/talent-pool/matching";
@@ -151,8 +151,8 @@ export function VacancySuggestions({
               />
             </TableHead>
             <TableHead>Nombre</TableHead>
-            <TableHead>Ubicación</TableHead>
-            <TableHead>Coincidencias</TableHead>
+            <TableHead>Cumplimiento</TableHead>
+            <TableHead>Obligatorios</TableHead>
             <TableHead>Consentimiento</TableHead>
           </TableRow>
         </TableHeader>
@@ -168,6 +168,7 @@ export function VacancySuggestions({
               </TableCell>
               <TableCell>
                 <div className="font-medium">{candidate.full_name}</div>
+                {candidate.location ? <div className="text-xs text-muted-foreground">{candidate.location}</div> : null}
                 {candidate.email === null ? <div className="text-xs text-muted-foreground">sin correo</div> : null}
                 {candidate.invitation ? (
                   <div className="text-xs text-muted-foreground">
@@ -176,19 +177,22 @@ export function VacancySuggestions({
                   </div>
                 ) : null}
               </TableCell>
-              <TableCell data-label="Ubicación">{candidate.location || "—"}</TableCell>
-              <TableCell data-label="Coincidencias">
-                <div className="flex flex-wrap items-center gap-1" title={candidate.matchedTerms.join(", ")}>
-                  <span className="font-medium">{candidate.matchCount}</span>
-                  {candidate.matchedTerms.slice(0, 4).map((term) => (
-                    <Badge key={term} variant="secondary" className="text-xs">
-                      {term}
-                    </Badge>
-                  ))}
-                  {candidate.matchedTerms.length > 4 ? (
-                    <span className="text-xs text-muted-foreground">+{candidate.matchedTerms.length - 4}</span>
-                  ) : null}
+              <TableCell data-label="Cumplimiento">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-medium tabular-nums">{Math.round(candidate.score)} %</span>
+                  <CompatibilityBadge level={candidate.level} shortOnMobile />
                 </div>
+              </TableCell>
+              <TableCell data-label="Obligatorios">
+                <div className="text-sm">
+                  {candidate.mandatoryTotal === 0 ? "Sin obligatorios" : `Cumple ${candidate.mandatoryMet} de ${candidate.mandatoryTotal}`}
+                </div>
+                {candidate.missingMandatory.length > 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    Falta {candidate.missingMandatory.slice(0, 2).map((name) => `«${name}»`).join(" y ")}
+                    {candidate.missingMandatory.length > 2 ? ` y ${candidate.missingMandatory.length - 2} más` : ""}
+                  </div>
+                ) : null}
               </TableCell>
               <TableCell data-label="Consentimiento">
                 <TalentConsentBadge state={candidate.consent} />

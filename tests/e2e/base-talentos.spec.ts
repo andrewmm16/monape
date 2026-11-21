@@ -184,7 +184,9 @@ test("una entrevista realizada se evalúa en equipo; el candidato cerrado se eti
   const suggestions = page.locator("[data-slot='card']").filter({ hasText: "Candidatos de la base de talentos que encajan" });
   const suggestion = suggestions.getByRole("row").filter({ hasText: candidateName });
   await expect(suggestion).toBeVisible();
-  await expect(suggestion).toContainText("kestrel");
+  // Evaluado con el motor frente a los requisitos de esta vacante (20/11): cumplimiento y obligatorios.
+  await expect(suggestion).toContainText("100 %");
+  await expect(suggestion).toContainText("Cumple 1 de 1");
   await expect(suggestions.getByText("Falta el correo de respuestas")).toBeVisible();
   await suggestion.getByRole("checkbox").check();
   await expect(suggestions.getByRole("button", { name: "Invitar por correo" })).toBeDisabled();
