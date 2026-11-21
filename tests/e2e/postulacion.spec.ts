@@ -308,7 +308,14 @@ test("postulación pública con un CV de más de 4 MB: va directo a Storage y se
   const { publicPath } = await createPublishedVacancy(page, title);
 
   // Unos 5 MB: más que el cuerpo que acepta una función de Vercel, menos que el tope de 10 MB.
-  const pdf = Buffer.from(await makeLargePdf([applicantName, "Experiencia con SQL Server y reportes de gestión."], 5 * 1024 * 1024));
+  // Texto de sobra (más de 80 caracteres): con menos, la app intenta OCR sobre la imagen de relleno
+  // de 5 MB y la prueba dependería de cuánto tarda el OCR, que no es lo que se prueba aquí.
+  const pdf = Buffer.from(
+    await makeLargePdf(
+      [applicantName, "Experiencia con SQL Server y reportes de gestión.", "Elaboración de indicadores mensuales y tableros para gerencia."],
+      5 * 1024 * 1024,
+    ),
+  );
   expect(pdf.length).toBeGreaterThan(4.5 * 1024 * 1024);
 
   const visitor = await publicContext(browser);
