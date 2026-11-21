@@ -19,6 +19,8 @@ import { StatusForm } from "@/components/applications/status-form";
 import { ActionButton } from "@/components/common/action-button";
 import { ApplicationStatusBadge } from "@/components/common/badges";
 import { InterviewFormDialog } from "@/components/interviews/interview-dialogs";
+import { BookingDialog } from "@/components/interviews/booking-dialog";
+import { BookingStatus } from "@/components/interviews/booking-status";
 import { InterviewItem } from "@/components/interviews/interview-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
@@ -49,7 +51,8 @@ import {
   listKillerAnswers,
   listRequirementVerifications,
 } from "@/modules/applications/queries";
-import { listApplicationInterviews } from "@/modules/interviews/queries";
+import { getLatestBookingOffer, listApplicationInterviews } from "@/modules/interviews/queries";
+import { bookingStateOf } from "@/modules/interviews/booking";
 import { formatInterviewDateTime } from "@/modules/interviews/datetime";
 import { canScheduleInterview } from "@/modules/interviews/schemas";
 import { buildObservationDraft, type DraftInput } from "@/modules/evaluation/drafts";
@@ -225,6 +228,18 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       }
     : null;
   const deepenCount = deepDive?.mode === "completa" ? deepDive.questions.length : 0;
+  // Autoagenda: la última invitación a agendar (pendiente o vencida se muestran en «Entrevistas»).
+  const booking = canManage
+    ? await getLatestBookingOffer(supabase, application.id).catch((error: unknown) => {
+        logServerError("applications.booking", error);
+        return null;
+      })
+    : null;
+  const latestInterviewCreatedAt = interviews.reduce<string | null>(
+    (latest, interview) => (latest === null || interview.created_at > latest ? interview.created_at : latest),
+    null,
+  );
+  const bookingState = booking ? bookingStateOf(booking, { programmed: hasProgrammedInterview, latestInterviewCreatedAt }) : null;
   const interviewTopics = canManage ? buildInterviewTopics({ killerAnswers, limitations: main?.limitations ?? [] }) : [];
   const interviewQuestionCount = (interviewGuide?.length ?? 0) + interviewTopics.length + deepenCount;
   // Columna izquierda con dos pestañas (por la URL, sin JS): la evaluación del CV y las preguntas para la entrevista.
@@ -458,16 +473,36 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   </Link>
                 </p>
               ) : null}
-              {schedulable ? (
-                <InterviewFormDialog
-                  applicationId={application.id}
-                  defaultOpen={search.programar === "1"}
-                  trigger={
-                    <Button type="button" variant={hasProgrammedInterview ? "outline" : "default"}>
-                      Programar entrevista
-                    </Button>
-                  }
+              {booking && bookingState ? (
+                <BookingStatus
+                  offerId={booking.id}
+                  state={bookingState}
+                  slotCount={booking.slotCount}
+                  expiresAtLabel={formatDateTime(booking.expiresAt)}
                 />
+              ) : null}
+              {schedulable ? (
+                <div className="flex flex-wrap gap-2">
+                  <InterviewFormDialog
+                    applicationId={application.id}
+                    defaultOpen={search.programar === "1"}
+                    trigger={
+                      <Button type="button" variant={hasProgrammedInterview ? "outline" : "default"}>
+                        Programar entrevista
+                      </Button>
+                    }
+                  />
+                  {/* Siempre montado: al crear la invitación la página se revalida y el diálogo con el enlace debe seguir abierto. */}
+                  <BookingDialog
+                    applicationId={application.id}
+                    hideTrigger={bookingState === "pendiente"}
+                    trigger={
+                      <Button type="button" variant="outline">
+                        Invitar a agendar
+                      </Button>
+                    }
+                  />
+                </div>
               ) : null}
               {interviews.length === 0 ? (
                 <EmptyState

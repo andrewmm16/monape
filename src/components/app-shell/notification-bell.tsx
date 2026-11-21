@@ -27,6 +27,7 @@ const AMBER_TOAST =
 function describe(item: NotificationItem): { title: string; detail: string } {
   const candidate = item.candidateName ?? "una postulación";
   const detail = item.vacancyTitle ? `${candidate} · ${item.vacancyTitle}` : candidate;
+  if (item.kind === "agenda_vencida") return { title: "No eligió horario de entrevista: venció la invitación a agendar", detail };
   return item.kind === "opinion_solicitada"
     ? { title: `${item.actorName ?? "RRHH"} le pidió su opinión`, detail }
     : { title: `${item.actorName ?? "La persona consultada"} respondió su solicitud de opinión`, detail };

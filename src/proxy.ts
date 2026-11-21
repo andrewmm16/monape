@@ -32,6 +32,8 @@ const PUBLIC_PATHS = [
   "/api/ia",
   "/api/tareas",
   "/seguimiento",
+  // Autoagenda: la persona elige su horario de entrevista con un enlace privado (sin sesión).
+  "/agendar",
   IDLE_SIGN_OUT_PATH,
 ];
 

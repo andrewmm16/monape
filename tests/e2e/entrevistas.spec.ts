@@ -139,10 +139,11 @@ test("RRHH agenda entrevistas, registra Pasó / No pasó / No asistió y los des
   await expect(interviewsCard.getByTestId("interview-item")).toHaveCount(1);
   await expect(interviewsCard.getByText("Programada", { exact: true })).toBeVisible();
   await expect(interviewsCard.getByText("Ana Gómez, Pedro Ruiz")).toBeVisible();
-  await expect(interviewsCard.getByText("Avisos a 2 entrevistadores")).toHaveAttribute(
-    "title",
-    "ana.gomez@empresa.test, pedro.ruiz@empresa.test",
-  );
+  // Ya no dice «Avisos a N» sin saber si salieron: aquí el correo está apagado, así que no afirma un envío.
+  const notice = interviewsCard.getByTestId("interviewer-notice");
+  await expect(notice).toContainText("2 entrevistadores con correo");
+  await expect(notice).not.toContainText("Aviso enviado");
+  await expect(notice).toHaveAttribute("title", /^ana\.gomez@empresa\.test, pedro\.ruiz@empresa\.test/);
   // El enlace de la reunión es un enlace seguro.
   const link = interviewsCard.getByRole("link", { name: meetingLink });
   await expect(link).toHaveAttribute("href", meetingLink);

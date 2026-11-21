@@ -657,6 +657,11 @@ describe("preguntas para profundizar: encolado", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("sin sesión de RRHH (la persona agendó sola) usa la función del servicio", async () => {
+    await autoEnqueueDeepDive(supabase, APP, { system: true });
+    expect(rpc).toHaveBeenCalledWith("enqueue_system_interview_deep_dive", { p_application_id: APP });
+  });
+
   it("una evaluación desactualizada se explica en palabras de RRHH", () => {
     expect(describeAiJobError("evaluacion_desactualizada")).toMatch(/vuelva a evaluar/i);
   });

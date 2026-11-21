@@ -1390,6 +1390,108 @@ export type Database = {
           },
         ]
       }
+      interview_booking_offers: {
+        Row: {
+          application_id: string
+          created_at: string
+          created_by: string | null
+          decided_at: string | null
+          duration_minutes: number
+          expires_at: string
+          id: string
+          instructions: string | null
+          interview_id: string | null
+          interviewer_emails: string[]
+          interviewers: string | null
+          location: string | null
+          modality: Database["public"]["Enums"]["interview_modality"]
+          status: Database["public"]["Enums"]["interview_booking_status"]
+          token_hash: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          duration_minutes: number
+          expires_at: string
+          id?: string
+          instructions?: string | null
+          interview_id?: string | null
+          interviewer_emails?: string[]
+          interviewers?: string | null
+          location?: string | null
+          modality: Database["public"]["Enums"]["interview_modality"]
+          status?: Database["public"]["Enums"]["interview_booking_status"]
+          token_hash: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          duration_minutes?: number
+          expires_at?: string
+          id?: string
+          instructions?: string | null
+          interview_id?: string | null
+          interviewer_emails?: string[]
+          interviewers?: string | null
+          location?: string | null
+          modality?: Database["public"]["Enums"]["interview_modality"]
+          status?: Database["public"]["Enums"]["interview_booking_status"]
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_booking_offers_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_booking_offers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_booking_offers_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_booking_slots: {
+        Row: {
+          id: string
+          offer_id: string
+          starts_at: string
+        }
+        Insert: {
+          id?: string
+          offer_id: string
+          starts_at: string
+        }
+        Update: {
+          id?: string
+          offer_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_booking_slots_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "interview_booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_deep_dives: {
         Row: {
           application_id: string
@@ -1484,6 +1586,35 @@ export type Database = {
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_interviewer_notices: {
+        Row: {
+          interview_id: string
+          notified_at: string
+          outcome: string
+          recipient: string
+        }
+        Insert: {
+          interview_id: string
+          notified_at?: string
+          outcome: string
+          recipient: string
+        }
+        Update: {
+          interview_id?: string
+          notified_at?: string
+          outcome?: string
+          recipient?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_interviewer_notices_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
         ]
@@ -2886,6 +3017,13 @@ export type Database = {
           match_reasons: string[] | null
         }[]
       }
+      book_interview_slot: {
+        Args: {
+          p_token_hash: string | null
+          p_slot_id: string | null
+        }
+        Returns: string
+      }
       bot_claim_publication: {
         Args: {
           p_portal_id: string | null
@@ -2940,6 +3078,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      cancel_interview_booking: {
+        Args: {
+          p_offer_id: string | null
+        }
+        Returns: undefined
+      }
       change_application_status: {
         Args: {
           p_application_id: string | null
@@ -2967,6 +3111,12 @@ export type Database = {
         }
         Returns: string[]
       }
+      consume_booking_rate_limit: {
+        Args: {
+          p_subject: string | null
+        }
+        Returns: boolean
+      }
       consume_form_challenge: {
         Args: {
           p_hash: string | null
@@ -2992,6 +3142,21 @@ export type Database = {
           p_bucket: string | null
         }
         Returns: boolean
+      }
+      create_interview_booking: {
+        Args: {
+          p_application_id: string | null
+          p_slots: string[] | null
+          p_duration_minutes: number | null
+          p_modality: Database["public"]["Enums"]["interview_modality"] | null
+          p_location: string | null
+          p_interviewers: string | null
+          p_instructions: string | null
+          p_interviewer_emails: string[] | null
+          p_expires_at: string | null
+          p_token_hash: string | null
+        }
+        Returns: string
       }
       current_privacy_notice: {
         Args: never
@@ -3055,6 +3220,16 @@ export type Database = {
         }
         Returns: string
       }
+      enqueue_system_interview_deep_dive: {
+        Args: {
+          p_application_id: string | null
+        }
+        Returns: string
+      }
+      expire_interview_bookings: {
+        Args: never
+        Returns: number
+      }
       find_candidate_duplicates: {
         Args: {
           p_email: string | null
@@ -3088,6 +3263,12 @@ export type Database = {
       }
       get_dashboard_summary: {
         Args: never
+        Returns: Json
+      }
+      get_interview_booking: {
+        Args: {
+          p_token_hash: string | null
+        }
         Returns: Json
       }
       learn_claim_judgment: {
@@ -3296,6 +3477,14 @@ export type Database = {
         }
         Returns: string
       }
+      record_interviewer_notice: {
+        Args: {
+          p_interview_id: string | null
+          p_recipient: string | null
+          p_outcome: string | null
+        }
+        Returns: undefined
+      }
       record_system_evaluation: {
         Args: {
           p_application_id: string | null
@@ -3422,6 +3611,13 @@ export type Database = {
           p_application_id: string | null
           p_requirement_id: string | null
           p_note: string | null
+        }
+        Returns: undefined
+      }
+      renew_interview_booking_link: {
+        Args: {
+          p_offer_id: string | null
+          p_token_hash: string | null
         }
         Returns: undefined
       }
@@ -3584,6 +3780,7 @@ export type Database = {
       incident_status: "abierto" | "contenido" | "cerrado"
       intake_batch_status: "abierto" | "cerrado"
       intake_item_status: "listo" | "requiere_datos" | "error" | "registrado"
+      interview_booking_status: "pendiente" | "agendada" | "vencida" | "cancelada"
       interview_modality: "presencial" | "virtual" | "telefonica"
       interview_reminder_outcome: "enviando" | "enviado" | "sin_correo"
       interview_result: "paso" | "no_paso"
@@ -3591,7 +3788,7 @@ export type Database = {
       job_portal_kind: "automatico" | "manual"
       killer_number_comparator: "mayor_igual" | "menor_igual" | "igual"
       killer_question_type: "si_no" | "numero" | "opcion_unica"
-      notification_kind: "opinion_solicitada" | "opinion_respondida"
+      notification_kind: "opinion_solicitada" | "opinion_respondida" | "agenda_vencida"
       portal_publication_status: "pendiente" | "publicando" | "publicada" | "retirar" | "retirada" | "error"
       privacy_notice_status: "borrador" | "vigente" | "retirado"
       profile_item_kind: "experiencia" | "formacion" | "habilidad" | "certificacion" | "idioma"
@@ -3646,6 +3843,7 @@ export const Constants = {
       incident_status: ["abierto", "contenido", "cerrado"],
       intake_batch_status: ["abierto", "cerrado"],
       intake_item_status: ["listo", "requiere_datos", "error", "registrado"],
+      interview_booking_status: ["pendiente", "agendada", "vencida", "cancelada"],
       interview_modality: ["presencial", "virtual", "telefonica"],
       interview_reminder_outcome: ["enviando", "enviado", "sin_correo"],
       interview_result: ["paso", "no_paso"],
@@ -3653,7 +3851,7 @@ export const Constants = {
       job_portal_kind: ["automatico", "manual"],
       killer_number_comparator: ["mayor_igual", "menor_igual", "igual"],
       killer_question_type: ["si_no", "numero", "opcion_unica"],
-      notification_kind: ["opinion_solicitada", "opinion_respondida"],
+      notification_kind: ["opinion_solicitada", "opinion_respondida", "agenda_vencida"],
       portal_publication_status: ["pendiente", "publicando", "publicada", "retirar", "retirada", "error"],
       privacy_notice_status: ["borrador", "vigente", "retirado"],
       profile_item_kind: ["experiencia", "formacion", "habilidad", "certificacion", "idioma"],

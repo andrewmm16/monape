@@ -4,6 +4,7 @@ import type { AppSupabaseClient } from "@/lib/supabase/server";
 import { loadInterviewGuide } from "@/modules/evaluation/interview-guide-data";
 import { listRequirements } from "@/modules/vacancies/queries";
 import type { Enums } from "@/types/database";
+import { summarizeInterviewerNotices } from "./notices";
 import type { InterviewRequirement } from "./schemas";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -15,7 +16,7 @@ const RECENT_LIMIT = 100;
 
 /** Entrevista con la postulación, el candidato y la vacante (para listados). */
 const LIST_SELECT =
-  "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, interviewer_emails, interview_reminders(scheduled_at, recipient, outcome), applications!inner(id, status, vacancy_id, candidates(id, full_name), vacancies(id, title, status))";
+  "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, interviewer_emails, interview_reminders(scheduled_at, recipient, outcome), interview_interviewer_notices(recipient, outcome), applications!inner(id, status, vacancy_id, candidates(id, full_name), vacancies(id, title, status))";
 
 export type InterviewRow = Awaited<ReturnType<typeof listAgenda>>["pending"][number];
 
@@ -49,14 +50,15 @@ export async function listApplicationInterviews(supabase: AppSupabaseClient, app
   const { data, error } = await supabase
     .from("interviews")
     .select(
-      "id, application_id, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, interviewer_emails, interview_reminders(scheduled_at, recipient, outcome), result_recorder:profiles!interviews_result_recorded_by_fkey(full_name)",
+      "id, application_id, created_at, scheduled_at, duration_minutes, modality, location, location_lat, location_lng, interviewers, instructions, status, result, result_notes, cancel_reason, interviewer_emails, interview_reminders(scheduled_at, recipient, outcome), interview_interviewer_notices(recipient, outcome), result_recorder:profiles!interviews_result_recorded_by_fkey(full_name)",
     )
     .eq("application_id", applicationId)
     .order("scheduled_at", { ascending: false });
   if (error) throw toAppError(error);
-  return data.map(({ interview_reminders: reminders, ...interview }) => ({
+  return data.map(({ interview_reminders: reminders, interview_interviewer_notices: notices, ...interview }) => ({
     ...interview,
     reminderSent: reminderSentFor(interview.scheduled_at, reminders),
+    interviewerNotices: summarizeInterviewerNotices(interview.interviewer_emails, notices),
   }));
 }
 
@@ -175,10 +177,11 @@ export async function summarizeInterviews(
 
 /** Fila de listado → datos para mostrar (forma que usa `InterviewItem`). */
 export function toInterviewItem(row: InterviewRow) {
-  const { applications: application, interview_reminders: reminders, ...interview } = row;
+  const { applications: application, interview_reminders: reminders, interview_interviewer_notices: notices, ...interview } = row;
   return {
     ...interview,
     reminderSent: reminderSentFor(interview.scheduled_at, reminders),
+    interviewerNotices: summarizeInterviewerNotices(interview.interviewer_emails, notices),
     application: {
       id: application.id,
       status: application.status,
@@ -199,4 +202,27 @@ export function reminderSentFor(
   return (reminders ?? []).some(
     (r) => r.recipient === "candidato" && r.outcome === "enviado" && new Date(r.scheduled_at).getTime() === current,
   );
+}
+
+/** Última invitación a agendar de la postulación (autoagenda), o null. */
+export type BookingOfferSummary = {
+  id: string;
+  status: Enums<"interview_booking_status">;
+  expiresAt: string;
+  createdAt: string;
+  slotCount: number;
+};
+
+export async function getLatestBookingOffer(supabase: AppSupabaseClient, applicationId: string): Promise<BookingOfferSummary | null> {
+  const { data, error } = await supabase
+    .from("interview_booking_offers")
+    .select("id, status, expires_at, created_at, interview_booking_slots(count)")
+    .eq("application_id", applicationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw toAppError(error);
+  if (!data) return null;
+  const counted = data.interview_booking_slots as unknown as { count: number }[] | null;
+  return { id: data.id, status: data.status, expiresAt: data.expires_at, createdAt: data.created_at, slotCount: counted?.[0]?.count ?? 0 };
 }

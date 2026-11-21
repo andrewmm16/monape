@@ -96,12 +96,15 @@ export async function autoEnqueueAfterRules(
  * (deep-dive.ts) con la IA disponible y en cola, salvo AI_AUTO_ENQUEUE=off. La
  * base no lo repite con el mismo CV y criterios. Nunca hace fallar la acción.
  */
-export async function autoEnqueueDeepDive(supabase: AnyClient, applicationId: string): Promise<void> {
+export async function autoEnqueueDeepDive(supabase: AnyClient, applicationId: string, options: { system?: boolean } = {}): Promise<void> {
   try {
     const env = getServerEnv();
     const availability = getAiAvailability(env);
     if (!availability.available || !availability.queued || env.AI_AUTO_ENQUEUE === "off") return;
-    const { error } = await supabase.rpc("request_interview_deep_dive", { p_application_id: applicationId, p_automatic: true });
+    // Sin sesión de RRHH (la persona agendó sola desde su enlace): la función del servicio.
+    const { error } = options.system
+      ? await supabase.rpc("enqueue_system_interview_deep_dive", { p_application_id: applicationId })
+      : await supabase.rpc("request_interview_deep_dive", { p_application_id: applicationId, p_automatic: true });
     if (error) throw error;
   } catch (error) {
     logServerError("evaluations.deep_dive_enqueue", error);

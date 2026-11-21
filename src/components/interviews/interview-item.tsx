@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { INTERVIEW_MODALITY_LABELS, INTERVIEW_RESULT_LABELS, INTERVIEW_STATUS_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { formatDuration, formatInterviewDateTime, safeHttpUrl } from "@/modules/interviews/datetime";
+import {
+  interviewerNoticeLabel,
+  summarizeInterviewerNotices,
+  type InterviewerNoticeSummary,
+} from "@/modules/interviews/notices";
 import type { Enums } from "@/types/database";
 import { CancelInterviewDialog, InterviewFormDialog, RecordResultDialog } from "./interview-dialogs";
 
@@ -33,6 +38,8 @@ export type InterviewItemData = {
   recordedBy?: string | null;
   /** Se envió el recordatorio automático para la fecha vigente. */
   reminderSent?: boolean;
+  /** Resultado del último aviso por correo a cada entrevistador. */
+  interviewerNotices?: InterviewerNoticeSummary;
   application: {
     id: string;
     status: Enums<"application_status">;
@@ -98,6 +105,9 @@ export function InterviewItem({
   const { application } = interview;
   const scheduledLabel = formatInterviewDateTime(interview.scheduled_at);
   const programmed = interview.status === "programada";
+  const noticeLabel = interviewerNoticeLabel(
+    interview.interviewerNotices ?? summarizeInterviewerNotices(interview.interviewer_emails, null),
+  );
   return (
     <li
       data-testid="interview-item"
@@ -161,10 +171,13 @@ export function InterviewItem({
             <span className="break-words">{interview.interviewers}</span>
           </span>
         ) : null}
-        {programmed && interview.interviewer_emails?.length ? (
-          <span title={interview.interviewer_emails.join(", ")}>
-            Avisos a {interview.interviewer_emails.length}{" "}
-            {interview.interviewer_emails.length === 1 ? "entrevistador" : "entrevistadores"}
+        {programmed && noticeLabel ? (
+          <span
+            title={[interview.interviewer_emails?.join(", "), noticeLabel.hint].filter(Boolean).join(" · ")}
+            className={cn(noticeLabel.tone === "warning" && "font-medium text-warning-foreground")}
+            data-testid="interviewer-notice"
+          >
+            {noticeLabel.text}
           </span>
         ) : null}
       </div>

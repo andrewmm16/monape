@@ -16,7 +16,7 @@ export function canScheduleInterview(
   return vacancyStatus !== "archivada" && !(CLOSED_STATUSES as readonly string[]).includes(status);
 }
 
-const optionalText = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`);
+export const optionalText = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`);
 
 /** Máximo de correos de entrevistadores por entrevista (igual que la BD). */
 export const MAX_INTERVIEWER_EMAILS = 10;
@@ -57,6 +57,20 @@ export const interviewFormSchema = z
     if (limaToIso(v.date, v.time) === null) {
       ctx.addIssue({ code: "custom", message: "La fecha o la hora no son válidas", path: ["date"] });
     }
+    refineInterviewDetails(v, ctx);
+    if ((v.locationLat == null) !== (v.locationLng == null)) {
+      ctx.addIssue({ code: "custom", message: "Las coordenadas del lugar están incompletas", path: ["location"] });
+    }
+  });
+
+/**
+ * Reglas comunes de los datos de una entrevista (lugar según la modalidad y
+ * correos de entrevistadores). Las usan «Programar entrevista» y «Invitar a agendar».
+ */
+export function refineInterviewDetails(
+  v: { modality: Enums<"interview_modality">; location: string; interviewerEmails: string },
+  ctx: z.RefinementCtx,
+): void {
     if (v.modality === "presencial" && v.location.length === 0) {
       ctx.addIssue({ code: "custom", message: "Indique la dirección de la entrevista", path: ["location"] });
     }
@@ -83,10 +97,7 @@ export const interviewFormSchema = z
     if (invalid) {
       ctx.addIssue({ code: "custom", message: `Correo no válido: ${invalid}`, path: ["interviewerEmails"] });
     }
-    if ((v.locationLat == null) !== (v.locationLng == null)) {
-      ctx.addIssue({ code: "custom", message: "Las coordenadas del lugar están incompletas", path: ["location"] });
-    }
-  });
+}
 
 export type InterviewFormValues = z.input<typeof interviewFormSchema>;
 

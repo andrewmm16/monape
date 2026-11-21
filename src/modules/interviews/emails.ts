@@ -6,6 +6,7 @@ import type { AppSupabaseClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/modules/notifications/email/client";
 import { getEmailAvailability } from "@/modules/notifications/email/config";
 import type { EmailContent } from "@/modules/notifications/email/templates/application-received";
+import { buildInterviewBookingEmail } from "@/modules/notifications/email/templates/interview-booking";
 import { buildInterviewCancelledEmail } from "@/modules/notifications/email/templates/interview-cancelled";
 import { buildInterviewInvitationEmail } from "@/modules/notifications/email/templates/interview-invitation";
 import { buildInterviewerEmail } from "@/modules/notifications/email/templates/interview-interviewer";
@@ -14,13 +15,30 @@ import { buildInterviewRescheduledEmail } from "@/modules/notifications/email/te
 import type { InterviewEmailDetails } from "@/modules/notifications/email/templates/interview-shared";
 import { withTrackingLink } from "@/modules/notifications/email/templates/tracking-footer";
 import { getTrackingUrlForEmail } from "@/modules/candidate-portal/queries";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { noticeOutcomeOf } from "./notices";
 
 export type InterviewEmailKind = "invitation" | "rescheduled" | "cancelled" | "reminder";
 
 /** A quién va el correo: la persona candidata o uno de los entrevistadores. */
 export type InterviewEmailRecipient = { kind: "candidato" } | { kind: "entrevistador"; email: string };
 
-type SendOutcome = { sent: boolean; withoutEmail?: boolean };
+/** `disabled`: no salió porque el envío de correos está apagado en este servidor. */
+type SendOutcome = { sent: boolean; withoutEmail?: boolean; disabled?: boolean };
+
+/** Guarda si el aviso a un entrevistador salió, para no mostrar «avisado» si falló. Nunca lanza. */
+async function recordInterviewerNotice(interviewId: string, email: string, outcome: SendOutcome): Promise<void> {
+  try {
+    const { error } = await createSupabaseAdminClient().rpc("record_interviewer_notice", {
+      p_interview_id: interviewId,
+      p_recipient: email,
+      p_outcome: noticeOutcomeOf(outcome),
+    });
+    if (error) throw error;
+  } catch (error) {
+    logServerError("interview.email.notice", error);
+  }
+}
 
 const CANDIDATE_BUILDERS: Record<InterviewEmailKind, (details: InterviewEmailDetails) => EmailContent> = {
   invitation: buildInterviewInvitationEmail,
@@ -95,7 +113,7 @@ async function deliver(
     tags: [{ name: "type", value: `${recipient.kind === "candidato" ? "interview" : "interviewer"}_${kind}` }],
   });
   log(result.sent ? "enviado" : "no_enviado");
-  return { sent: result.sent };
+  return { sent: result.sent, disabled: !result.sent && "reason" in result && Boolean(result.reason) };
 }
 
 /** Correo de una entrevista a un destinatario (por defecto, la persona candidata). Nunca lanza. */
@@ -136,10 +154,50 @@ async function notifyInterview(
     const added = new Set(addedInterviewers.map((email) => email.toLowerCase()));
     for (const email of data.interviewer_emails ?? []) {
       const interviewerKind = kind === "rescheduled" && added.has(email) ? "invitation" : kind;
-      await deliver(supabase, data, interviewerKind, { kind: "entrevistador", email });
+      const outcome = await deliver(supabase, data, interviewerKind, { kind: "entrevistador", email });
+      await recordInterviewerNotice(data.id, email, outcome);
     }
   } catch (error) {
     logServerError("interview.email", error);
+  }
+}
+
+/**
+ * Autoagenda: correo a la persona candidata con su enlace y los horarios
+ * ofrecidos. Devuelve si salió; sin correo (o con el envío desactivado) RRHH
+ * copia el enlace del diálogo. Nunca lanza.
+ */
+export async function sendBookingInvitationEmail(supabase: AppSupabaseClient, offerId: string, url: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("interview_booking_offers")
+      .select(
+        "id, application_id, duration_minutes, modality, expires_at, interview_booking_slots(starts_at), applications!inner(candidates(full_name, email), vacancies(title))",
+      )
+      .eq("id", offerId)
+      .maybeSingle();
+    if (error) throw error;
+    const to = data?.applications?.candidates?.email?.trim();
+    if (!data || !to) {
+      console.info(`[interview.booking.email] offer_id=${offerId} estado=sin_correo`);
+      return false;
+    }
+    const content = buildInterviewBookingEmail({
+      fullName: data.applications?.candidates?.full_name ?? "",
+      companyName: getServerEnv().PUBLIC_COMPANY_NAME,
+      vacancyTitle: data.applications?.vacancies?.title ?? "",
+      durationMinutes: data.duration_minutes,
+      modality: data.modality,
+      slots: (data.interview_booking_slots ?? []).map((slot) => slot.starts_at),
+      expiresAt: data.expires_at,
+      url,
+    });
+    const result = await sendEmail({ to, subject: content.subject, html: content.html, text: content.text, tags: [{ name: "type", value: "interview_booking" }] });
+    console.info(`[interview.booking.email] offer_id=${offerId} application_id=${data.application_id} estado=${result.sent ? "enviado" : "no_enviado"}`);
+    return result.sent;
+  } catch (error) {
+    logServerError("interview.booking.email", error);
+    return false;
   }
 }
 

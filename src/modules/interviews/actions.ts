@@ -11,7 +11,9 @@ import { autoEnqueueDeepDive } from "@/modules/evaluation/ai-queue";
 import { learnFromVerifications } from "@/modules/evaluation/learning";
 import { reevaluateAfterVerification } from "@/modules/evaluation/reevaluate";
 import { limaToIso } from "./datetime";
-import { scheduleInterviewEmail } from "./emails";
+import { bookingDeadlineIso, inviteToBookSchema, type InviteToBookInput } from "./booking";
+import { bookingUrl, createBookingToken } from "./booking-token";
+import { scheduleInterviewEmail, sendBookingInvitationEmail } from "./emails";
 import { listInterviewRequirements } from "./queries";
 import {
   cancelInterviewSchema,
@@ -261,4 +263,78 @@ export async function loadInterviewRequirements(interviewId: string): Promise<Ac
     const supabase = await createSupabaseServerClient();
     return listInterviewRequirements(supabase, id);
   });
+}
+
+/**
+ * Autoagenda: invita a la persona a elegir entre 1 y 6 horarios. Devuelve el
+ * enlace (para copiarlo si no tiene correo o si el envío está desactivado) y si
+ * el correo salió.
+ */
+export async function inviteToBook(input: InviteToBookInput): Promise<ActionResult<{ url: string; emailed: boolean }>> {
+  return runAction(
+    "interviews.booking_invite",
+    async () => {
+      await requirePermission("applications:manage");
+      const values = parseInput(inviteToBookSchema, input);
+      const slots = values.slots.map(scheduledAtOf);
+      const deadline = bookingDeadlineIso(slots, values.deadlineDate ? scheduledAtOf({ date: values.deadlineDate, time: values.deadlineTime }) : null);
+      const { token, hash } = createBookingToken();
+      const supabase = await createSupabaseServerClient();
+      const { data: offerId, error } = await supabase.rpc("create_interview_booking", {
+        p_application_id: values.applicationId,
+        p_slots: slots,
+        p_duration_minutes: Number(values.durationMinutes),
+        p_modality: values.modality,
+        p_location: values.location || null,
+        p_interviewers: values.interviewers || null,
+        p_instructions: values.instructions || null,
+        p_interviewer_emails: parseInterviewerEmails(values.interviewerEmails),
+        p_expires_at: deadline,
+        p_token_hash: hash,
+      });
+      if (error) throw toAppError(error);
+      const url = bookingUrl(token);
+      const emailed = await sendBookingInvitationEmail(supabase, offerId, url);
+      revalidateInterviews(values.applicationId);
+      return { url, emailed };
+    },
+    "Invitación a agendar creada.",
+  );
+}
+
+/** Cancela la invitación a agendar pendiente (el enlace deja de funcionar). */
+export async function cancelBooking(offerId: string): Promise<ActionResult> {
+  return runAction(
+    "interviews.booking_cancel",
+    async () => {
+      await requirePermission("applications:manage");
+      const id = parseInput(z.uuid(), offerId);
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase.rpc("cancel_interview_booking", { p_offer_id: id });
+      if (error) throw toAppError(error);
+      revalidateInterviews();
+      return null;
+    },
+    "Invitación cancelada.",
+  );
+}
+
+/**
+ * «Copiar enlace»: la base guarda solo el hash del enlace, así que se emite uno
+ * nuevo y el anterior deja de funcionar.
+ */
+export async function renewBookingLink(offerId: string): Promise<ActionResult<{ url: string }>> {
+  return runAction(
+    "interviews.booking_renew",
+    async () => {
+      await requirePermission("applications:manage");
+      const id = parseInput(z.uuid(), offerId);
+      const { token, hash } = createBookingToken();
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase.rpc("renew_interview_booking_link", { p_offer_id: id, p_token_hash: hash });
+      if (error) throw toAppError(error);
+      return { url: bookingUrl(token) };
+    },
+    "Enlace nuevo copiado. El anterior dejó de funcionar.",
+  );
 }
