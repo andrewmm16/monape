@@ -14,7 +14,7 @@ Los planes detallados por etapa (carpetas `etapa-1/`, `etapa-2/` y `etapa-3/`) s
 | 6 | ~~El trigger `handle_new_user` lee el rol de `app_metadata`, pero Supabase Auth lo guarda después de insertar el usuario.~~ **Resuelto el 23/10/2026** (migración `20261023000500`): toda cuenta sin rol válido nace desactivada, y la invitación y el script de datos ficticios la activan con su rol. | — | — |
 | 7 | ~~Al eliminar un candidato (solo por SQL/administración) no se borran sus archivos del bucket.~~ **Resuelto el 18/11/2026**: la tarea diaria `/api/tareas/limpieza-cv` borra los CV que nada referencia (ver riesgo 15). | — | — |
 | 8 | ~~La detección de años de experiencia es heurística (menciones explícitas de «años de experiencia»), no calcula por fechas.~~ **Resuelto el 28/10/2026**: se calculan por las fechas de la sección de experiencia (`experience-dates.ts`), y desde el 19/11/2026 (reglas-v13) también con años de dos dígitos («01/19 – 12/23»). | — | — |
-| 9 | El estado de notificación en el listado de candidatos muestra «No disponible». | Informativo. | Etapa 3, paquete 3.2. |
+| 9 | ~~El estado de notificación en el listado de candidatos muestra «No disponible».~~ **Ya no aplica**: la columna se quitó el 03/11/2026 (a75b7af). | — | — |
 | 10 | ~~Sin modo oscuro ni selector de tema.~~ **Ya existe**: selector de tema en la barra superior. | — | — |
 | 11 | Next.js 16 anuncia Cache Components obligatorio en la próxima versión mayor; la app lo desactiva para usar CSP con nonce. | Migración futura. | Revisar al actualizar Next.js. |
 | 12 | ~~El límite de tiempo de la extracción de PDF no cancelaba el trabajo de PDF.js; un PDF patológico podía ocupar la función hasta su tiempo máximo.~~ **Resuelto en local el 27/10/2026.** La extracción corre en un `worker_threads` con límites de memoria y de pila, y un plazo de 20 s. Al vencer el plazo, el worker se termina. | Falta probarlo en Vercel (el rastreo de archivos incluye el worker). | Verificar en el primer despliegue. |
@@ -59,6 +59,12 @@ Comprende la infraestructura de correo con Resend, plantillas y bandeja con apro
 Falta un dominio verificado en Resend para enviar de verdad, que se configura en el despliegue.
 
 ~~En celulares de 390 px, la campana y el menú se salían de la pantalla.~~ Resuelto el 18/11/2026: en celulares el menú de usuario muestra solo el ícono (`tests/e2e/diseno-movil.spec.ts`, a 360 y 390 px).
+
+## Siguientes pasos de la autoagenda (20/11/2026)
+
+- **Opción B:** disponibilidad semanal por persona entrevistadora, con horarios generados automáticamente. Los horarios ya son filas concretas (`interview_booking_slots`) y el control de «horario tomado» ya existe, así que solo falta quien los genere.
+- Integración con Google Calendar u Outlook, para leer los calendarios reales.
+- Que la persona reprograme sola.
 
 ## Etapa 4 · Producción
 

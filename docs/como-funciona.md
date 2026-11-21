@@ -268,6 +268,13 @@ Las personas descartadas («No seleccionado» o «Retirado») no entran en la co
 
 La postulación pasa a «Entrevista programada».
 
+**Invitar a agendar (autoagenda).** En lugar de fijar la hora, Luis puede pulsar «Invitar a agendar» y ofrecer de 1 a 6 horarios, con la misma duración, modalidad y entrevistadores de siempre. La persona recibe un correo con un enlace privado, entra sin cuenta, elige el horario que le acomoda y la entrevista se programa sola: llegan los avisos y el recordatorio de siempre, y la postulación pasa a «Entrevista programada».
+- Si la persona no tiene correo, el diálogo muestra el enlace para copiarlo y enviárselo por otro medio.
+- Mientras espera, la tarjeta «Entrevistas» muestra la invitación pendiente, con «Copiar enlace nuevo» (el anterior deja de funcionar) y «Cancelar invitación».
+- Si nadie elige antes del plazo (por defecto, 2 horas antes del primer horario), la invitación vence y Luis recibe el aviso en la campana.
+- Un horario que Luis ya ocupó con otra entrevista deja de ofrecerse, para que dos personas no tomen la misma hora.
+- Si Luis programa la entrevista a mano, la invitación pendiente se cancela sola.
+
 **Preguntas para la entrevista.** La pestaña «Preguntas para la entrevista» de la postulación las agrupa en tres partes:
 - **Requisitos por confirmar:** lo que el CV no acredita.
 - **Otros puntos para aclarar:** respuestas eliminatorias que no cumplen y fechas del historial que no cuadran.
@@ -291,6 +298,8 @@ El panel muestra además las próximas entrevistas de la semana.
 | **No asistió** | No cambia; se puede reprogramar |
 
 En la misma ficha puede marcar qué requisitos comprobó en la entrevista, con «Cumple» o «No cumple». Quedan como «Verificado · Entrevista» y la puntuación se recalcula.
+
+**Candidatos de la base de talentos que encajan.** En la pestaña «Candidatos» de una vacante en borrador o publicada aparecen personas del histórico, sin un proceso en curso, cuyo CV el motor evaluó frente a los requisitos de esta vacante. Muestra su cumplimiento, cuántos obligatorios cumplen y cuáles faltan. Entran quienes llegan al 40 % o cumplen todos los obligatorios, y se ordenan por obligatorios cumplidos y luego por cumplimiento. No usa IA ni guarda nada: desde ahí Luis las invita (con su consentimiento) o las añade al proceso. Para no evaluar a toda la base cada vez, primero se buscan las personas cuyo CV menciona términos de los requisitos (sus descripciones y palabras clave) y se evalúan como máximo 200; alguien que solo encajaría por un sinónimo que no está entre esos términos puede no aparecer.
 
 **Descartados, no borrados.** En la pestaña «Candidatos» de la vacante hay dos vistas: **«En proceso»** y **«Descartados»**, con quienes no pasaron o se retiraron. Nada se elimina: el historial queda completo, y para reactivar a alguien basta con cambiar su estado en la postulación.
 
